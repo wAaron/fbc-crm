@@ -1,0 +1,36 @@
+<?php 
+/** 
+  * Copyright: dtbaker 2012
+  * Licence: Please check CodeCanyon.net for licence details. 
+  * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
+  * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
+  * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
+  * Package Date: 2013-02-27 19:09:56 
+  * IP Address: 
+  */
+class Fetcher {
+  /**
+   * Fetches the data identified by $data_id, wraps it into FetchedData object together with 
+   * any auxiliary information (like HTTP response headers, number of redirect, fetched file information
+   * or something else) and returns this object.
+   *
+   * @param String $data_id unique identifier of the data to be fetched (URI, file path, primary key of the database record or something else)
+   *
+   * @return FetchedData object containing the fetched file contents and auxiliary information, if exists.
+   */
+  function get_data($data_id) {
+    die("Oops. Inoverridden 'get_data' method called in ".get_class($this));
+  }
+
+  /**
+   * @return String value of base URL to use for resolving relative links inside the document
+   */
+  function get_base_url() {
+    die("Oops. Inoverridden 'get_base_url' method called in ".get_class($this));
+  }
+
+  function error_message() {
+    die("Oops. Inoverridden 'error_message' method called in ".get_class($this));
+  }
+}
+?>

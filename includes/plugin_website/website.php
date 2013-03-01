@@ -1,0 +1,605 @@
+<?php 
+/** 
+  * Copyright: dtbaker 2012
+  * Licence: Please check CodeCanyon.net for licence details. 
+  * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
+  * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
+  * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
+  * Package Date: 2013-02-27 19:09:56 
+  * IP Address: 
+  */
+
+
+
+class module_website extends module_base{
+
+	public $links;
+	public $website_types;
+
+    public static function can_i($actions,$name=false,$category=false,$module=false){
+        if(!$module)$module=__CLASS__;
+        return parent::can_i($actions,$name,$category,$module);
+    }
+	public static function get_class() {
+        return __CLASS__;
+    }
+	public function init(){
+		$this->links = array();
+		$this->website_types = array();
+		$this->module_name = "website";
+		$this->module_position = 16;
+        $this->version = 2.245;
+        //2.21 - fix for customer id not getting saved.
+        //2.22 - delete customer from a group
+        //2.23 - theme include support.
+        //2.24 - hooks for change request plugin
+        //2.241 - got CSV import working nicely
+        //2.242 - urlify added for better url field support
+        //2.243 - bug fix in swapping customers
+        //2.244 - bug fix for job currency in "edit website" page
+        //2.245 - extra fields update - show in main listing option
+
+
+        if($this->can_i('view',module_config::c('project_name_plural','Websites'))){
+            $this->ajax_search_keys = array(
+                _DB_PREFIX.'website' => array(
+                    'plugin' => 'website',
+                    'search_fields' => array(
+                        'url',
+                        'name',
+                    ),
+                    'key' => 'website_id',
+                    'title' => _l(module_config::c('project_name_single','Website').': '),
+                ),
+            );
+
+            // only display if a customer has been created.
+            if(isset($_REQUEST['customer_id']) && $_REQUEST['customer_id'] && $_REQUEST['customer_id']!='new'){
+                // how many websites?
+                $websites = $this->get_websites(array('customer_id'=>$_REQUEST['customer_id']));
+                $name = module_config::c('project_name_plural','Websites');
+                if(count($websites)){
+                    $name .= " <span class='menu_label'>".count($websites)."</span> ";
+                }
+                $this->links[] = array(
+                    "name"=>$name,
+                    "p"=>"website_admin",
+                    'args'=>array('website_id'=>false),
+                    'holder_module' => 'customer', // which parent module this link will sit under.
+                    'holder_module_page' => 'customer_admin_open',  // which page this link will be automatically added to.
+                    'menu_include_parent' => 0,
+                );
+            }
+            $this->links[] = array(
+                "name"=>module_config::c('project_name_plural','Websites'),
+                "p"=>"website_admin",
+                'args'=>array('website_id'=>false),
+            );
+
+        }
+		
+	}
+
+    public static function link_generate($website_id=false,$options=array(),$link_options=array()){
+
+        $key = 'website_id';
+        if($website_id === false && $link_options){
+            foreach($link_options as $link_option){
+                if(isset($link_option['data']) && isset($link_option['data'][$key])){
+                    ${$key} = $link_option['data'][$key];
+                    break;
+                }
+            }
+            if(!${$key} && isset($_REQUEST[$key])){
+                ${$key} = $_REQUEST[$key];
+            }
+        }
+        $bubble_to_module = false;
+        if(!isset($options['type']))$options['type']='website';
+        $options['page'] = 'website_admin';
+        if(!isset($options['arguments'])){
+            $options['arguments'] = array();
+        }
+        $options['arguments']['website_id'] = $website_id;
+        $options['module'] = 'website';
+        if((int)$website_id > 0){
+            $data = self::get_website($website_id);
+            $options['data'] = $data;
+        }else{
+            $data = array();
+            if(isset($_REQUEST['customer_id']) && (int)$_REQUEST['customer_id']>0){
+                $data['customer_id'] = (int)$_REQUEST['customer_id'];
+            }
+            if(!isset($options['full']) || !$options['full']){
+                // we are not doing a full <a href> link, only the url (eg: create new website)
+            }else{
+                // we are trying to do a full <a href> link -
+                return _l('N/A');
+            }
+        }
+        // what text should we display in this link?
+        $options['text'] = (!isset($data['name'])||!trim($data['name'])) ? _l('N/A') : $data['name'];
+        if(isset($data['customer_id']) && $data['customer_id']>0){
+            $bubble_to_module = array(
+                'module' => 'customer',
+                'argument' => 'customer_id',
+            );
+        }
+        array_unshift($link_options,$options);
+
+        if(!module_security::has_feature_access(array(
+            'name' => 'Customers',
+            'module' => 'customer',
+            'category' => 'Customer',
+            'view' => 1,
+            'description' => 'view',
+        ))){
+            if(!isset($options['full']) || !$options['full']){
+                return '#';
+            }else{
+                return isset($options['text']) ? $options['text'] : _l('N/A');
+            }
+
+        }
+        if($bubble_to_module){
+            global $plugins;
+            return $plugins[$bubble_to_module['module']]->link_generate(false,array(),$link_options);
+        }else{
+            // return the link as-is, no more bubbling or anything.
+            // pass this off to the global link_generate() function
+            return link_generate($link_options);
+
+        }
+    }
+
+	public static function link_open($website_id,$full=false){
+        return self::link_generate($website_id,array('full'=>$full));
+    }
+
+	
+	public function process(){
+		$errors=array();
+		if(isset($_REQUEST['butt_del']) && $_REQUEST['butt_del'] && $_REQUEST['website_id']){
+            $data = self::get_website($_REQUEST['website_id']);
+            if(module_form::confirm_delete('website_id',"Really delete ".module_config::c('project_name_single','Website').": ".$data['name'],self::link_open($_REQUEST['website_id']))){
+                $this->delete_website($_REQUEST['website_id']);
+                set_message(module_config::c('project_name_single','Website')." deleted successfully");
+                redirect_browser(self::link_open(false));
+            }
+		}else if("save_website" == $_REQUEST['_process']){
+			$website_id = $this->save_website($_REQUEST['website_id'],$_POST);
+            hook_handle_callback('website_save',$website_id);
+			$_REQUEST['_redirect'] = $this->link_open($website_id);
+			set_message(module_config::c('project_name_single','Website')." saved successfully");
+		}
+		if(!count($errors)){
+			redirect_browser($_REQUEST['_redirect']);
+			exit;
+		}
+		print_error($errors,true);
+	}
+
+
+	public static function get_websites($search=array()){
+		// limit based on customer id
+		/*if(!isset($_REQUEST['customer_id']) || !(int)$_REQUEST['customer_id']){
+			return array();
+		}*/
+		// build up a custom search sql query based on the provided search fields
+		$sql = "SELECT u.*,u.website_id AS id ";
+        $sql .= ", u.name AS name ";
+        $sql .= ", c.customer_name ";
+        $sql .= ", cc.name AS customer_contact_fname ";
+        $sql .= ", cc.last_name AS customer_contact_lname ";
+        $sql .= ", cc.email AS customer_contact_email ";
+        // add in our extra fields for the csv export
+        //if(isset($_REQUEST['import_export_go']) && $_REQUEST['import_export_go'] == 'yes'){
+        if(class_exists('module_extra',false)){
+            $sql .= " , (SELECT GROUP_CONCAT(ex.`extra_key` ORDER BY ex.`extra_id` ASC SEPARATOR '"._EXTRA_FIELD_DELIM."') FROM `"._DB_PREFIX."extra` ex WHERE owner_id = u.website_id AND owner_table = 'website') AS extra_keys";
+            $sql .= " , (SELECT GROUP_CONCAT(ex.`extra` ORDER BY ex.`extra_id` ASC SEPARATOR '"._EXTRA_FIELD_DELIM."') FROM `"._DB_PREFIX."extra` ex WHERE owner_id = u.website_id AND owner_table = 'website') AS extra_vals";
+        }
+        $from = " FROM `"._DB_PREFIX."website` u ";
+        $from .= " LEFT JOIN `"._DB_PREFIX."customer` c USING (customer_id)";
+        $from .= " LEFT JOIN `"._DB_PREFIX."user` cc ON c.primary_user_id = cc.user_id ";
+		$where = " WHERE 1 ";
+		if(isset($search['generic']) && $search['generic']){
+			$str = mysql_real_escape_string($search['generic']);
+			$where .= " AND ( ";
+			$where .= " u.name LIKE '%$str%' OR ";
+			$where .= " u.url LIKE '%$str%'  ";
+			$where .= ' ) ';
+		}
+        foreach(array('customer_id','status') as $key){
+            if(isset($search[$key]) && $search[$key] !== ''&& $search[$key] !== false){
+                $str = mysql_real_escape_string($search[$key]);
+                $where .= " AND u.`$key` = '$str'";
+            }
+        }
+        // tie in with customer permissions to only get jobs from customers we can access.
+        switch(module_customer::get_customer_data_access()){
+            case _CUSTOMER_ACCESS_ALL:
+                // all customers! so this means all jobs!
+                break;
+            case _CUSTOMER_ACCESS_CONTACTS:
+                // we only want customers that are directly linked with the currently logged in user contact.
+                $valid_customer_ids = module_security::get_customer_restrictions();
+                if(count($valid_customer_ids)){
+                    $where .= " AND ( ";
+                    foreach($valid_customer_ids as $valid_customer_id){
+                        $where .= " u.customer_id = '".(int)$valid_customer_id."' OR ";
+                    }
+                    $where = rtrim($where,'OR ');
+                    $where .= " )";
+                }
+                /*
+                if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
+                    // this session variable is set upon login, it holds their customer id.
+                    // todo - share a user account between multiple customers!
+                    //$where .= " AND c.customer_id IN (SELECT customer_id FROM )";
+                    $where .= " AND u.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
+                }*/
+                break;
+            case _CUSTOMER_ACCESS_TASKS:
+                // only customers who have a job that I have a task under.
+                // this is different to "assigned jobs" Above
+                // this will return all jobs for a customer even if we're only assigned a single job for that customer
+                // tricky!
+                // copied from customer.php
+                $where .= " AND u.website_id IN ";
+                $where .= " ( SELECT jj.website_id FROM `"._DB_PREFIX."job` jj ";
+                $where .= " LEFT JOIN `"._DB_PREFIX."task` tt ON jj.job_id = tt.job_id ";
+                $where .= " WHERE (jj.user_id = ".(int)module_security::get_loggedin_id()." OR tt.user_id = ".(int)module_security::get_loggedin_id().")";
+                $where .= " )";
+
+                break;
+        }
+
+		$group_order = ' GROUP BY u.website_id ORDER BY u.name'; // stop when multiple company sites have same region
+		$sql = $sql . $from . $where . $group_order;
+		$result = qa($sql);
+		//module_security::filter_data_set("website",$result);
+		return $result;
+//		return get_multiple("website",$search,"website_id","fuzzy","name");
+
+	}
+	public static function get_website($website_id){
+		$website = get_single("website","website_id",$website_id);
+        if($website){
+            switch(module_customer::get_customer_data_access()){
+                case _CUSTOMER_ACCESS_ALL:
+
+                    break;
+                case _CUSTOMER_ACCESS_CONTACTS:
+                    // we only want customers that are directly linked with the currently logged in user contact.
+                    $valid_customer_ids = module_security::get_customer_restrictions();
+                    if(count($valid_customer_ids)){
+                        $is_valid_website = false;
+                        foreach($valid_customer_ids as $valid_customer_id){
+                            if($website['customer_id'] && $website['customer_id'] == $valid_customer_id){
+                                $is_valid_website = true;
+                            }
+                        }
+                        if(!$is_valid_website){
+                            $website = false;
+                        }
+                    }
+                    /*
+                    if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
+                        // this session variable is set upon login, it holds their customer id.
+                        //$where .= " AND c.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
+                        if(!isset($website['customer_id']) || !$website['customer_id'] || $website['customer_id'] != $_SESSION['_restrict_customer_id']){
+                            $website = false;
+                        }
+                    }*/
+                    break;
+                case _CUSTOMER_ACCESS_TASKS:
+                    // only customers who have linked jobs that I am assigned to.
+                    $has_job_access = false;
+                    if(isset($website['customer_id']) && $website['customer_id']){
+                        $jobs = module_job::get_jobs(array('customer_id'=>$website['customer_id']));
+                        foreach($jobs as $job){
+                            if($job['user_id']==module_security::get_loggedin_id()){
+                                $has_job_access=true;
+                                break;
+                            }
+                            $tasks = module_job::get_tasks($job['job_id']);
+                            foreach($tasks as $task){
+                                if($task['user_id']==module_security::get_loggedin_id()){
+                                    $has_job_access=true;
+                                    break;
+                                }
+                            }
+                        }
+                    }
+                    if(!$has_job_access){
+                        $website = false;
+                    }
+                    break;
+            }
+        }
+
+        if(!$website){
+            $website = array(
+                'website_id' => 'new',
+                'customer_id' => isset($_REQUEST['customer_id']) ? $_REQUEST['customer_id'] : 0,
+                'name' => '',
+                'status'  => module_config::s('website_status_default','New'),
+                'url' => '',
+            );
+        }
+		return $website;
+	}
+	public function save_website($website_id,$data){
+        if((int)$website_id>0){
+            $original_website_data = $this->get_website($website_id);
+            if(!$original_website_data || $original_website_data['website_id'] != $website_id){
+                $original_website_data = array();
+                $website_id = false;
+            }
+        }else{
+            $original_website_data = array();
+            $website_id = false;
+        }
+
+        // check create permissions.
+        if(!$website_id && !self::can_i('create','Websites')){
+            // user not allowed to create websites.
+            set_error('Unable to create new Websites');
+            redirect_browser(self::link_open(false));
+        }
+
+		$website_id = update_insert("website_id",$website_id,"website",$data);
+        if(isset($original_website_data['customer_id']) && $original_website_data['customer_id'] && isset($data['customer_id']) && $data['customer_id'] && $original_website_data['customer_id'] != $data['customer_id']){
+            //module_cache::clear_cache();
+            // the customer id has changed. update jobs and invoices.
+            // bad! this will swap all jobs, invoices and files from this customer to another customer.
+            //module_job::customer_id_changed($original_website_data['customer_id'],$data['customer_id']);
+        }
+        module_extra::save_extras('website','website_id',$website_id);
+		return $website_id;
+	}
+
+	public static function delete_website($website_id){
+		$website_id=(int)$website_id;
+		if(_DEMO_MODE && $website_id == 1){
+			return;
+		}
+        if((int)$website_id>0){
+            $original_website_data = self::get_website($website_id);
+            if(!$original_website_data || $original_website_data['website_id'] != $website_id){
+                return false;
+            }
+        }
+        if(!self::can_i('delete','Websites')){
+            return false;
+        }
+		$sql = "DELETE FROM "._DB_PREFIX."website WHERE website_id = '".$website_id."' LIMIT 1";
+		query($sql);
+        if(class_exists('module_group',false)){
+            module_group::delete_member($website_id,'website');
+        }
+        foreach(module_job::get_jobs(array('website_id'=>$website_id)) as $val){
+            module_job::delete_job($val['website_id']);
+        }
+		module_note::note_delete("website",$website_id);
+        module_extra::delete_extras('website','website_id',$website_id);
+	}
+    public function login_link($website_id){
+        return module_security::generate_auto_login_link($website_id);
+    }
+
+    public static function get_statuses(){
+        $sql = "SELECT `status` FROM `"._DB_PREFIX."website` GROUP BY `status` ORDER BY `status`";
+        $statuses = array();
+        foreach(qa($sql) as $r){
+            $statuses[$r['status']] = $r['status'];
+        }
+        return $statuses;
+    }
+
+
+    public function get_install_sql(){
+        ob_start();
+        ?>
+
+CREATE TABLE `<?php echo _DB_PREFIX; ?>website` (
+  `website_id` int(11) NOT NULL auto_increment,
+  `customer_id` INT(11) NULL,
+  `url` varchar(255) NOT NULL DEFAULT  '',
+  `name` varchar(255) NOT NULL DEFAULT  '',
+  `status` varchar(255) NOT NULL DEFAULT  '',
+  `date_created` date NULL,
+  `date_updated` date NULL,
+  PRIMARY KEY  (`website_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+    <?php
+// todo: add default admin permissions.
+        
+        return ob_get_clean();
+    }
+
+    public static function handle_import_row_debug($row, $add_to_group, $extra_options){
+        return self::handle_import_row($row,true,$add_to_group,$extra_options);
+    }
+
+    public static function handle_import_row($row, $debug, $add_to_group, $extra_options){
+
+        $debug_string = '';
+        if(!isset($row['name']))$row['name'] = '';
+        if(!isset($row['url']))$row['url'] = '';
+
+        if(isset($row['website_id']) && (int)$row['website_id']>0){
+            // check if this ID exists.
+            $website = self::get_website($row['website_id']);
+            if(!$website || $website['website_id'] != $row['website_id']){
+                $row['website_id'] = 0;
+            }
+        }
+        if(!isset($row['website_id']) || !$row['website_id']){
+            $row['website_id'] = 0;
+        }
+        if(isset($row['name']) && strlen(trim($row['name']))){
+            // we have a website name!
+            // search for a website based on name.
+            $website = get_single('website','name',$row['name']);
+            if($website && $website['website_id'] > 0){
+                $row['website_id'] = $website['website_id'];
+            }
+        }else if(isset($row['url'])){
+            $row['name'] = $row['url'];
+        }
+        if(!$row['website_id'] && isset($row['url']) && strlen(trim($row['url']))){
+            // we have a url! find a match too.
+            $website = get_single('website','url',$row['url']);
+            if($website && $website['website_id'] > 0){
+                $row['website_id'] = $website['website_id'];
+            }
+        }
+        if(!strlen($row['name']) && !strlen($row['url'])) {
+            $debug_string .= _l('No website data to import');
+            if($debug){
+                echo $debug_string;
+            }
+            return false;
+        }
+        // duplicates.
+        //print_r($extra_options);exit;
+        if(isset($extra_options['duplicates']) && $extra_options['duplicates'] == 'ignore' && (int)$row['website_id']>0){
+            if($debug){
+                $debug_string .= _l('Skipping import, duplicate of website %s',self::link_open($row['website_id'],true));
+                echo $debug_string;
+            }
+            // don't import duplicates
+            return false;
+        }
+        $row['customer_id'] = 0; // todo - support importing of this id? nah
+        if(isset($row['customer_name']) && strlen(trim($row['customer_name']))>0){
+            // check if this customer exists.
+            $customer = get_single('customer','customer_name',$row['customer_name']);
+            if($customer && $customer['customer_id'] > 0){
+                $row['customer_id'] = $customer['customer_id'];
+                $debug_string .= _l('Linked to customer %s',module_customer::link_open($row['customer_id'],true)) .' ';
+            }else{
+                $debug_string .= _l('Create new customer: %s',htmlspecialchars($row['customer_name'])) .' ';
+            }
+        }else{
+            $debug_string .= _l('No customer').' ';
+        }
+        if($row['website_id']){
+            $debug_string .= _l('Replace existing website: %s',self::link_open($row['website_id'],true)).' ';
+        }else{
+            $debug_string .= _l('Insert new website: %s',htmlspecialchars($row['url'])).' ';
+        }
+
+        $customer_primary_user_id = 0;
+        if($row['customer_id']>0 && isset($row['customer_contact_email']) && strlen(trim($row['customer_contact_email']))){
+            $users = module_user::get_users(array('customer_id'=>$row['customer_id']>0));
+            foreach($users as $user){
+                if(strtolower(trim($user['email']))==strtolower(trim($row['customer_contact_email']))){
+                    $customer_primary_user_id = $user['user_id'];
+                    $debug_string .= _l('Customer primary contact is: %s',module_user::link_open_contact($customer_primary_user_id,true)).' ';
+                    break;
+                }
+            }
+        }
+
+        if($debug){
+            echo $debug_string;
+            return true;
+        }
+        if(isset($extra_options['duplicates']) && $extra_options['duplicates'] == 'ignore' && $row['customer_id'] > 0){
+            // don't update customer record with new one.
+
+        }else if((isset($row['customer_name']) && strlen(trim($row['customer_name']))>0) || $row['customer_id']>0){
+            // update customer record with new one.
+            $row['customer_id'] = update_insert('customer_id',$row['customer_id'],'customer',$row);
+            if(isset($row['customer_contact_fname']) || isset($row['customer_contact_email'])){
+                $data = array(
+                    'customer_id' => $row['customer_id']
+                );
+                if(isset($row['customer_contact_fname'])){
+                    $data['name']=$row['customer_contact_fname'];
+                }
+                if(isset($row['customer_contact_lname'])){
+                    $data['last_name']=$row['customer_contact_lname'];
+                }
+                if(isset($row['customer_contact_email'])){
+                    $data['email']=$row['customer_contact_email'];
+                }
+                if(isset($row['customer_contact_phone'])){
+                    $data['phone']=$row['customer_contact_phone'];
+                }
+                $customer_primary_user_id = update_insert("user_id",$customer_primary_user_id,"user",$data);
+                module_customer::set_primary_user_id($row['customer_id'],$customer_primary_user_id);
+            }
+        }
+        $website_id = (int)$row['website_id'];
+        // check if this ID exists.
+        $website = self::get_website($website_id);
+        if(!$website || $website['website_id'] != $website_id){
+            $website_id = 0;
+        }
+        $website_id = update_insert("website_id",$website_id,"website",$row);
+
+        // handle any extra fields.
+        $extra = array();
+        foreach($row as $key=>$val){
+            if(!strlen(trim($val)))continue;
+            if(strpos($key,'extra:')!==false){
+                $extra_key = str_replace('extra:','',$key);
+                if(strlen($extra_key)){
+                    $extra[$extra_key] = $val;
+                }
+            }
+        }
+        if($extra){
+            foreach($extra as $extra_key => $extra_val){
+                // does this one exist?
+                $existing_extra = module_extra::get_extras(array('owner_table'=>'website','owner_id'=>$website_id,'extra_key'=>$extra_key));
+                $extra_id = false;
+                foreach($existing_extra as $key=>$val){
+                    if($val['extra_key']==$extra_key){
+                        $extra_id = $val['extra_id'];
+                    }
+                }
+                $extra_db = array(
+                    'extra_key' => $extra_key,
+                    'extra' => $extra_val,
+                    'owner_table' => 'website',
+                    'owner_id' => $website_id,
+                );
+                $extra_id = (int)$extra_id;
+                update_insert('extra_id',$extra_id,'extra',$extra_db);
+            }
+        }
+
+        foreach($add_to_group as $group_id => $tf){
+            module_group::add_to_group($group_id,$website_id,'website');
+        }
+
+        return $website_id;
+
+    }
+
+    public static function handle_import($data,$add_to_group,$extra_options){
+
+        // woo! we're doing an import.
+        $count = 0;
+        // first we find any matching existing websites. skipping duplicates if option is set.
+        foreach($data as $rowid => $row){
+            if(self::handle_import_row($row, false, $add_to_group, $extra_options)){
+                $count++;
+            }
+        }
+        return $count;
+
+
+    }
+
+    public static function urlify($url){
+        // todo: check for http:// etc..
+        if($url)return 'http://'.htmlspecialchars($url);
+    }
+
+}
