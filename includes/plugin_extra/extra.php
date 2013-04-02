@@ -224,7 +224,7 @@ class module_extra extends module_base{
                         </td>
                     </tr>
                 <?php } ?>
-                <?php if($allow_new){ ?>
+                <?php if($allow_new && module_security::is_admin()){ ?>
                     <tr id="extra_<?php echo $extra_id;?>">
                         <th>
                             <input type="text" name="extra_<?php echo $owner_table;?>_field[<?php echo $extra_id;?>][key]" value="<?php ?>" class="extra_field">
