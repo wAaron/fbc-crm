@@ -93,6 +93,14 @@ if(class_exists('module_security',false)){
 							</td>
 						</tr>
                         <?php if($customer_id && $customer_id!='new'){ ?>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer NO'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_no" id="customer_no" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_no']); ?>" />
+                            </td>
+                        </tr>
 						<tr>
 							<th>
 								<?php echo _l('Logo'); ?>

@@ -163,6 +163,12 @@ $pagination = process_pagination($customers);
 <table class="search_bar">
 	<tr>
 		<th><?php _e('Filter By:'); ?></th>
+        <td class="search_title">
+            <?php _e('Customer NO:');?>
+        </td>
+        <td class="search_input">
+            <input type="text" style="width: 90px;" name="search[customer_no]" class="" value="<?php echo isset($search['customer_no'])?htmlspecialchars($search['customer_no']):''; ?>">
+        </td>
 		<td class="search_title">
 			<?php _e('Names, Phone or Email:');?>
 		</td>
@@ -194,6 +200,7 @@ $pagination = process_pagination($customers);
 <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_rows">
 	<thead>
 	<tr class="title">
+        <th id="customer_no"><?php echo _l('Customer NO'); ?></th>
 		<th id="customer_name"><?php echo _l('Customer Name'); ?></th>
 		<th id="primary_contact_name"><?php echo _l('Primary Contact'); ?></th>
 		<th><?php echo _l('Phone Number'); ?></th>
@@ -217,6 +224,11 @@ $pagination = process_pagination($customers);
         module_debug::log(array('title'=>'row'));
         ?>
         <tr class="<?php echo ($c++%2)?"odd":"even"; ?>">
+
+            <td class="row_action">
+                <?php echo $customer['customer_no']; ?>
+            </td>
+
             <td class="row_action">
 	            <?php echo module_customer::link_open($customer['customer_id'],true); ?>
             </td>
@@ -303,10 +315,10 @@ $pagination = process_pagination($customers);
                 ?>
             </td>
             <?php } ?>
-
             <?php if(class_exists('module_extra',false)){
             module_extra::print_table_data('customer',$customer['customer_id']);
             } ?>
+
         </tr>
 	<?php } ?>
   </tbody>

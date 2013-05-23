@@ -254,7 +254,17 @@ class module_customer extends module_base{
         $sql .= ' LEFT JOIN `'._DB_PREFIX."user` u ON c.customer_id = u.customer_id"; //c.primary_user_id = u.user_id AND 
         $sql .= ' LEFT JOIN `'._DB_PREFIX."user` pu ON c.primary_user_id = pu.user_id";
         $sql .= ' LEFT JOIN `'._DB_PREFIX."address` a ON c.customer_id = a.owner_id AND a.owner_table = 'customer' AND a.address_type = 'physical'";
-		if(isset($search['generic']) && trim($search['generic'])){
+		
+        if(isset($search['customer_no']) && trim($search['customer_no'])){
+            $str = mysql_real_escape_string(trim($search['customer_no']));
+            // search the customer name, contact name, cusomter phone, contact phone, contact email.
+            //$where .= 'AND u.customer_id IS NOT NULL AND ( ';
+            $where .= " AND ( ";
+            $where .= "c.customer_no LIKE '%$str%' ";
+            $where .= ') ';
+        }
+
+        if(isset($search['generic']) && trim($search['generic'])){
 			$str = mysql_real_escape_string(trim($search['generic']));
 			// search the customer name, contact name, cusomter phone, contact phone, contact email.
 			//$where .= 'AND u.customer_id IS NOT NULL AND ( ';
