@@ -21,6 +21,52 @@ function friendly_key($data,$key){
 	return isset($data[$key]) ? $data[$key] : false;
 }
 
+function print_select_box_nokey($data,$id,$cur='',$class='',$blank=true,$array_id=false,$allow_new=false){
+	$sel = '<select name="'.$id.'" id="'.$id.'" class="'.$class.'"';
+	if($allow_new){
+		$sel .= ' onchange="dynamic_select_box(this);"';
+
+	}
+	$sel .= '>';
+	if($blank){
+		$foo = ucwords(str_replace("_"," ",$id));
+		$sel .= '<option value="">' . ($blank===true ? ' - Select - ' : $blank) . '</option>';
+	}
+	$found_selected = false;
+	$current_val = 'Enter new value here';
+	foreach($data as $val){
+		if(is_array($val)){
+			if(!$array_id){
+				if(isset($val[$id]))$array_id = $id;
+				else $array_id = key($val);
+			}
+			$printval = $val[$array_id];
+		}else{
+			$printval = $val;
+		}
+        if(strlen($printval)==0)continue;
+        $sel .= '<option value="'.htmlspecialchars($val).'"';
+        // to handle 0 elements:
+        if($cur !== false && ($cur != '') && $val == $cur){
+			$current_val = $printval;
+			$sel .= ' selected';
+			$found_selected = true;
+		}
+		$sel .= '>'.htmlspecialchars($printval).'</option>';
+	}
+	if($cur && !$found_selected){
+		$sel .= '<option value="'.$cur.'" selected>'.htmlspecialchars($cur).'</option>';
+	}
+	if($allow_new && get_display_mode() != 'mobile'){
+		$sel .= '<option value="create_new_item">'._l(' - Create New - ') .'</option>';
+	}
+	$sel .= '</select>';
+	if($allow_new){
+		//$sel .= '<input type="text" name="new_'.$id.'" style="display:none;" value="'.$current_val.'">';
+	}
+	return $sel;
+}
+
 function print_select_box($data,$id,$cur='',$class='',$blank=true,$array_id=false,$allow_new=false){
 	$sel = '<select name="'.$id.'" id="'.$id.'" class="'.$class.'"';
 	if($allow_new){

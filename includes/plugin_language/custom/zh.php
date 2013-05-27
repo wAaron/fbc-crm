@@ -106,6 +106,7 @@ $labels = array(
     'Showing records %s to %s of %s' => '显示%s条到%s条记录，共%s条记录',
     'Page %s of %s' => '第%s页，共%s页',
     'Filter By:' => '筛选条件:',
+    'Customer NO:' => '客户编号:',
     'Names, Phone or Email:' => '姓名、电话或电子邮件:',
     'Address:' => '地址:',
     'Edit Address' => '编辑地址',
@@ -565,11 +566,34 @@ $labels = array(
 
     'Customers' => '客户',
     'Customer Name' => '客户名称',
+    'Customer NO' => '客户编号',
+    'Customer Type' => '客户性质',
+    'Customer From' => '客户来源',
+    'Cooperate From' => '合作时间',
+    'Main Products' => '主营业务/产品',
+    'Pay in Days' => '付款周期',
+    'Pay Period' => '结算单发送周期',
+    'Success Stories' => '成功案例',
+    'Full Name' => '客户全称',
+    'English Name' => '英文名称',
+    'Customer Company Type' => '公司性质',
+    'Customer Level' => '客户等级',
+    'Customer Staff' => '公司人数',
+    'Company Size' => '公司规模',
+    'Customer Build From' => '成立时间',
+    'Customer is VIP' => '是否签订VIP合同',
+    'Customer VIP End' => 'VIP合同到期日期',
+    'Customer VIP Renew' => '自动续约期',
+    'Customer Ticket Type' => '开票情况',
+    'Customer Ticket Info' => '开票信息',
+    'Translation Speed' => '翻译速度',
+
     'Primary Contact' => '主要联系人',
     'Phone Number' => '电话号码',
     'Email Address' => '电子邮件地址',
     'Address' => '地址',
     'Group' => '群组',
+    'Unit Day' => '天',
 
     /** includes/plugin_ticket/pages/ticket_admin_edit.php **/
 
@@ -674,8 +698,8 @@ $labels = array(
     /** includes/plugin_customer/pages/customer_admin_edit.php **/
 
     'Customer Information' => '客户信息',
-    'Name' => '姓名',
-    'Logo' => '公司商标',
+    'Name' => '客户名称',
+    'Logo' => 'Logo',
     'Primary Contact Details' => '主要联系人的详细信息',
     'Address' => '地址',
     'Advanced' => '高级',

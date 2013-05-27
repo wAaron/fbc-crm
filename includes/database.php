@@ -312,16 +312,27 @@ function update_insert($pkey,$pid,$table,$data=false,$do_replace=false){
 		// special format for date fields.
 		if($field['type']=='date'){
 			$data[$field['name']] = input_date($data[$field['name']]);
+			error_log($data[$field['name']]);
+			if (empty($data[$field['name']])) {
+        		$data[$field['name']] = NULL;
+			}
 		}
 
 		if(is_array($data[$field['name']]))
 			$val = serialize($data[$field['name']]);
 		else
 			$val = $data[$field['name']];
-		$sql .= " `".$field['name']."` = '".mysql_real_escape_string($val)."', ";
+
+		//DDX Hack code: handle if database allow NULL
+		if ($val == NULL) {
+			$sql .= " `".$field['name']."` = NULL, ";
+		} else {
+			$sql .= " `".$field['name']."` = '".mysql_real_escape_string($val)."', ";
+		}
 	}
  	$sql = rtrim($sql,', ');
 	$sql .= $where;
+	error_log($sql);
 	query($sql);
 	if($pid == "new"){
 		$pid = mysql_insert_id();

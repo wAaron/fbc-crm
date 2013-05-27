@@ -56,6 +56,7 @@ if(class_exists('module_security',false)){
     module_form::set_required(array(
         'fields' => array(
             'customer_name' => 'Name',
+            'customer_no' => 'Customer NO',
             'name' => 'Contact Name',
         ))
     );
@@ -86,7 +87,7 @@ if(class_exists('module_security',false)){
 					<tbody>
 						<tr>
 							<th class="width1">
-								<?php echo _l('Name'); ?>
+								<?php echo _l('Customer Name'); ?>
 							</th>
 							<td>
 								<input type="text" name="customer_name" id="customer_name" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_name']); ?>" />
@@ -119,6 +120,192 @@ if(class_exists('module_security',false)){
                                 ?>
 							</td>
 						</tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer Type'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(array("分部门", "子公司", "分支机构"), "customer_type", $customer['customer_type']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer From'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(array("互联网", "朋友介绍", "宣传资料", "电子邮件", "传真"), "customer_from", $customer['customer_from']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Cooperate From'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(range(2002, 2020), "cooperate_from", $customer['cooperate_from']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Main Products'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_main_prod" id="customer_main_prod" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_main_prod']); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Translation Speed'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="translate_speed" id="translate_speed" class="currency" style="width:40px;" value="<?php echo htmlspecialchars($customer['translate_speed']); ?>" />
+                                <?php
+                                echo print_select_box_nokey(array("中文/天", "英文/天"), "translate_speed_unit", $customer['translate_speed_unit']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Pay in Days'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_pay_days" id="customer_pay_days" class="currency" style="width:40px;" value="<?php echo htmlspecialchars($customer['customer_pay_days']); ?>" />
+                                <?php echo _l('Unit Day'); ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Pay Period'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(array("按月", "按季"), "customer_pay_period", $customer['customer_pay_period']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Success Stories'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_success_story" id="customer_success_story" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_success_story']); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Full Name'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_full_name" id="customer_full_name" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_full_name']); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('English Name'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_full_en" id="customer_full_en" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_full_en']); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer Company Type'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(array("国有大型", "外商独资法人企业", "外商驻华代表处", "中外合资企业", "国内私营企业"), "customer_company_type", $customer['customer_company_type']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer Level'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(array("G", "A", "B", "C"), "customer_level", $customer['customer_level']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer Staff'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(array("10名以内", "10-50", "50-100名", "100名以上"), "customer_staff", $customer['customer_staff']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Company Size'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="company_size" id="company_size" style="width:250px;" value="<?php echo htmlspecialchars($customer['company_size']); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer Build From'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(range(1900, 2020), "customer_build_from", $customer['customer_build_from']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer is VIP'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(array("是", "否"), "customer_vip", $customer['customer_vip']);
+                                ?>
+                            </td>
+                        </tr>
+
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer VIP End'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_vip_end" id="customer_vip_end" class="date_field" value="<?php echo htmlspecialchars($customer['customer_vip_end']); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer VIP Renew'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_vip_renew" id="customer_vip_renew" class="date_field" value="<?php echo htmlspecialchars($customer['customer_vip_renew']); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer Ticket Type'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box_nokey(array("青睐", "韦勋", "两者"), "customer_ticket_type", $customer['customer_ticket_type']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer Ticket Info'); ?>
+                            </th>
+                            <td>
+                                <input type="text" name="customer_ticket_info" id="customer_ticket_info" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_ticket_info']); ?>" />
+                            </td>
+                        </tr>
+
                         <?php } ?>
                         <?php
                          module_extra::display_extras(array(
