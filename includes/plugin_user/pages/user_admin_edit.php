@@ -125,7 +125,10 @@ if(isset($user['email']) && strlen($user['email'])>3){
 				<td valign="top" width="50%">
 					<h3><?php echo _l('User Details'); ?></h3>
 
-					<?php include('contact_admin_form.php'); ?>
+					<?php 
+                    $include_contact_extend = false;
+                    include('contact_admin_form.php'); 
+                    ?>
 
 
                     <?php if(module_config::c('users_have_address',0)){ ?>

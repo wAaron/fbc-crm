@@ -167,7 +167,9 @@ if(isset($user['customer_id']) && $user['customer_id']){
 				<td valign="top" width="50%">
 					<h3><?php echo _l('Contact Details'); ?></h3>
 
-					<?php include('contact_admin_form.php'); ?>
+					<?php
+                    $include_contact_extend = true;
+                    include('contact_admin_form.php'); ?>
 
 
                     <?php if(module_config::c('users_have_address',0)){ ?>

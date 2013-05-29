@@ -47,6 +47,14 @@
 							</tr>
 							<tr>
 								<th>
+									<?php echo _l('Full EN Name'); ?>
+								</th>
+								<td>
+									<input type="text" name="contact_name_en" style="width: 200px;" value="<?php echo isset($user['contact_name_en'])? htmlspecialchars($user['contact_name_en']) : ''; ?>" />
+								</td>
+							</tr>
+							<tr>
+								<th>
 									<?php echo _l('Email Address'); ?>
 								</th>
 								<td>
@@ -88,6 +96,11 @@
 								</td>
 							</tr>
                             <?php } ?>
+                            <?php
+                            	if (isset($include_contact_extend) && $include_contact_extend == true) {
+                            		include 'contact_extend_form.php';
+                            	}
+                            ?>
 						</tbody>
                         <?php
                         if(isset($user['user_id']) && (int)$user['user_id']> 0){
