@@ -142,3 +142,21 @@
 									<input type="text" name="contact_misc" style="width: 200px;" value="<?php echo isset($user['contact_misc'])? htmlspecialchars($user['contact_misc']) : ''; ?>" />
 								</td>
 							</tr>
+							<tr>
+								<th>
+									<?php echo _l('Contact Importance'); ?>
+								</th>
+								<td>
+									<input id="contact_importance" type="hidden" name="contact_importance" value="<?php echo isset($user['contact_importance'])? htmlspecialchars($user['contact_importance']) : '0'; ?>" />
+									<div class="contact_star_rate" data-average="12" data-id="1" data-target="contact_importance"></div>
+								</td>
+							</tr>
+							<tr>
+								<th>
+									<?php echo _l('Contact Sensitive'); ?>
+								</th>
+								<td>
+									<input id="contact_sensitive" type="hidden" name="contact_sensitive" value="<?php echo isset($user['contact_sensitive'])? htmlspecialchars($user['contact_sensitive']) : '0'; ?>" />
+									<div class="contact_star_rate" data-average="12" data-id="1" data-target="contact_sensitive"></div>
+								</td>
+							</tr>

@@ -39,6 +39,7 @@ switch($display_mode){
             <link type="text/css" href="<?php echo _BASE_HREF;?>css/smoothness/jquery-ui-1.9.2.custom.min.css?ver=<?php echo _SCRIPT_VERSION;?>" rel="stylesheet" />
             <link rel="stylesheet" href="<?php echo _BASE_HREF;?>css/desktop.css?ver=<?php echo _SCRIPT_VERSION;?>" type="text/css" />
             <link rel="stylesheet" href="<?php echo _BASE_HREF;?>css/styles.css?ver=<?php echo _SCRIPT_VERSION;?>" type="text/css" />
+            <link rel="stylesheet" href="<?php echo _BASE_HREF;?>css/jRating.jquery.css" type="text/css" />
             <?php module_config::print_css(_SCRIPT_VERSION);?>
 
 
@@ -52,9 +53,11 @@ switch($display_mode){
 
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jquery-1.8.3.min.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jquery-ui-1.9.2.custom.min.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>
+        <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jRating.jquery.js"></script>
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/timepicker.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/cookie.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/javascript.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>
+        
         <?php module_config::print_js(_SCRIPT_VERSION);?>
 
 
@@ -97,6 +100,14 @@ switch($display_mode){
                     yearRange: '<?php echo module_config::c('calendar_year_range','-90:+3');?>'
                 };
                 $.datepicker.setDefaults($.datepicker.regional['ucmcal']);
+
+            	$(".contact_star_rate").jRating({
+            		  showRateInfo:false,
+            		  step:true,
+            		  length : 5,
+            		  canRateAgain : true,
+            		  nbRates: 100000,
+            	});
             });
         </script>
 
