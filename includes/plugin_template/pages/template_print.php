@@ -12,7 +12,7 @@
 $content = $_REQUEST['content'];
 
 ?>
-<iframe name="print_frame" id="print_frame" src="about:bl"
+<iframe name="print_frame" id="print_frame" src="about:blank" ></iframe>
 <form action="" method="post">
 
 	<input type="hidden" name="_process" value="print_template" />

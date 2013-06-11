@@ -521,6 +521,14 @@ class module_group extends module_base{
         $sql .= " WHERE gm.group_id = ".(int)$group_id;
         return qa($sql);
 	}
+	public static function get_members_by_name($group_name){
+		$sql = "SELECT gm.group_id, gm.owner_id, gm.owner_table ";
+		$sql .= " FROM `"._DB_PREFIX."group_member` gm";
+		$sql .= " LEFT JOIN `"._DB_PREFIX."group` g ON g.group_id = gm.group_id";
+		$sql .= " AND g.name = '".mysql_real_escape_string($group_name)."'";
+		return qa($sql);
+	}
+	
 	public static function get_member_groups($owner_table,$owner_id){
         $sql = "SELECT * FROM `"._DB_PREFIX."group_member` WHERE ";
         $sql .= " `owner_id` = '".(int)$owner_id."' AND ";

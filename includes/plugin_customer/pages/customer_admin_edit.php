@@ -46,6 +46,8 @@ if(class_exists('module_security',false)){
 	module_security::sanatise_data('customer',$customer);
 }
 
+$pms = module_customer::get_pm();
+$sales = module_customer::get_sales();
 
 ?>
 <form action="" method="post" id="customer_form">
@@ -198,6 +200,26 @@ if(class_exists('module_security',false)){
                         </tr>
                         <tr>
                             <th class="width1">
+                                <?php echo _l('Main Project Manager'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box($pms,'customer_main_pm',$customer['customer_main_pm']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Backup Project Manager'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box($pms,'customer_backup_pm',$customer['customer_backup_pm']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
                                 <?php echo _l('Full Name'); ?>
                             </th>
                             <td>
@@ -210,6 +232,26 @@ if(class_exists('module_security',false)){
                             </th>
                             <td>
                                 <input type="text" name="customer_full_en" id="customer_full_en" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_full_en']); ?>" />
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Previous Salesman'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box($sales,'customer_ex_salesman',$customer['customer_ex_salesman']);
+                                ?>
+                            </td>
+                        </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Current Salesman'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box($sales,'customer_current_salesman',$customer['customer_current_salesman']);
+                                ?>
                             </td>
                         </tr>
                         <tr>

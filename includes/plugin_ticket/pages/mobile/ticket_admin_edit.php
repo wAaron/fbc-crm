@@ -187,7 +187,7 @@ foreach($temp_tickets as $key=>$val){
                                         echo _l('(%s out of %s tickets)',ordinal($ticket['position']),$ticket['total_pending']);
                                     } 
                                     ?>
-                                    <input type="hidden" name="status_id" value="<?php echo $ticket['status_id'];?>"
+                                    <input type="hidden" name="status_id" value="<?php echo $ticket['status_id'];?>" />
 								</td>
 							</tr>
                             <?php if($ticket['last_message_timestamp']){ ?>

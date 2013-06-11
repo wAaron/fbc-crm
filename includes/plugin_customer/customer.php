@@ -236,7 +236,23 @@ class module_customer extends module_base{
 		return self::link_generate($customer_id,array('full'=>$full,'data'=>$data));
 	}
 
-
+	public static function get_pm() {
+		$admins = module_user::get_users_by_group('PM');
+		$admins_rel = array();
+		foreach($admins as $admin){
+			$admins_rel[$admin['user_id']] = $admin['name'];
+		}
+		return $admins_rel;
+	}
+	
+	public static function get_sales() {
+		$admins = module_user::get_users_by_group('SALES');
+		$admins_rel = array();
+		foreach($admins as $admin){
+			$admins_rel[$admin['user_id']] = $admin['name'];
+		}
+		return $admins_rel;
+	}
 
 	public static function get_customers($search=array()){
 

@@ -1031,6 +1031,30 @@ class module_user extends module_base{
         return $users;
 
     }
+    
+    static $users_by_group_cache = array();
+    public static function get_users_by_group($group_name){
+    	$cache_key = md5(serialize($group_name));
+    	if(isset(self::$users_by_group_cache[$cache_key]))return self::$users_by_group_cache[$cache_key];
+    	
+    	
+    	$sql = "SELECT u.*, u.user_id AS id FROM `"._DB_PREFIX."user` u WHERE u.user_id IN (";
+    	
+    	$sql .= "SELECT gm.owner_id";
+    	$sql .= " FROM `"._DB_PREFIX."group_member` gm";
+    	$sql .= " , `"._DB_PREFIX."group` g WHERE g.group_id = gm.group_id";
+    	$sql .= " AND g.name = '".mysql_real_escape_string($group_name)."'";
+    	$sql .= " AND gm.owner_table = 'user'";
+    	
+    	$sql .= ')';
+    	
+    	error_log($sql);
+    	
+    	$users = qa($sql);
+    	
+    	self::$users_by_group_cache[$cache_key] = $users;
+    	return $users;
+    }
 
     public static function get_staff_members() {
         // todo: a different kinda perimssion outlines staff members maybe?
