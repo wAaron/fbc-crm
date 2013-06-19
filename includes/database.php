@@ -303,6 +303,9 @@ function update_insert($pkey,$pid,$table,$data=false,$do_replace=false){
     if(!$do_replace && isset($data[$pkey])){
         unset($data[$pkey]);
     }
+    
+    //NULL list
+    $null_fields = array("cooperate_from", "customer_pay_days", "customer_main_pm", "customer_backup_pm", "customer_ex_salesman", "customer_current_salesman", "customer_build_from", "customer_vip_end", "customer_vip_renew", "contact_birthday", "contact_child_year", "contact_importance", "contact_sensitive");
 	
 	foreach($fields as $field){
 		if(!isset($data[$field['name']]) || $data[$field['name']] === false){
@@ -312,7 +315,7 @@ function update_insert($pkey,$pid,$table,$data=false,$do_replace=false){
 		// special format for date fields.
 		if($field['type']=='date'){
 			$data[$field['name']] = input_date($data[$field['name']]);
-			error_log($data[$field['name']]);
+
 			if (empty($data[$field['name']])) {
         		$data[$field['name']] = NULL;
 			}
@@ -324,7 +327,7 @@ function update_insert($pkey,$pid,$table,$data=false,$do_replace=false){
 			$val = $data[$field['name']];
 
 		//DDX Hack code: handle if database allow NULL
-		if ($val == NULL) {
+		if ($val == NULL && in_array($field['name'], $null_fields))  {
 			$sql .= " `".$field['name']."` = NULL, ";
 		} else {
 			$sql .= " `".$field['name']."` = '".mysql_real_escape_string($val)."', ";

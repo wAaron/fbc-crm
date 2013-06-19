@@ -12,7 +12,7 @@
 								</th>
 								<td>
 	                                <?php
-	                                echo print_select_box_nokey(array("男", "女", "不明"), "contact_sex", $user['contact_sex']);
+	                                echo print_select_box_nokey(array("男", "女", "不明"), "contact_sex", isset($user['contact_sex'])? htmlspecialchars($user['contact_sex']) : '' );
 	                                ?>
 								</td>
 							</tr>
@@ -38,7 +38,7 @@
 								</th>
 								<td>
 	                                <?php
-	                                echo print_select_box_nokey(array("已婚", "未婚"), "contact_marriage", $user['contact_marriage']);
+	                                echo print_select_box_nokey(array("已婚", "未婚"), "contact_marriage", isset($user['contact_marriage'])? htmlspecialchars($user['contact_marriage']) : '' );
 	                                ?>
 								</td>
 							</tr>
@@ -47,7 +47,7 @@
 									<?php echo _l('Contact Birthday'); ?>
 								</th>
 								<td>
-                                	<input type="text" name="contact_birthday" id="contact_birthday" class="date_field" value="<?php echo htmlspecialchars($user['contact_birthday']); ?>" />
+                                	<input type="text" name="contact_birthday" id="contact_birthday" class="date_field" value="<?php echo isset($user['contact_birthday'])? htmlspecialchars($user['contact_birthday']) : ''; ?>" />
 								</td>
 							</tr>
 							<tr>
@@ -56,7 +56,8 @@
 								</th>
 								<td>
 	                                <?php
-	                                echo print_select_box_nokey(array("贪婪", "虚荣", "贪吃", "易怒", "好色", "苛刻", "拖沓", "傲慢", "自负", "狡诈", "嫉妒", "粗心", "固执", "好胜", "宽容", "严谨", "干练", "耐心", "正直"), "contact_temper", $user['contact_temper']);
+	                                echo print_select_box_nokey(array("贪婪", "虚荣", "贪吃", "易怒", "好色", "苛刻", "拖沓", "傲慢", "自负", "狡诈", "嫉妒", "粗心", "固执", "好胜", "宽容", "严谨", "干练", "耐心", "正直"), 
+	                                		"contact_temper", isset($user['contact_temper'])? htmlspecialchars($user['contact_temper']) : '' );
 	                                ?>
 								</td>
 							</tr>
@@ -90,7 +91,7 @@
 								</th>
 								<td>
 	                                <?php
-	                                echo print_select_box_nokey(range(1900, 2020), "contact_child_year", $user['contact_child_year']);
+	                                echo print_select_box_nokey(range(1900, 2020), "contact_child_year", isset($user['contact_child_year'])? htmlspecialchars($user['contact_child_year']) : '' );
 	                                ?>
 								</td>
 							</tr>
