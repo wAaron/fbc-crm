@@ -39,10 +39,18 @@
 							</tr>
 							<tr>
 								<th>
-									<?php echo _l('Contact Position'); ?>
+									<?php echo _l('Last Name'); ?>
 								</th>
 								<td>
-									<input type="text" name="contact_position" style="width: 200px;" value="<?php echo isset($user['contact_position'])? htmlspecialchars($user['contact_position']) : ''; ?>" />
+									<input type="text" name="last_name" style="width: 200px;" value="<?php echo isset($user['last_name'])? htmlspecialchars($user['last_name']) : ''; ?>" />
+								</td>
+							</tr>
+							<tr>
+								<th>
+									<?php echo _l('Full EN Name'); ?>
+								</th>
+								<td>
+									<input type="text" name="contact_name_en" style="width: 200px;" value="<?php echo isset($user['contact_name_en'])? htmlspecialchars($user['contact_name_en']) : ''; ?>" />
 								</td>
 							</tr>
 							<tr>

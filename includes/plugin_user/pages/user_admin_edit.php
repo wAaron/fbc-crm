@@ -126,8 +126,7 @@ if(isset($user['email']) && strlen($user['email'])>3){
 					<h3><?php echo _l('User Details'); ?></h3>
 
 					<?php 
-                    $include_contact_extend = false;
-                    include('contact_admin_form.php'); 
+                    include('user_admin_form.php'); 
                     ?>
 
 

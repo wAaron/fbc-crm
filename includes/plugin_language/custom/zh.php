@@ -722,6 +722,11 @@ $labels = array(
     /** includes/plugin_customer/pages/customer_admin_edit.php **/
 
     'Customer Information' => '客户信息',
+    'Customer Core Information' => '核心信息',
+    'Company Information' => '公司信息',
+    'Cooperation Information' => '合作信息',
+    'Payment Information' => '付款信息',
+    'VIP Information' => 'VIP信息',
     'Name' => '客户名称',
     'Logo' => 'Logo',
     'Primary Contact Details' => '主要联系人的详细信息',
@@ -776,6 +781,11 @@ $labels = array(
 
     'Contact' => '联系人',
     'Contact Details' => '联系人详细信息',
+    'Contact Core Details' => '联系人核心信息',
+    'Contact Basic Details' => '联系人信息',
+    'Contact Background Information' => '背景信息',
+    'Contact Family Info' => '家庭信息',
+    'Contact Personal Info' => '个人信息',
     'Save User' => '保存用户',
     'Delete' => '删除',
     'Cancel' => '取消',
