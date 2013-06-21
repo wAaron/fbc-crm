@@ -13,7 +13,7 @@
 /**
  * @author Konstantin Bournayev
  * @version 1.0
- * @created 24-янв-2006 20:56:23
+ * @created 24-пїЅпїЅпїЅ-2006 20:56:23
  */
 class PSImageEncoderStream
 {
@@ -32,10 +32,10 @@ class PSImageEncoderStream
 }
 
 /**
- * @created 24-янв-2006 20:56:23
+ * @created 24-пїЅпїЅпїЅ-2006 20:56:23
  * @author Konstantin Bournayev
  * @version 1.0
- * @updated 24-янв-2006 21:19:35
+ * @updated 24-пїЅпїЅпїЅ-2006 21:19:35
  */
 class PSImageEncoder
 {
