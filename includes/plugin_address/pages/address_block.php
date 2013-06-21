@@ -1,5 +1,5 @@
 
-<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
+<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form info-{{info.address.hide}}">
 	<tbody>
 	<?php 
 /** 

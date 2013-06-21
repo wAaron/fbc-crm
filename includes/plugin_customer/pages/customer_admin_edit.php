@@ -50,7 +50,7 @@ $pms = module_customer::get_pm();
 $sales = module_customer::get_sales();
 
 ?>
-<form action="" method="post" id="customer_form">
+<form action="#" method="post" id="customer_form">
 	<input type="hidden" name="_process" value="save_customer" />
 	<input type="hidden" name="customer_id" value="<?php echo $customer_id; ?>" />
 
@@ -180,9 +180,13 @@ $sales = module_customer::get_sales();
 				</table>
 
 				<?php if($customer_id && $customer_id!='new'){ ?>
-				<h3><?php echo _l('Cooperation Information'); ?></h3>
+				<h3><?php echo _l('Cooperation Information'); ?>
+				    <span class="button">
+                        <input type="checkbox" ng-model="info.corp.hide" ng-init="info.corp.hide='false'">
+                    </span>
+				</h3>
 
-				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
+				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form info-{{info.corp.hide}}">
 					<tbody>
                         <tr>
                             <th class="width1">
@@ -226,10 +230,15 @@ $sales = module_customer::get_sales();
                         
 					</tbody>
 				</table>
+				<br/>
 				
-				<h3><?php echo _l('VIP Information'); ?></h3>
+				<h3><?php echo _l('VIP Information'); ?>
+				    <span class="button">
+                        <input type="checkbox" ng-model="info.vip.hide" ng-init="info.vip.hide='false'">
+                    </span>
+				</h3>
 
-				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
+				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form info-{{info.vip.hide}}">
 					<tbody>
                         <tr>
                             <th class="width1">
@@ -261,6 +270,7 @@ $sales = module_customer::get_sales();
                         
 					</tbody>
 				</table>
+				<br/>
 				<?php } ?>
 
 
@@ -268,9 +278,13 @@ $sales = module_customer::get_sales();
 
 
 
-                    <h3><?php echo _l('Advanced'); ?></h3>
+                    <h3><?php echo _l('Advanced'); ?>
+				    <span class="button">
+                        <input type="checkbox" ng-model="info.advance.hide" ng-init="info.advance.hide='false'">
+                    </span>
+                    </h3>
 
-                    <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
+                    <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form info-{{info.advance.hide}}">
                         <tbody>
                             <?php if(module_customer::can_i('edit','Customer Credit')){ ?>
                             <tr>
@@ -326,8 +340,12 @@ $sales = module_customer::get_sales();
 			<td width="50%" valign="top">
 			
 				<?php if($customer_id && $customer_id!='new'){ ?>
-				<h3><?php echo _l('Company Information'); ?></h3>
-				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
+				<h3><?php echo _l('Company Information'); ?>
+				    <span class="button">
+                        <input type="checkbox" ng-model="info.company.hide" ng-init="info.company.hide='false'">
+                    </span>
+				</h3>
+				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form info-{{info.company.hide}}">
 					<tbody>
 
 						<tr>
@@ -413,10 +431,15 @@ $sales = module_customer::get_sales();
                         </tr>
 					</tbody>
 				</table>
+				<br/>
 			
-				<h3><?php echo _l('Payment Information'); ?></h3>
+				<h3><?php echo _l('Payment Information'); ?>
+				    <span class="button">
+                        <input type="checkbox" ng-model="info.pay.hide" ng-init="info.pay.hide='false'">
+                    </span>
+				</h3>
 
-				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
+				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form info-{{info.pay.hide}}">
 					<tbody>
                         <tr>
                             <th class="width1">
@@ -458,9 +481,14 @@ $sales = module_customer::get_sales();
                         
 					</tbody>
 				</table>
+				<br/>
 				<?php } ?>
 				
-				<h3><?php echo _l('Address'); ?></h3>
+				<h3><?php echo _l('Address'); ?>
+				    <span class="button">
+                        <input type="checkbox" ng-model="info.address.hide" ng-init="info.address.hide='false'">
+                    </span>
+				</h3>
 
 				<?php
 				handle_hook("address_block",$module,"physical","customer","customer_id");

@@ -26,7 +26,7 @@ switch($display_mode){
         ?>
 
         <!DOCTYPE html>
-        <html>
+        <html ng-app>
         <head>
         <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
         <title><?php echo $page_title; ?></title>
@@ -53,6 +53,7 @@ switch($display_mode){
 
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jquery-1.8.3.min.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jquery-ui-1.9.2.custom.min.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>
+        <script type="text/javascript" src="//ajax.googleapis.com/ajax/libs/angularjs/1.0.7/angular.min.js"></script>
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jRating.jquery.js"></script>
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/timepicker.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>
         <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/cookie.js?ver=<?php echo _SCRIPT_VERSION;?>"></script>

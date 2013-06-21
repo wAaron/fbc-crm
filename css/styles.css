@@ -530,3 +530,8 @@ table.search_bar th{
     display:none;
 }
 
+/* hack from DDX */
+.info-false {
+	display: none;
+}
+}
