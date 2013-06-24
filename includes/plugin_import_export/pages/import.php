@@ -165,7 +165,7 @@ if(isset($_REQUEST['run_import']) && $_REQUEST['run_import'] == 'true'){
     </div>
     <?php } ?>
 
-    <form action="" method="post" enctype="multipart/form-data">
+    <form action="#" method="post" enctype="multipart/form-data">
         <input type="hidden" name="run_import" value="true">
         <?php if(!isset($_GET['import_options'])){ ?> <input type="hidden" name="import_options" value="<?php echo htmlspecialchars($_REQUEST['import_options']);?>"> <?php } ?>
         <input type="hidden" name="add_to_group" value="<?php echo base64_encode(json_encode(isset($_REQUEST['add_to_group']) ? $_REQUEST['add_to_group'] : array()));?>">
@@ -337,7 +337,7 @@ if(isset($_REQUEST['run_import']) && $_REQUEST['run_import'] == 'true'){
             $('#sample_download')[0].submit();
         }
     </script>
-    <form action="" method="post" id="sample_download">
+    <form action="#" method="post" id="sample_download">
         <input type="hidden" name="download" value="true">
         <input type="hidden" name="import_options" value="<?php echo htmlspecialchars($_REQUEST['import_options']);?>">
     </form>
@@ -397,7 +397,7 @@ if(isset($_REQUEST['run_import']) && $_REQUEST['run_import'] == 'true'){
 
 
 
-    <form action="" method="post" enctype="multipart/form-data">
+    <form action="#" method="post" enctype="multipart/form-data">
         <?php if(!isset($_GET['import_options'])){ ?> <input type="hidden" name="import_options" value="<?php echo htmlspecialchars($_REQUEST['import_options']);?>"> <?php } ?>
         <input type="hidden" name="upload_import" value="true">
         <h3><?php _e('Import');?></h3>
