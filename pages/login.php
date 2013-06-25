@@ -13,7 +13,7 @@
         <p><?php echo _l('Please enter your email address below to reset your password.'); ?></p>
 
 
-        <form action="" method="post">
+        <form action="#" method="post">
             <input type="hidden" name="_process_reset" value="true">
             <table width="100%" class="tableclass">
                 <tr>
@@ -50,7 +50,7 @@
 
         <?php ob_start(); ?>
 
-            <form action="" method="post">
+            <form action="#" method="post">
                 <input type="hidden" name="_process_login" value="true">
                 <table width="100%" class="tableclass">
                     <tr>
