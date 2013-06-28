@@ -611,6 +611,7 @@ $labels = array(
     'Customer Ticket Type' => '开票情况',
     'Customer Ticket Info' => '开票信息',
     'Translation Speed' => '翻译速度',
+    'Completed?' => '完成度',
 
     'Primary Contact' => '主要联系人',
     'Phone Number' => '电话号码',
@@ -1249,4 +1250,6 @@ $labels = array(
 
     'WordPress Item Version' => 'WordPress项目版本',
     'WordPress Versions' => 'WordPress版本s',
+    
+    'Link above contacts to this one, and make THIS one primary' => 'Link above contacts to this one, and make THIS one primary',
 );

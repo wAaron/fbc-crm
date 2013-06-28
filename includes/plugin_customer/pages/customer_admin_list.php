@@ -202,7 +202,7 @@ $pagination = process_pagination($customers);
 </h2>
 
 
-<form action="" method="post">
+<form action="#" method="post">
 
 <table class="search_bar">
 	<tr>
@@ -249,7 +249,7 @@ $pagination = process_pagination($customers);
 		<th id="primary_contact_name"><?php echo _l('Primary Contact'); ?></th>
 		<th><?php echo _l('Phone Number'); ?></th>
 		<th id="primary_contact_email"><?php echo _l('Email Address'); ?></th>
-		<th><?php echo _l('Address'); ?></th>
+		<th width="30%"><?php echo _l('Address'); ?></th>
         <?php if(class_exists('module_group',false) && module_customer::can_i('view','Customer Groups')){ ?>
         <th id="customer_group"><?php echo _l('Group'); ?></th>
         <?php } ?>
@@ -259,6 +259,7 @@ $pagination = process_pagination($customers);
         <?php if(class_exists('module_extra',false)){
         module_extra::print_table_header('customer');
         } ?>
+        <th><?php echo _l('Completed?'); ?></th>
     </tr>
     </thead>
     <tbody>
@@ -362,10 +363,30 @@ $pagination = process_pagination($customers);
             <?php if(class_exists('module_extra',false)){
             module_extra::print_table_data('customer',$customer['customer_id']);
             } ?>
-
+			<td width="100">
+				<div class="progressbar_core" p-value="<?php echo $customer['core_completed']; ?>"></div>
+				<div class="progressbar_full" p-value="<?php echo $customer['full_completed']; ?>"></div>
+			</td>
         </tr>
 	<?php } ?>
   </tbody>
 </table>
 <?php echo $pagination['links'];?>
 </form>
+
+  <script>
+  $(function() {
+    $(".progressbar_core" ).each(function() {
+    	var pvalue = parseInt($(this).attr('p-value'));
+    	$(this).progressbar({
+        	value:  pvalue
+        });
+    });
+    $(".progressbar_full" ).each(function() {
+    	var pvalue = parseInt($(this).attr('p-value'));
+    	$(this).progressbar({
+        	value:  pvalue
+        });
+    });
+  });
+  </script>

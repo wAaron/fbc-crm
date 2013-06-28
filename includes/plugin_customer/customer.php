@@ -540,6 +540,29 @@ class module_customer extends module_base{
             $data['default_tax'] = -1;
             $data['default_tax_name'] = '';
         }
+        
+        $core_fields = array("customer_name", "customer_no", "customer_main_pm", "customer_backup_pm", "customer_ex_salesman", "customer_current_salesman", "customer_level", "customer_type");
+        
+        $core_filled = 0;
+        $core_sum = count($core_fields);
+        foreach ($core_fields as $field) {
+        	if (!empty($data[$field])) {
+        		$core_filled++;
+        	}
+        }
+        $data['core_completed'] =  floor($core_filled / $core_sum * 100);
+        
+        $full_fields = array('customer_status', 'customer_name', 'customer_no', 'customer_type', 'customer_from', 'cooperate_from', 'customer_main_prod', 'customer_pay_days', 'customer_pay_period', 'customer_success_story', 'customer_main_pm', 'customer_backup_pm', 'customer_full_name', 'customer_full_en', 'customer_ex_salesman', 'customer_current_salesman', 'customer_company_type', 'customer_level', 'customer_staff', 'company_size', 'customer_build_from', 'customer_vip', 'customer_vip_end', 'customer_vip_renew', 'customer_ticket_type', 'customer_ticket_info', 'translate_speed');
+        
+        $full_filled = 0;
+        $full_sum = count($full_fields);
+        foreach ($full_fields as $field) {
+        	if (!empty($data[$field])) {
+        		$full_filled++;
+        	}
+        }
+        
+        $data['full_completed'] =  floor($full_filled / $full_sum * 100);
 
 		$customer_id = update_insert("customer_id",$customer_id,"customer",$data);
         if(isset($_REQUEST['user_id'])){
