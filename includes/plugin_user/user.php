@@ -117,7 +117,8 @@ class module_user extends module_base{
                 $options['data'] = $data;
             }
             // what text should we display in this link?
-            $options['text'] = (!isset($data['name'])||!trim($data['name'])) ? 'N/A' : $data['name'].(isset($data['last_name'])?' '.$data['last_name']:'');
+            //$options['text'] = (!isset($data['name'])||!trim($data['name'])) ? 'N/A' : $data['name'].(isset($data['last_name'])?' '.$data['last_name']:'');
+            $options['text'] = (!isset($data['name'])||!trim($data['name'])) ? 'N/A' : $data['name'];
             if(!$data || !$user_id){
                 // linking to a new user?
                 // shouldn't happen in a "full" link.
