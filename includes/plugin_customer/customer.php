@@ -279,6 +279,32 @@ class module_customer extends module_base{
             $where .= "c.customer_no LIKE '%$str%' ";
             $where .= ') ';
         }
+        
+        if(isset($search['core_completed']) && trim($search['core_completed'])){
+        	$str = mysql_real_escape_string(trim($search['core_completed']));
+			if ($str === 'yes') {
+	        	$where .= " AND ( ";
+	        	$where .= "c.core_completed >= 100 ";
+	        	$where .= ') ';
+			} else {
+				$where .= " AND ( ";
+				$where .= "c.core_completed < 100 ";
+				$where .= ') ';
+			}
+        }
+        
+	        if(isset($search['full_completed']) && trim($search['full_completed'])){
+        	$str = mysql_real_escape_string(trim($search['full_completed']));
+			if ($str === 'yes') {
+	        	$where .= " AND ( ";
+	        	$where .= "c.full_completed >= 100 ";
+	        	$where .= ') ';
+			} else {
+				$where .= " AND ( ";
+				$where .= "c.full_completed < 100 ";
+				$where .= ') ';
+			}
+        }
 
         if(isset($search['generic']) && trim($search['generic'])){
 			$str = mysql_real_escape_string(trim($search['generic']));

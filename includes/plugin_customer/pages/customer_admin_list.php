@@ -233,6 +233,15 @@ $pagination = process_pagination($customers);
             <?php echo print_select_box(module_group::get_groups('customer'),'search[group_id]',isset($search['group_id'])?$search['group_id']:false,'',true,'name'); ?>
         </td>
         <?php } ?>
+        <td class="search_title">
+            <?php _e('Completed?');?>
+        </td>
+        <td class="search_input">
+         <?php
+         echo print_select_box(array('yes'=>"主信息已完成", 'no'=>"主信息未完成"), "search[core_completed]", isset($search['core_completed'])?$search['core_completed']:false);
+         echo print_select_box(array('yes'=>"全部信息完成", 'no'=>"未全部完成"), "search[full_completed]", isset($search['full_completed'])?$search['full_completed']:false);
+         ?>
+        </td>
 		<td class="search_action">
 			<?php echo create_link("Reset","reset",module_customer::link_open(false)); ?>
 			<?php echo create_link("Search","submit"); ?>
