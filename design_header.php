@@ -114,7 +114,7 @@ switch($display_mode){
 
 
         </head>
-        <body <?php if($display_mode=='iframe') echo ' style="background:#FFF;"';?>>
+        <body <?php if($display_mode=='iframe') echo ' style="background:#FFF;"';?>   ng-controller="MyCntrl">
 
 <?php if($display_mode=='iframe'){ ?>
 <div id="iframe">

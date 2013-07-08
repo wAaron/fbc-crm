@@ -164,6 +164,20 @@ $sales = module_customer::get_sales();
                                 ?>
                             </td>
                         </tr>
+                        <tr>
+                            <th class="width1">
+                                <?php echo _l('Customer Active'); ?>
+                            </th>
+                            <td>
+                                <?php
+                                //echo print_select_box(array('A'=>"活跃", 'S'=>"休眠", 'T'=>"终结"), "customer_active", $customer['customer_active'], '', true, false, false, true);
+                                ?>
+                                <input type="hidden" name="customer_active" value="{{ng_customer_active}}" />
+                                <select ng-model="ng_customer_active" ng-options="key as value for (key , value) in active_types" ng-init="ng_customer_active='<?php echo $customer['customer_active']; ?>'">
+      								<option value=""> - Select - </option>
+      							</select>
+                            </td>
+                        </tr>
                         <?php } ?>
                         <?php
                          module_extra::display_extras(array(

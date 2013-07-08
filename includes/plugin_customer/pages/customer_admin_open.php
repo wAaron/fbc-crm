@@ -29,7 +29,7 @@ if($customer_id && $customer_id != 'new'){
     }
 	
 	array_unshift($links,array(
-		"name"=>_l('Customer:').' <strong>'.htmlspecialchars($customer['customer_name']).'</strong>',
+		"name"=>_l('Customer:').' <strong>'.htmlspecialchars($customer['customer_name']).'</strong> {{active_types[ng_customer_active]}}',
 		"icon"=>"images/icon_arrow_down.png",
 		'm' => 'customer',
 		'p' => 'customer_admin_open',

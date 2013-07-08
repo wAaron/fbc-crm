@@ -305,7 +305,7 @@ function update_insert($pkey,$pid,$table,$data=false,$do_replace=false){
     }
     
     //NULL list
-    $null_fields = array("cooperate_from", "customer_pay_days", "customer_main_pm", "customer_backup_pm", "customer_ex_salesman", "customer_current_salesman", "customer_build_from", "customer_vip_end", "customer_vip_renew", "contact_birthday", "contact_child_year", "contact_importance", "contact_sensitive");
+    $null_fields = array("cooperate_from", "customer_pay_days", "customer_main_pm", "customer_backup_pm", "customer_ex_salesman", "customer_current_salesman", "customer_build_from", "customer_vip_end", "customer_vip_renew", "contact_birthday", "contact_child_year", "contact_importance", "contact_sensitive", "customer_active");
 	
 	foreach($fields as $field){
 		if(!isset($data[$field['name']]) || $data[$field['name']] === false){

@@ -553,3 +553,14 @@ table.search_bar th{
 .progressbar_full .ui-progressbar-value {
 	background: #00A3E8;
 }
+
+.bg_active_A {
+	background: #FF9900;
+}
+.bg_active_S {
+	background: #CCFFCC;
+}
+.bg_active_T {
+	background: #C0C0C0;
+}
+}

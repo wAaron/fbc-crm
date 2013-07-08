@@ -21,11 +21,13 @@ function friendly_key($data,$key){
 	return isset($data[$key]) ? $data[$key] : false;
 }
 
-function print_select_box_nokey($data,$id,$cur='',$class='',$blank=true,$array_id=false,$allow_new=false){
+function print_select_box_nokey($data,$id,$cur='',$class='',$enable_ng=false, $blank=true,$array_id=false,$allow_new=false){
 	$sel = '<select name="'.$id.'" id="'.$id.'" class="'.$class.'"';
 	if($allow_new){
 		$sel .= ' onchange="dynamic_select_box(this);"';
-
+	}
+	if ($enable_ng) {
+		$sel .= ' ng-model="ng.'.$id.'" ng-init="ng.'.$id.'=\''.$cur.'\'"';
 	}
 	$sel .= '>';
 	if($blank){
@@ -67,11 +69,14 @@ function print_select_box_nokey($data,$id,$cur='',$class='',$blank=true,$array_i
 	return $sel;
 }
 
-function print_select_box($data,$id,$cur='',$class='',$blank=true,$array_id=false,$allow_new=false){
+function print_select_box($data,$id,$cur='',$class='',$blank=true,$array_id=false,$allow_new=false, $enable_ng=false){
 	$sel = '<select name="'.$id.'" id="'.$id.'" class="'.$class.'"';
 	if($allow_new){
 		$sel .= ' onchange="dynamic_select_box(this);"';
 
+	}
+	if ($enable_ng) {
+		$sel .= ' ng-model="ng_'.$id.'" ng-init="ng_'.$id.'=\''.$cur.'\'"';
 	}
 	$sel .= '>';
 	if($blank){

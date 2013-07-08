@@ -253,6 +253,7 @@ $pagination = process_pagination($customers);
 <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_rows">
 	<thead>
 	<tr class="title">
+		<th id="customer_active" style="width:5px"></th>
         <th id="customer_no"><?php echo _l('Customer NO'); ?></th>
 		<th id="customer_name"><?php echo _l('Customer Name'); ?></th>
 		<th id="primary_contact_name"><?php echo _l('Primary Contact'); ?></th>
@@ -276,9 +277,12 @@ $pagination = process_pagination($customers);
 	$c=0;
 	foreach($pagination['rows'] as $customer){
         module_debug::log(array('title'=>'row'));
+        
         ?>
         <tr class="<?php echo ($c++%2)?"odd":"even"; ?>">
-
+            <td class="row_action bg_active_<?php echo $customer['customer_active']; ?>">
+                
+            </td>
             <td class="row_action">
                 <?php echo $customer['customer_no']; ?>
             </td>

@@ -588,6 +588,7 @@ $labels = array(
     'Customer Name' => '客户名称',
     'Customer NO' => '客户编号',
     'Customer Type' => '客户性质',
+    'Customer Active' => '客户状态',
     'Customer From' => '客户来源',
     'Cooperate From' => '合作时间',
     'Main Products' => '主营业务/产品',
