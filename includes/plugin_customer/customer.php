@@ -293,7 +293,7 @@ class module_customer extends module_base{
 			}
         }
         
-	        if(isset($search['full_completed']) && trim($search['full_completed'])){
+	    if(isset($search['full_completed']) && trim($search['full_completed'])){
         	$str = mysql_real_escape_string(trim($search['full_completed']));
 			if ($str === 'yes') {
 	        	$where .= " AND ( ";
@@ -304,6 +304,13 @@ class module_customer extends module_base{
 				$where .= "c.full_completed < 100 ";
 				$where .= ') ';
 			}
+        }
+        
+        if(isset($search['customer_active']) && trim($search['customer_active'])){
+        	$str = mysql_real_escape_string(trim($search['customer_active']));
+        	$where .= " AND ( ";
+        	$where .= "c.customer_active = '$str' ";
+        	$where .= ') ';
         }
 
         if(isset($search['generic']) && trim($search['generic'])){
@@ -374,6 +381,7 @@ class module_customer extends module_base{
 		$group_order = ' GROUP BY c.customer_id ORDER BY c.customer_name ASC'; // stop when multiple company sites have same region
 		$sql = $sql . (strlen($where)>0 ? ' WHERE 1'.$where :''). $group_order;
 		$result = qa($sql);
+		//error_log($sql);
         /*if(!function_exists('sort_customers')){
             function sort_customers($a,$b){
                 return strnatcasecmp($a['customer_name'],$b['customer_name']);

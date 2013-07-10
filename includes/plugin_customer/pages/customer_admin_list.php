@@ -204,9 +204,9 @@ $pagination = process_pagination($customers);
 
 <form action="#" method="post">
 
-<table class="search_bar">
+<table class="search_bar" border="0">
 	<tr>
-		<th><?php _e('Filter By:'); ?></th>
+		<th rowspan="2"><?php _e('Filter By:'); ?></th>
         <td class="search_title">
             <?php _e('Customer NO:');?>
         </td>
@@ -217,14 +217,20 @@ $pagination = process_pagination($customers);
 			<?php _e('Names, Phone or Email:');?>
 		</td>
 		<td class="search_input">
-			<input type="text" style="width: 90px;" name="search[generic]" class="" value="<?php echo isset($search['generic'])?htmlspecialchars($search['generic']):''; ?>">
+			<input type="text" style="width: 190px;" name="search[generic]" class="" value="<?php echo isset($search['generic'])?htmlspecialchars($search['generic']):''; ?>">
 		</td>
 		<td class="search_title">
             <?php _e('Address:');?>
 		</td>
 		<td class="search_input">
-			<input type="text" style="width: 90px;" name="search[address]" class="" value="<?php echo isset($search['address'])?htmlspecialchars($search['address']):''; ?>">
+			<input type="text" style="width: 290px;" name="search[address]" class="" value="<?php echo isset($search['address'])?htmlspecialchars($search['address']):''; ?>">
 		</td>
+		<td class="search_action" rowspan="2">
+			<?php echo create_link("Reset","reset",module_customer::link_open(false)); ?>
+			<?php echo create_link("Search","submit"); ?>
+		</td>
+	</tr>
+	<tr>
         <?php if(class_exists('module_group',false) && module_customer::can_i('view','Customer Groups')){ ?>
         <td class="search_title">
             <?php _e('Group:');?>
@@ -234,7 +240,7 @@ $pagination = process_pagination($customers);
         </td>
         <?php } ?>
         <td class="search_title">
-            <?php _e('Completed?');?>
+            <?php _e('Completed?');?>:
         </td>
         <td class="search_input">
          <?php
@@ -242,11 +248,17 @@ $pagination = process_pagination($customers);
          echo print_select_box(array('yes'=>"全部信息完成", 'no'=>"未全部完成"), "search[full_completed]", isset($search['full_completed'])?$search['full_completed']:false);
          ?>
         </td>
-		<td class="search_action">
-			<?php echo create_link("Reset","reset",module_customer::link_open(false)); ?>
-			<?php echo create_link("Search","submit"); ?>
-		</td>
-	</tr>
+        <td class="search_title">
+            <?php _e('Customer Active');?>:
+        </td>
+			<td class="search_input"><input type="hidden" name="search[customer_active]" value="{{ng_customer_active}}" />
+			<select ng-model="ng_customer_active"
+				ng-options="key as value for (key , value) in active_types" ng-init="ng_customer_active='<?php echo isset($search['customer_active'])?$search['customer_active']:''; ?>'">
+					<option value="">- Select -</option>
+			</select>
+			</td>
+		</tr>
+
 </table>
 
 <?php echo $pagination['summary'];?>
