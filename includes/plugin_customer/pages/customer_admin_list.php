@@ -292,10 +292,10 @@ $pagination = process_pagination($customers);
         
         ?>
         <tr class="<?php echo ($c++%2)?"odd":"even"; ?>">
-            <td class="row_action bg_active_<?php echo $customer['customer_active']; ?>">
+            <td class="bg_active_<?php echo $customer['customer_active']; ?>">
                 
             </td>
-            <td class="row_action">
+            <td>
                 <?php echo $customer['customer_no']; ?>
             </td>
 

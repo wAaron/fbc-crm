@@ -35,6 +35,8 @@
 								</th>
 								<td>
 									<input type="text" name="name" id="name" style="width: 200px;" value="<?php echo htmlspecialchars($user['name']); ?>" />
+									
+									
 								</td>
 							</tr>
 							<tr>
@@ -87,6 +89,17 @@
 									<?php echo print_select_box(module_language::get_languages_attributes(),'language',$user['language'],'',false); ?>
 								</td>
 							</tr>
+	                        <tr>
+	                            <th>
+	                                <?php echo _l('Contact Active'); ?>
+	                            </th>
+	                            <td>
+	                                <input type="hidden" name="contact_active" value="{{ng_contact_active}}" />
+	                                <select ng-model="ng_contact_active" ng-options="key as value for (key , value) in active_types" ng-init="ng_contact_active='<?php echo $user['contact_active']; ?>'">
+	      								<option value=""> - Select - </option>
+	      							</select>
+	                            </td>
+	                        </tr>
                             <?php } ?>
 						</tbody>
                         <?php

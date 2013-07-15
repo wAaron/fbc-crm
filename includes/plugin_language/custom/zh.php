@@ -747,6 +747,7 @@ $labels = array(
     'Mobile' => '手机',
     'Fax' => '传真',
     'Primary' => '主要信息',
+    'Contact Active' => '联系人状态',
 
     /** includes/plugin_address/pages/address_block.php **/
 

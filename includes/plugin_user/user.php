@@ -73,7 +73,7 @@ class module_user extends module_base{
                 $contacts = $this->get_contacts(array('customer_id'=>$_REQUEST['customer_id']),true,false);
                 $name = _l('Contacts');
                 if(mysql_num_rows($contacts)>0){
-                    $name .= " <span class='menu_label'>".mysql_num_rows($contacts)."</span> ";
+                    $name .= " <span class='menu_label'>".mysql_num_rows($contacts)."</span> {{active_types[ng_contact_active]}}";
                 }
 				$this->links[] = array(
 					"name"=>$name,

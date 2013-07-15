@@ -98,6 +98,7 @@ $colspan = 4;
 <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_rows">
 	<thead>
 	<tr class="title">
+		<th id="contact_active" style="width:5px"></th>
 		<th><?php echo _l('Name'); ?></th>
         <th><?php echo _l('Phone Number'); ?></th>
         <th><?php echo _l('Email Address'); ?></th>
@@ -116,6 +117,9 @@ $colspan = 4;
             $user2 = module_user::get_user($user['user_id']); // for primary contact / link check
             ?>
 		<tr class="<?php echo ($c++%2)?"odd":"even"; ?>">
+            <td class="bg_active_<?php echo $user['contact_active']; ?>">
+                
+            </td>
 			<td class="row_action">
 				<?php echo module_user::link_open_contact($user['user_id'],true,$user2);?>
 				<?php
