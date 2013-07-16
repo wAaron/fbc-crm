@@ -22,6 +22,7 @@ function db_connect(){
             set_error(mysql_error());
             return false;
         }
+        mysql_query("SET NAMES 'utf8'", $dbcnx);
 		mysql_select_db(_DB_NAME,$dbcnx);
         query("SET @@SESSION.sql_mode = ''");
 	}
