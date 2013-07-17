@@ -26,7 +26,7 @@ $websites = module_website::get_websites($search);
 	<?php echo _l('Customer '.module_config::c('project_name_plural','Websites')); ?>
 </h2>
 
-<form action="" method="post">
+<form action="#" method="post">
 
 
 <table class="search_bar" width="100%">

@@ -81,7 +81,7 @@ $priorities = module_ticket::get_ticket_priorities();
 	<?php echo _l('Customer Tickets'); ?>
 </h2>
 
-<form action="" method="<?php echo _DEFAULT_FORM_METHOD;?>">
+<form action="#" method="<?php echo _DEFAULT_FORM_METHOD;?>">
 
     <input type="hidden" name="customer_id" value="<?php echo isset($_REQUEST['customer_id']) ? (int)$_REQUEST['customer_id'] : '';?>">
 

@@ -143,7 +143,7 @@ foreach($temp_tickets as $key=>$val){
     </tbody>
 </table>
 	
-<form action="" method="post" id="ticket_form" enctype="multipart/form-data">
+<form action="#" method="post" id="ticket_form" enctype="multipart/form-data">
 	<input type="hidden" name="_process" value="save_ticket" />
     <input type="hidden" name="ticket_id" value="<?php echo $ticket['ticket_id']; ?>" />
 

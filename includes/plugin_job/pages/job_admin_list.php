@@ -160,7 +160,7 @@ if(class_exists('module_import_export',false) && module_job::can_i('view','Expor
 	<?php echo _l('Customer Jobs'); ?>
 </h2>
 
-<form action="" method="post">
+<form action="#" method="post">
 
 
 <table class="search_bar">

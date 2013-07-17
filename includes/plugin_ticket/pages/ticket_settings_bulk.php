@@ -165,7 +165,7 @@ if(isset($_POST['bulk_remove_priority']) && $_POST['bulk_remove_priority'] == 'g
     ?>
 
     <iframe src="about:blank" name="bulk_process" id="bulk_process" style="display:none;"></iframe>
-    <form action="" method="post" target="bulk_process" id="process_button_form">
+    <form action="#" method="post" target="bulk_process" id="process_button_form">
         <input type="hidden" name="bulk_process_go" value="true">
         <input type="submit" name="go" id="process_button" value="<?php _e('Start Processing Below Tickets');?>" onclick="this.value='<?php _e('Please wait...');?>';">
     </form>
@@ -271,7 +271,7 @@ if(isset($_POST['bulk_remove_priority']) && $_POST['bulk_remove_priority'] == 'g
     ?>
 
 
-    <form action="" method="post">
+    <form action="#" method="post">
         <input type="hidden" name="bulk" value="go">
                     <h3><?php echo _l('Perform Bulk Actions on Tickets (BETA!)'); ?></h3>
 
@@ -359,7 +359,7 @@ if(isset($_POST['bulk_remove_priority']) && $_POST['bulk_remove_priority'] == 'g
     </form>
 
 
-        <form action="" method="post">
+        <form action="#" method="post">
             <input type="hidden" name="bulk_remove_priority" value="go">
             <h3><?php echo _l('Remove old Unpaid Priority Support Invoices'); ?></h3>
             <table cellpadding="10" width="100%" class="tableclass tableclass_form">

@@ -45,7 +45,7 @@ if(isset($_REQUEST['ticket_account_id']) && $_REQUEST['ticket_account_id']){
     ?>
 <!-- updated -->
 
-        <form action="" method="post">
+        <form action="#" method="post">
             <input type="hidden" name="_process" value="save_ticket_account">
             <input type="hidden" name="ticket_account_id" value="<?php echo $ticket_account_id; ?>" />
             <table cellpadding="10" width="100%">

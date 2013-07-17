@@ -366,7 +366,7 @@ if(class_exists('module_import_export',false)){
 				<td valign="top" width="35%">
 
 
-                <form action="" method="post" id="job_form">
+                <form action="#" method="post" id="job_form">
                     <input type="hidden" name="_process" value="save_job" />
                     <input type="hidden" name="job_id" value="<?php echo $job_id; ?>" />
                     <input type="hidden" name="customer_id" value="<?php echo $job['customer_id']; ?>" />
@@ -862,7 +862,7 @@ if(class_exists('module_import_export',false)){
                         <iframe name="job_task_ajax_submit" id="job_task_ajax_submit" src="about:blank" style="display:none; width:0; height:0;" frameborder="0"></iframe>
                     <?php } ?>
 
-                    <form action="" method="post" id="job_task_form" <?php if(module_config::c('job_ajax_tasks',1)){ ?> target="job_task_ajax_submit"<?php } ?>>
+                    <form action="#" method="post" id="job_task_form" <?php if(module_config::c('job_ajax_tasks',1)){ ?> target="job_task_ajax_submit"<?php } ?>>
                         <input type="hidden" name="_process" value="save_job<?php if(module_config::c('job_ajax_tasks',1)) echo '_tasks_ajax'; ?>" />
                         <input type="hidden" name="job_id" value="<?php echo $job_id; ?>" />
                         <input type="hidden" name="customer_id" value="<?php echo $job['customer_id']; ?>" />

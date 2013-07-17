@@ -144,7 +144,7 @@ if(class_exists('module_import_export',false) && module_website::can_i('view','E
 	<?php echo _l('Customer '.module_config::c('project_name_plural','Websites')); ?>
 </h2>
 
-<form action="" method="post">
+<form action="#" method="post">
 
 
 <table class="search_bar">

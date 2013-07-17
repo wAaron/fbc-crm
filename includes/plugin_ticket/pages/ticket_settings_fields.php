@@ -32,7 +32,7 @@ if(isset($_REQUEST['ticket_data_key_id']) && $_REQUEST['ticket_data_key_id']){
     ?>
 
 
-        <form action="" method="post">
+        <form action="#" method="post">
             <input type="hidden" name="_process" value="save_ticket_data_key">
             <input type="hidden" name="ticket_data_key_id" value="<?php echo $ticket_data_key_id; ?>" />
             <table cellpadding="10" width="100%">

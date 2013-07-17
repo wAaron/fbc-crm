@@ -42,7 +42,7 @@ if($website_id>0 && $website){
 
 
 	
-<form action="" method="post">
+<form action="#" method="post">
 	<input type="hidden" name="_process" value="save_website" />
     <input type="hidden" name="website_id" value="<?php echo $website_id; ?>" />
     

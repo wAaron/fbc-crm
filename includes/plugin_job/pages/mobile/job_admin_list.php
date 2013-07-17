@@ -29,7 +29,7 @@ $jobs = module_job::get_jobs($search);
 	<?php echo _l('Customer Jobs'); ?>
 </h2>
 
-<form action="" method="post">
+<form action="#" method="post">
 
 
 <table class="search_bar" width="100%">

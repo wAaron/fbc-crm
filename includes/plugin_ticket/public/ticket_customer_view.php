@@ -1,4 +1,4 @@
-<form action="" method="post" enctype="multipart/form-data">
+<form action="#" method="post" enctype="multipart/form-data">
     <input type="hidden" name="_process" value="send_public_ticket">
             <table cellpadding="10" width="100%">
 		<tbody>
