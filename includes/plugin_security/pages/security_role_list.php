@@ -24,7 +24,7 @@ $roles = $module->get_roles($search);
 	<?php echo _l('Security Roles'); ?>
 </h2>
 
-<form action="" method="post">
+<form action="#" method="post">
 
 
 <?php

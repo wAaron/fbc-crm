@@ -57,7 +57,8 @@ class module_website extends module_base{
             if(isset($_REQUEST['customer_id']) && $_REQUEST['customer_id'] && $_REQUEST['customer_id']!='new'){
                 // how many websites?
                 $websites = $this->get_websites(array('customer_id'=>$_REQUEST['customer_id']));
-                $name = module_config::c('project_name_plural','Websites');
+                //$name = module_config::c('project_name_plural','Websites');
+                $name = _l('Service Quotation');
                 if(count($websites)){
                     $name .= " <span class='menu_label'>".count($websites)."</span> ";
                 }

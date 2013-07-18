@@ -1254,4 +1254,23 @@ $labels = array(
     'WordPress Versions' => 'WordPress版本s',
     
     'Link above contacts to this one, and make THIS one primary' => 'Link above contacts to this one, and make THIS one primary',
+    
+    
+    /** includes/plugin_wordpress/pages/wordpress_item_version.php **/
+
+	'Service Quotation' => '服务报价',
+	'Customer Quotations' => '客户服务报价',
+	'Add New Quotation' => '添加新报价',
+	'Quotation Details' => '报价细节',
+	'Quotation Jobs' => '基于此报价的工单',
+	'Save Quotation' => '保存报价',
+	'Quotations' => '报价',
+	'Quotation Name' => '报价名称',
+	'Task Type' => '工单类型',
+	'Service Type' => '服务类型',
+	'Service Price' => '单位价格',
+	'Price Unit' => '价格单位',
+	'Price Currency' => '货币类型',
+	
+	'dummy' => 'dummy',
 );

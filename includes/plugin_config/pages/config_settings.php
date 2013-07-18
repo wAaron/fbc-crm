@@ -29,7 +29,7 @@ $module->page_title = 'Settings';
 ?>
 
 
-<form action="" method="post">
+<form action="#" method="post">
 
     <?php
 module_form::prevent_exit(array(

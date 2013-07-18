@@ -39,7 +39,7 @@ if(isset($_REQUEST['currency_id'])){
     $currency = get_single('currency','currency_id',$currency_id);
     ?>
 
-        <form action="" method="post">
+        <form action="#" method="post">
             <input type="hidden" name="currency_id" value="<?php echo $currency_id;?>">
             <input type="hidden" name="save" value="true">
 
@@ -98,7 +98,7 @@ if(isset($_REQUEST['currency_id'])){
     </h2>
 
 
-    <form action="" method="post">
+    <form action="#" method="post">
 
     <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_rows">
         <thead>

@@ -27,7 +27,7 @@ $invoices = module_invoice::get_invoices($search);
 	<?php echo _l('Invoices'); ?>
 </h2>
 
-<form action="" method="post">
+<form action="#" method="post">
 
 
 <table class="search_bar" width="100%">

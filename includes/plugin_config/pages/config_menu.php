@@ -22,7 +22,7 @@ if(isset($_REQUEST['save_config'])&&is_array($_REQUEST['save_config'])){
 }
 ?>
 
-<form action="" method="post">
+<form action="#" method="post">
     <table class="tableclass tableclass_rows">
         <thead>
         <tr>

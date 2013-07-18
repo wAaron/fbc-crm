@@ -241,5 +241,9 @@ function dynamic_select_box(element){
 function MyCntrl($scope) {
 	//$scope.active_types = [{id:'A', label:'活跃'}, {id:'S', label:'休眠'}, {id:'T', label:'终结'}];
 	$scope.active_types = {'A':'活跃', 'S':'休眠', 'T':'终结'};
+	
+	$scope.task_types = {'B':'笔译工单', 'V':'视频工单'};
+	$scope.service_types = {'B':{'C2E':'中译英', 'E2C':'英译中'}, 'V':{'SPZZ':'视频制作', 'ZMZZ':'字幕制作'}};
+	$scope.price_units = {'B':{'QZZ':'/千中文', 'QYZ':'/千英文', 'YE':'/页'}, 'V':{'MIN':'/分钟', 'HOUR':'/工时'}};
 }
 

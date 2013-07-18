@@ -180,7 +180,7 @@ if(isset($_REQUEST['install_upgrade'])){
         </ul>
     </div>
 
-    <form action="" method="post">
+    <form action="#" method="post">
         <input type="hidden" name="install_upgrade" value="true">
         <?php if(!isset($setup_upgrade_hack)){
         foreach($upgrade_plugins as $key=>$val){
@@ -198,7 +198,7 @@ if(isset($_REQUEST['install_upgrade'])){
     ?>
     Update has completed! Please click the button below to finish installation:
 
-<form action="" method="post">
+<form action="#" method="post">
     <input type="hidden" name="run_upgrade" value="true">
     <input type="submit" name="go" value="<?php _e('Continue Installation');?>" class="submit_button">
 </form>
@@ -235,7 +235,7 @@ if(isset($_REQUEST['install_upgrade'])){
         $errors = array();
         ?>
 
-        <form action="" method="post">
+        <form action="#" method="post">
         We found <?php count($available_updates['plugins']);?> available updates! <br>
         This will upgrade your system from version <?php echo module_config::current_version(); ?> to <?php echo $available_updates['new_version']; ?> <br>
 
@@ -435,7 +435,7 @@ if(isset($_REQUEST['install_upgrade'])){
 
                 <?php _e('Please insert your license code(s) below to receive updates and new features.'); ?>
                 <?php _h('Your licence code can be found from your CodeCanyon downloads page in the licence file.'); ?>
-                <form action="" method="post">
+                <form action="#" method="post">
                     <input type="hidden" name="check_upgrade" value="true">
                     <input type="hidden" name="save_license_codes" value="true">
 
@@ -479,7 +479,7 @@ if(isset($_REQUEST['install_upgrade'])){
                 <br><br>
                 <?php _e('To install any manual updates please click button below (ie: if you installed from a zip file).'); ?><br/>
                 <?php _e('You can also click this button to re-install any missing database tables.'); ?><br/>
-                <form action="" method="post">
+                <form action="#" method="post">
                     <input type="hidden" name="run_upgrade" value="true">
                     <input type="submit" name="go" value="<?php _e('Run Manual Upgrades');?>" class="submit_button">
                 </form>

@@ -95,7 +95,7 @@
 	                            </th>
 	                            <td>
 	                                <input type="hidden" name="contact_active" value="{{ng_contact_active}}" />
-	                                <select ng-model="ng_contact_active" ng-options="key as value for (key , value) in active_types" ng-init="ng_contact_active='<?php echo $user['contact_active']; ?>'">
+	                                <select ng-model="ng_contact_active" ng-options="key as value for (key , value) in active_types" ng-init="ng_contact_active='<?php echo isset($user['contact_active']) ? $user['contact_active']:''; ?>'">
 	      								<option value=""> - Select - </option>
 	      							</select>
 	                            </td>

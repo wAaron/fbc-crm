@@ -13,7 +13,7 @@
 require_once("includes/config.php");
 
 define('_APPLICATION_ID',2621629); // not used any more.
-define('_SCRIPT_VERSION','3.39.1'); //DDX patch
+define('_SCRIPT_VERSION','3.39.2'); //DDX patch
 
 if(!isset($_SERVER['REQUEST_URI'])){
 //ISAPI_Rewrite 3.x

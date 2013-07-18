@@ -57,7 +57,7 @@ if(module_security::can_i('edit','Security Roles','Security') && isset($_REQUEST
 
 
 	
-<form action="" method="post">
+<form action="#" method="post">
 	<input type="hidden" name="_process" value="save_security_role" />
 	<input type="hidden" name="security_role_id" value="<?php echo $security_role_id; ?>" />
 

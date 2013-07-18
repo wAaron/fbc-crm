@@ -79,31 +79,62 @@ if($website_id>0 && $website){
 						<tbody>
 							<tr>
 								<th class="width1">
-									<?php echo _l('Name'); ?>
+									<?php echo _l('Quotation Name'); ?>
 								</th>
 								<td>
 									<input type="text" name="name" id="name" value="<?php echo htmlspecialchars($website['name']); ?>" />
 								</td>
 							</tr>
-                            <?php if(module_config::c('project_display_url',1)){ ?>
 							<tr>
-								<th>
-									<?php echo _l('URL'); ?>
+								<th class="width1">
+									<?php echo _l('Task Type'); ?>
 								</th>
 								<td>
-									http://<input type="text" name="url" id="url" style="width: 200px;" value="<?php echo htmlspecialchars($website['url']); ?>" />
-                                    <?php if($website['url']){ ?><a href="<?php echo module_website::urlify($website['url']);?>" target="_blank"><?php _e('open &raquo;');?></a><?php } ?>
+	                                <input type="hidden" name="task_type" value="{{ng_task_type}}" />
+	                                <select ng-model="ng_task_type" ng-options="key as value for (key , value) in task_types" ng-init="ng_task_type='<?php echo isset($website['task_type']) ? $website['task_type'] : ''; ?>'">
+	      								<option value=""> - Select - </option>
+	      							</select>
 								</td>
 							</tr>
-                            <?php } ?>
 							<tr>
-								<th>
-									<?php echo _l('Status'); ?>
+								<th class="width1">
+									<?php echo _l('Service Type'); ?>
 								</th>
 								<td>
-									<?php echo print_select_box(module_website::get_statuses(),'status',$website['status'],'',true,false,true); ?>
+	                                <input type="hidden" name="service_type" value="{{ng_service_type}}" />
+	                                <select ng-model="ng_service_type" ng-options="key as value for (key , value) in service_types[ng_task_type]" ng-init="ng_service_type='<?php echo isset($website['service_type']) ? $website['service_type'] : ''; ?>'">
+	      								<option value=""> - Select - </option>
+	      							</select>
 								</td>
 							</tr>
+							<tr>
+								<th class="width1">
+									<?php echo _l('Service Price'); ?>
+								</th>
+								<td>
+	                                <input type="text" name="service_price" id="service_price" value="<?php echo isset($website['service_price']) ? $website['service_price'] : ''; ?>" />
+								</td>
+							</tr>
+							<tr>
+								<th class="width1">
+									<?php echo _l('Price Currency'); ?>
+								</th>
+								<td>
+	                                <?php echo print_select_box(get_multiple('currency','','currency_id'),'currency_id',isset($website['currency_id']) ? $website['currency_id'] : '','',true,'code'); ?>
+								</td>
+							</tr>
+							<tr>
+								<th class="width1">
+									<?php echo _l('Price Unit'); ?>
+								</th>
+								<td>
+	                                <input type="hidden" name="price_unit" value="{{ng_price_unit}}" />
+	                                <select ng-model="ng_price_unit" ng-options="key as value for (key , value) in price_units[ng_task_type]" ng-init="ng_price_unit='<?php echo isset($website['price_unit']) ? $website['price_unit'] : ''; ?>'">
+	      								<option value=""> - Select - </option>
+	      							</select>
+								</td>
+							</tr>
+
 						</tbody>
                         <?php
                          module_extra::display_extras(array(

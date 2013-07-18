@@ -82,7 +82,7 @@ if(strlen($template_print->content)){
 
                 <?php if(!isset($mode) || $mode=='html'){ ?>
 
-                    <form action="" method="post">
+                    <form action="#" method="post">
                     <input type="hidden" name="payment" value="go">
                     <input type="hidden" name="invoice_id" value="<?php echo $invoice_id;?>">
                     <table class="" cellpadding="0" cellspacing="0">

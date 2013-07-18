@@ -170,7 +170,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <input type="hidden" name="customer_active" value="{{ng_customer_active}}" />
-                                <select ng-model="ng_customer_active" ng-options="key as value for (key , value) in active_types" ng-init="ng_customer_active='<?php echo $customer['customer_active']; ?>'">
+                                <select ng-model="ng_customer_active" ng-options="key as value for (key , value) in active_types" ng-init="ng_customer_active='<?php echo isset($customer['customer_active']) ? $customer['customer_active']:''; ?>'">
       								<option value=""> - Select - </option>
       							</select>
                             </td>

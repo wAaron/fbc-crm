@@ -88,7 +88,7 @@ if(class_exists('module_table_sort',false)){
 	<?php echo _l('Invoices'); ?>
 </h2>
 
-<form action="" method="post">
+<form action="#" method="post">
 
 
 <table class="search_bar">

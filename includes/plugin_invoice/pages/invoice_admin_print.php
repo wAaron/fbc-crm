@@ -41,7 +41,7 @@ if(isset($_REQUEST['go'])){
     if(isset($_REQUEST['invoice_ids']) && $_REQUEST['invoice_ids']){
         ?>
         <?php print_heading('Print Multiple PDFs'); ?>
-        <form action="" method="post" id="printform">
+        <form action="#" method="post" id="printform">
             <input type="hidden" name="invoice_id" id="print_invoice_id" value="0">
             <input type="hidden" name="go" value="yes">
             <input type="hidden" name="print" value="1">

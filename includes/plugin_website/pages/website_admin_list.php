@@ -151,7 +151,7 @@ if(class_exists('module_import_export',false) && module_website::can_i('view','E
 	<tr>
         <th><?php _e('Filter By:'); ?></th>
         <td class="search_title">
-            <?php _e('Name/URL:');?>
+            <?php _e('Quotation Name');?>:
         </td>
         <td class="search_input">
             <input type="text" name="search[generic]" value="<?php echo isset($search['generic'])?htmlspecialchars($search['generic']):''; ?>" size="30">
@@ -179,17 +179,21 @@ $colspan = 4;
 <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_rows">
 	<thead>
 	<tr class="title">
-		<th id="website_name"><?php echo _l('Name'); ?></th>
-        <?php if(module_config::c('project_display_url',1)){ ?>
-		<th id="website_url"><?php echo _l('URL'); ?></th>
-        <?php } ?>
+		<th id="website_name"><?php echo _l('Quotation Name'); ?></th>
+		
         <?php if(!isset($_REQUEST['customer_id'])){ ?>
 		<th id="website_customer"><?php echo _l('Customer'); ?></th>
         <?php } ?>
-		<th id="website_status"><?php echo _l('Status'); ?></th>
+        
+		<th id="website_status"><?php echo _l('Task Type'); ?></th>
+		<th id="website_status"><?php echo _l('Service Type'); ?></th>
+		<th id="website_status"><?php echo _l('Service Price'); ?></th>
+		<th id="website_status"><?php echo _l('Price Unit'); ?></th>
+		
         <?php if(class_exists('module_group',false)){ ?>
         <th id="website_group"><?php echo _l('Group'); ?></th>
         <?php } ?>
+        
         <?php if(class_exists('module_extra',false)){
         module_extra::print_table_header('website');
         } ?>
@@ -204,21 +208,28 @@ $colspan = 4;
 			<td class="row_action">
 				<?php echo module_website::link_open($website['website_id'],true);?>
 			</td>
-            <?php if(module_config::c('project_display_url',1)){ ?>
-            <td>
-                <?php if(strlen(trim($website['url']))>0){ ?>
-                <a href="http://<?php echo htmlspecialchars($website['url']);?>" target="_blank">http://<?php echo htmlspecialchars($website['url']);?></a>
-                <?php } ?>
-            </td>
-            <?php } ?>
+            
             <?php if(!isset($_REQUEST['customer_id'])){ ?>
             <td>
                 <?php echo module_customer::link_open($website['customer_id'],true);?>
             </td>
             <?php } ?>
+            
             <td>
-                <?php echo htmlspecialchars($website['status']);?>
+                {{task_types['<?php echo htmlspecialchars($website['task_type']);?>']}}
             </td>
+            
+            <td>
+                {{service_types.<?php echo htmlspecialchars($website['task_type']);?>.<?php echo htmlspecialchars($website['service_type']);?>}}
+            </td>
+            
+            <td>
+                <?php echo dollar($website['service_price'],true,$website['currency_id']);?>
+            </td>
+            <td>
+                {{price_units.<?php echo htmlspecialchars($website['task_type']);?>.<?php echo htmlspecialchars($website['price_unit']);?>}}
+            </td>
+            
             <?php if(class_exists('module_group',false)){ ?>
             <td><?php
 

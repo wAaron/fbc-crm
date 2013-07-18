@@ -57,7 +57,7 @@ if($show_task_dates)$colspan++;
 
 
 	
-<form action="" method="post" id="invoice_form">
+<form action="#" method="post" id="invoice_form">
 	<input type="hidden" name="_process" value="save_invoice" class="no_permissions" />
     <input type="hidden" name="invoice_id" value="<?php echo $invoice_id; ?>" />
     <input type="hidden" name="customer_id" value="<?php echo $invoice['customer_id']; ?>" />
