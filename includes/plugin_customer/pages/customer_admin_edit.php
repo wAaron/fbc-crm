@@ -506,9 +506,66 @@ $sales = module_customer::get_sales();
 				?>
 			
 
-
-
-
+				<br/>
+			
+				<?php if($customer_id && $customer_id!='new'): ?>
+				<h3><?php echo _l('Demand Priority'); ?>
+				    <span class="button">
+                        <input type="checkbox" ng-model="info.demand.hide" ng-init="info.demand.hide='false'">
+                    </span>
+				</h3>
+				<table width="100%" border="1" cellspacing="0" cellpadding="2" class="tableclass tableclass_form info-{{info.demand.hide}}">
+					<tbody>
+						<tr>
+							<td align="center"><?php echo _l('Demand Candidate'); ?></td>
+							<td align="center"><?php echo _l('Demand High'); ?></td>
+							<td align="center"><?php echo _l('Demand Low'); ?></td>
+							<td align="center"><?php echo _l('Demand None'); ?></td>
+						</tr>
+						<tr>
+							<td valign="top">
+				<?php 
+					$service_candidates = array('笔译', '口译', 'DTP', '撰写', '网站', '软件', '多媒体', '课件', '3D', 'APP');
+					$service_high = strlen($customer['demand_high']) > 0 ? explode(',', trim($customer['demand_high'])) : array();
+					$service_low = strlen($customer['demand_low']) > 0 ? explode(',', trim($customer['demand_low'])) : array();
+					$service_none = strlen($customer['demand_none']) > 0 ? explode(',', trim($customer['demand_none'])) : array();
+					
+					$service_candidates_left = array_diff($service_candidates, $service_high, $service_low, $service_none);
+					
+				?>
+				<ul id="ul_demand_candi" class="dropfrom">
+				  <li class="ui-state-highlight" ng-repeat='candidate in <?php echo json_encode($service_candidates_left); ?>'>{{candidate}}</li>
+				</ul>
+							</td>
+							<td  valign="top">
+				<input type="hidden" name="demand_high" value="<?php echo $customer['demand_high']; ?>" />
+				<ul id="ul_demand_high" class="dropto">
+					<?php if (count($service_high) > 0):?>
+					<li class="ui-state-highlight" ng-repeat='d_high in <?php echo json_encode(explode(',', $customer['demand_high'])); ?>'>{{d_high}}</li>
+					<?php endif;?>
+				</ul>
+							</td>
+							<td  valign="top">
+				<input type="hidden" name="demand_low" value="<?php echo $customer['demand_low']; ?>" />
+				<ul id="ul_demand_low" class="dropto">
+				<?php if (count($service_low) > 0):?>
+					<li class="ui-state-highlight" ng-repeat='d_low in <?php echo json_encode(explode(',', $customer['demand_low'])); ?>'>{{d_low}}</li>
+				<?php endif;?>
+				</ul>
+							</td>
+							<td  valign="top">
+				<input type="hidden" name="demand_none" value="<?php echo $customer['demand_none']; ?>" />
+				<ul id="ul_demand_none" class="dropto">
+					<?php if (count($service_none) > 0):?>
+					<li class="ui-state-highlight" ng-repeat='d_none in <?php echo json_encode(explode(',', $customer['demand_none'])); ?>'>{{d_none}}</li>
+					<?php endif;?>
+				</ul>
+							</td>
+						</tr>
+					</tbody>
+				</table>
+				<br style="clear: both;" />
+				<?php endif;?>
 			</td>
 		</tr>
 		
@@ -612,3 +669,41 @@ $sales = module_customer::get_sales();
 
 </form>
 
+<script type="text/javascript">
+  $(function() {
+    $( "ul.dropfrom" ).sortable({
+      connectWith: "ul"
+    });
+ 
+    $( "ul.dropto" ).sortable({
+      connectWith: "ul",
+      dropOnEmpty: true
+    });
+
+    $( "#ul_demand_high" ).on( "sortreceive sortremove", function( event, ui ) {
+        var demand_high = [];
+    	$( "#ul_demand_high li" ).each(function( index ) {
+    		demand_high.push($(this).text());
+    	});
+    	$("input[name='demand_high']").val(demand_high.join(','));
+    });
+
+    $( "#ul_demand_low" ).on( "sortreceive sortremove", function( event, ui ) {
+        var demand_low = [];
+    	$( "#ul_demand_low li" ).each(function( index ) {
+    		demand_low.push($(this).text());
+    	});
+    	$("input[name='demand_low']").val(demand_low.join(','));
+    });
+
+    $( "#ul_demand_none" ).on( "sortreceive sortremove", function( event, ui ) {
+        var demand_none = [];
+    	$( "#ul_demand_none li" ).each(function( index ) {
+    		demand_none.push($(this).text());
+    	});
+    	$("input[name='demand_none']").val(demand_none.join(','));
+    });
+ 
+    $( "#ul_demand_candi, #ul_demand_high, #ul_demand_low, #ul_demand_none" ).disableSelection();
+  });
+</script>

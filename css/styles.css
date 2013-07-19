@@ -563,4 +563,7 @@ table.search_bar th{
 .bg_active_T {
 	background: #C0C0C0;
 }
-}
+
+ #ul_demand_candi, #ul_demand_high, #ul_demand_low , #ul_demand_none{ list-style-type: none; margin: 0; padding: 0; float: left; background: #eee; padding: 5px; width: 113px;}
+ #ul_demand_candi li, #ul_demand_high li, #ul_demand_low li, #ul_demand_none li { margin: 5px; padding: 5px; font-size: 1.2em; width: 90px; }
+

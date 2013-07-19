@@ -728,6 +728,12 @@ $labels = array(
     'Company Information' => '公司信息',
     'Cooperation Information' => '合作信息',
     'Payment Information' => '付款信息',
+    'Demand Priority' => '业务需求高低',
+    'Demand Candidate' => '待选',
+    'Demand High' => '高需求',
+    'Demand Low' => '低需求',
+    'Demand None' => '无需求',
+    
     'VIP Information' => 'VIP信息',
     'Name' => '客户名称',
     'Logo' => 'Logo',

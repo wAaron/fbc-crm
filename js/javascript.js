@@ -245,5 +245,7 @@ function MyCntrl($scope) {
 	$scope.task_types = {'B':'笔译工单', 'V':'视频工单'};
 	$scope.service_types = {'B':{'C2E':'中译英', 'E2C':'英译中'}, 'V':{'SPZZ':'视频制作', 'ZMZZ':'字幕制作'}};
 	$scope.price_units = {'B':{'QZZ':'/千中文', 'QYZ':'/千英文', 'YE':'/页'}, 'V':{'MIN':'/分钟', 'HOUR':'/工时'}};
+	
+	//$scope.service_candidates= ['笔译', '口译', 'DTP', '撰写', '网站', '软件', '多媒体', '课件', '3D', 'APP'];
 }
 
