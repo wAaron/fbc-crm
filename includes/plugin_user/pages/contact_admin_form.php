@@ -9,8 +9,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
                             if(isset($use_master_key) && $use_master_key == 'customer_id' && (!isset($output) || $output != 'new')){
                                 $primary = false;
@@ -34,9 +34,7 @@
 									<?php echo _l('First Name'); ?>
 								</th>
 								<td>
-									<input type="text" name="name" id="name" style="width: 200px;" value="<?php echo htmlspecialchars($user['name']); ?>" />
-									
-									
+									<input type="text" name="name" id="name" class="medium_width" value="<?php echo htmlspecialchars($user['name']); ?>" />
 								</td>
 							</tr>
 							<tr>
@@ -44,7 +42,7 @@
 									<?php echo _l('Contact Position'); ?>
 								</th>
 								<td>
-									<input type="text" name="contact_position" style="width: 200px;" value="<?php echo isset($user['contact_position'])? htmlspecialchars($user['contact_position']) : ''; ?>" />
+									<input type="text" name="contact_position" class="medium_width" value="<?php echo isset($user['contact_position'])? htmlspecialchars($user['contact_position']) : ''; ?>" />
 								</td>
 							</tr>
 							<tr>
@@ -52,7 +50,7 @@
 									<?php echo _l('Email Address'); ?>
 								</th>
 								<td>
-									<input type="text" name="email" style="width: 200px;" id="email" value="<?php echo htmlspecialchars($user['email']); ?>" />
+									<input type="text" name="email" class="medium_width" id="email" value="<?php echo htmlspecialchars($user['email']); ?>" />
 								</td>
 							</tr>
 
@@ -89,6 +87,7 @@
 									<?php echo print_select_box(module_language::get_languages_attributes(),'language',$user['language'],'',false); ?>
 								</td>
 							</tr>
+                            <?php } ?>
 	                        <tr>
 	                            <th>
 	                                <?php echo _l('Contact Active'); ?>
@@ -100,7 +99,6 @@
 	      							</select>
 	                            </td>
 	                        </tr>
-                            <?php } ?>
 						</tbody>
                         <?php
                         if(isset($user['user_id']) && (int)$user['user_id']> 0){

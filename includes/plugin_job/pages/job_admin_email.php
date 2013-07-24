@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 if(!$job_safe)die('failed');
 if(!module_job::can_i('edit','Jobs'))die('no perms');
@@ -52,6 +52,7 @@ $job['job_url'] = module_job::link_public($job_id);
 ob_start();
 $job_data = $job;
 $ignore_task_hook=true;
+$for_email=true;
 include('job_public.php');
 $job['job_tasks'] = ob_get_clean();
 

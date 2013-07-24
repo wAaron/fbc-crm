@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 define('_THEME_CONFIG_PREFIX','_theme_');
@@ -27,7 +27,8 @@ class module_theme extends module_base{
     function module_theme(){
         $display_mode = get_display_mode();
         if($display_mode!='mobile'){
-            module_config::register_css('theme','theme.php',true,100);
+
+            module_config::register_css('theme','theme.php',full_link(_EXTERNAL_TUNNEL_REWRITE.'m.theme/h.css'),100);
         }
         if($display_mode=='iframe'){
             module_config::register_css('theme','iframe.css',true,100);
@@ -58,7 +59,10 @@ class module_theme extends module_base{
     }
     
 	function init(){
-        $this->version = 2.345;
+        $this->version = 2.348;
+        // 2.348 - 2013-06-18 - easy custom CSS option added
+        // 2.347 - 2013-05-27 - dashboard improvements.
+
         // 2.2 - handling including of files.
         // 2.3 - new pro dark theme beginnings
         // 2.31 - theme selector on settings page
@@ -70,6 +74,7 @@ class module_theme extends module_base{
         // 2.343 - permissoin fix
         // 2.344 - php5/6 fix
         // 2.345 - mobile layout fixes
+        // 2.346 - css fixes
 
 
 		$this->links = array();
@@ -96,6 +101,34 @@ class module_theme extends module_base{
 
 	}
 
+    public function external_hook($hook){
+        switch($hook){
+            case 'css':
+                @ob_end_clean();
+                header('Content-type: text/css');
+                $styles = module_theme::get_theme_styles(module_theme::$current_theme);
+                ?>
+
+/** css stylesheet */
+
+<?php foreach($styles as $style){
+
+    echo $style['r'].'{';
+    foreach($style['v'] as $s=>$v){
+        echo $s.':'.$v[0].'; ';
+    }
+    echo "}\n";
+
+}
+                // custom css output (only not in demo mode)
+                if(!_DEMO_MODE){
+                    echo module_config::c(_THEME_CONFIG_PREFIX.'theme_custom_css');
+                }else{
+                    echo '/*custom css disabled in demo mode*/';
+                }
+                exit;
+        }
+    }
     public static function hook_header_print_js(){
         $u = preg_replace('#.demo_theme=\w+#','',$_SERVER['REQUEST_URI']);
         ?>

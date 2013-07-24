@@ -5,12 +5,14 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 $job = $job_data; // hack
 
 $colspan = 2;
+
+if(!isset($for_email)||!$for_email){
 ?>
 
 <script type="text/javascript">
@@ -23,6 +25,7 @@ $colspan = 2;
         });
     });
 </script>
+<?php } ?>
                     <table border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_rows tableclass_full">
                         <thead>
                         <tr>
@@ -31,7 +34,14 @@ $colspan = 2;
                             <th width="10">#</th>
                             <?php } ?>
                             <th class="task_column task_width"><?php _e('Description');?></th>
-                            <th><?php echo module_config::c('task_hours_name',_l('Hours'));?></th>
+                            <th>
+                                <?php if($job['default_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                }else if($job['default_task_type']==_TASK_TYPE_QTY_AMOUNT){
+                                echo module_config::c('task_qty_name',_l('Qty'));
+                                }else if($job['default_task_type']==_TASK_TYPE_HOURS_AMOUNT){
+                                echo module_config::c('task_hours_name',_l('Hours'));
+                                } ?>
+                            </th>
                             <th><?php _e('Amount');?></th>
                             <?php if(module_config::c('job_show_due_date',1)){
                             $colspan++; ?>
@@ -141,7 +151,7 @@ $colspan = 2;
                                             ?> <a href="<?php echo module_invoice::link_public($invoice['invoice_id']);?>"><?php echo $invoice['name'];?></a> <?php 
                                         }else{
                                             if($percentage>=1){
-                                                echo '<span class="success_text">'._l('Done').'</span>';
+                                                echo '<span class="success_text">'._l('Pending').'</span>';
                                             }else{
                                                 echo _l('N/A');
                                             }

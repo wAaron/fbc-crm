@@ -5,11 +5,11 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 $colspan = 2;
-?><tr class="task_row_<?php echo $task_id;?>">
+?><tr class="task_editting task_row_<?php echo $task_id;?>">
     <?php if($show_task_numbers){ ?>
         <td rowspan="2" valign="top" style="padding:0.3em 0;">
             <input type="text" name="job_task[<?php echo $task_id;?>][task_order]" value="<?php echo $task_data['task_order'];?>" size="3" class="edit_task_order">
@@ -25,16 +25,32 @@ $colspan = 2;
                                 } ?>
     </td>
     <td>
-        <?php if($task_editable){ ?>
-        <input type="text" name="job_task[<?php echo $task_id;?>][hours]" value="<?php echo $task_data['hours'];?>" size="3" style="width:25px;"  onchange="setamount(this.value,'<?php echo $task_id;?>');" onkeyup="setamount(this.value,'<?php echo $task_id;?>');" tabindex="12">
-        <?php }else{ ?>
-        <?php echo $task_data['hours'];?>
-        <?php } ?>
+
+        <?php
+        if($task_editable){ ?>
+
+            <?php if($task_data['hours'] == 0 && $task_data['manual_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                // no hour input
+            }else if($task_data['manual_task_type']==_TASK_TYPE_QTY_AMOUNT){ ?>
+                <input type="text" name="job_task[<?php echo $task_id;?>][hours]" value="<?php echo number_out($task_data['hours']);?>" size="3" style="width:25px;" tabindex="12">
+            <?php }else{
+             ?>
+                <input type="text" name="job_task[<?php echo $task_id;?>][hours]" value="<?php echo number_out($task_data['hours']);?>" size="3" style="width:25px;"  onchange="setamount(this.value,'<?php echo $task_id;?>');" onkeyup="setamount(this.value,'<?php echo $task_id;?>');" tabindex="12">
+            <?php
+            } ?>
+
+        <?php }else{
+            if($task_data['hours'] == 0 && $task_data['manual_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                // no hour input
+            }else{
+                echo $task_data['hours'];
+            }
+        } ?>
     </td>
     <?php if(module_invoice::can_i('view','Invoices')){ ?>
     <td nowrap="">
         <?php if($task_editable){ ?>
-            <?php echo currency('<input type="text" name="job_task['.$task_id.'][amount]" value="'.($task_data['amount']>0 ? ($task_data['amount']) : ($task_data['hours']*$job['hourly_rate'])).'" id="'.$task_id.'taskamount" class="currency" tabindex="13">');?>
+            <?php echo currency('<input type="text" name="job_task['.$task_id.'][amount]" value="'.($task_data['amount']>0 ? number_out($task_data['amount']) : number_out($task_data['hours']*$job['hourly_rate'])).'" id="'.$task_id.'taskamount" class="currency" tabindex="13">');?>
         <?php }else{ ?>
             <?php echo $task_data['amount']>0 ? dollar($task_data['amount'],true,$job['currency_id']) : dollar($task_data['hours']*$job['hourly_rate'],true,$job['currency_id']);?>
         <?php } ?>
@@ -59,15 +75,20 @@ $colspan = 2;
         isset($staff_member_rel[$task_data['user_id']]) ? $task_data['user_id'] : false, 'job_task_staff_list', ''); ?>
         </td>
     <?php } ?>
-    <td>
-        &nbsp;
-    </td>
-    <td nowrap="nowrap" align="center">
-        <input type="submit" name="ts" class="save_task small_button" value="<?php _e('Save');?>" tabindex="20" style="float:left;">
-        <a href="#" class="delete ui-state-default ui-corner-all ui-icon ui-icon-arrowreturn-1-w" style="float:right;" title="<?php _e('Cancel');?>" onclick="refresh_task_preview(<?php echo $task_id;?>,false); return false;">cancel</a>
+    <td colspan="2" class="percentage_edit">
+        <?php
+            // offer up a new way to set a manual task percentage completed.
+            //_e('Completed:');
+            ?>
+            <span class="manual_percent_input" style="<?php echo $task_data['manual_percent']<0 ? 'display:none;' : '';?>">
+            <input type="text" name="job_task[<?php echo $task_id;?>][manual_percent]" style="width:25px;" value="<?php echo $task_data['manual_percent']>=0 ? $task_data['manual_percent'] : '';?>">%
+            </span>
+            <?php if($task_data['manual_percent']<0){ // button to show our input ?>
+            <a href="#" onclick="$(this).parent().find('.manual_percent_input input').val('<?php echo $percentage*100;?>'); $(this).parent().find('.manual_percent_input').show(); $(this).hide(); return false;"><?php echo $percentage*100;?>%</a>
+            <?php } ?>
     </td>
 </tr>
-<tr class="task_row_<?php echo $task_id;?>">
+<tr class="task_editting task_row_<?php echo $task_id;?>">
     <td>
        <textarea name="job_task[<?php echo $task_id;?>][long_description]" class="edit_task_long_description" tabindex="11" id="task_long_desc_<?php echo $task_id;?>"><?php echo htmlspecialchars($task_data['long_description']);?></textarea>
         <?php
@@ -75,7 +96,20 @@ $colspan = 2;
         ?>
     </td>
     <td colspan="<?php echo $colspan;?>" valign="top">
-        <?php if(module_config::c('job_task_log_all_hours',1) || $task_data['hours']>0){ ?>
+
+        <?php if(module_invoice::can_i('view','Invoices')){ ?>
+        <div>
+        <?php _e('Task Type:'); ?> <?php
+            $types = module_job::get_task_types();
+            $types['-1'] = _l('Default (%s)',$types[$task_data['manual_task_type']]);
+            echo print_select_box($types,'job_task['.$task_id.'][manual_task_type]',$task_data['manual_task_type_real'],'',false); ?>
+        </div>
+        <?php } ?>
+        <div>
+        <?php if(
+            ($task_data['manual_task_type'] == _TASK_TYPE_HOURS_AMOUNT) &&
+            (module_config::c('job_task_log_all_hours',1) || $task_data['hours']>0)
+        ){ ?>
             <?php echo _l('%s of %s hours have been logged:',(float)$task_data['completed'],$task_data['hours']);?>
             <input type="hidden" name="job_task[<?php echo $task_id;?>][completed]" value="<?php echo $task_data['completed'];?>">
             <br/>
@@ -88,17 +122,22 @@ $colspan = 2;
                 echo '<br/>';
             }
         } ?>
+        </div>
+        <div>
 
-
-        <?php if((module_config::c('job_task_log_all_hours',1) || $task_data['hours']>0) && $task_editable){ ?>
-        <?php _e('Log'); ?>
+        <?php if(
+            ($task_data['manual_task_type'] == _TASK_TYPE_HOURS_AMOUNT) &&
+            (module_config::c('job_task_log_all_hours',1) || $task_data['hours']>0) &&
+            $task_editable){ ?>
+            <?php _e('Log'); ?>
              <input type="text" name="job_task[<?php echo $task_id;?>][log_hours]" value="<?php ?>" size="2" style="width:35px"
                     id="complete_<?php echo $task_id;?>" tabindex="16"> <?php _e('hours');?>
         <?php } ?>
-
+        </div>
     </td>
-    <td colspan="2" valign="top">
-        <?php if($task_editable){ ?>
+    <td colspan="2" class="edit_task_options">
+        <div>
+        <?php if($task_editable && module_invoice::can_i('view','Invoices')){ ?>
             <input type="hidden" name="job_task[<?php echo $task_id;?>][billable_t]" value="1">
             <input type="checkbox" name="job_task[<?php echo $task_id;?>][billable]" value="1" id="billable_t_<?php echo $task_id;?>" <?php echo $task_data['billable'] ? ' checked':'';?> tabindex="17"> <label for="billable_t_<?php echo $task_id;?>"><?php _e('Task is billable');?></label> <br/>
             <input type="hidden" name="job_task[<?php echo $task_id;?>][taxable_t]" value="1">
@@ -109,13 +148,21 @@ $colspan = 2;
             }else{
                 _e('Task not billable');
             }
+            echo '<br/>';
+            if($task_data['taxable']){
+                _e('Task is taxable');
+            }else{
+                _e('Task not taxable');
+            }
         }
         if($task_data['invoiced'] && $task_data['invoice_id']){
             echo '<br/>';
             echo _l('Invoice %s',module_invoice::link_open($task_data['invoice_id'],true));
         }
         ?>
-        <br/>
+        </div>
+
+        <div>
 
         <?php
         if(module_config::c('job_task_log_all_hours',1) || $task_data['hours']<=0){ ?>
@@ -141,6 +188,13 @@ $colspan = 2;
             <?php }
         }
         ?>
+
+        </div>
+
+        <div class="edit_task_button">
+            <input type="submit" name="ts" class="save_task small_button" value="<?php _e('Save');?>" tabindex="20" style="float:left;">
+        <a href="#" class="delete ui-state-default ui-corner-all ui-icon ui-icon-arrowreturn-1-w" style="float:right;" title="<?php _e('Cancel');?>" onclick="refresh_task_preview(<?php echo $task_id;?>,false); return false;">cancel</a>
+        </div>
 
     </td>
 </tr>

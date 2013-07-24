@@ -5,32 +5,54 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!$invoice_safe)die('failed');
 
-$invoice_id = (int)$_REQUEST['invoice_id'];
+$invoice_id = isset($_REQUEST['invoice_id']) ? (int)$_REQUEST['invoice_id'] : false;
 if(isset($_REQUEST['go'])){
+    $invoice = module_invoice::get_invoice($invoice_id);
+    // confirm customer access.
+    if(!$invoice || $invoice['invoice_id'] != $invoice_id){
+        echo 'invalid invoice id';
+        exit;
+    }
+    if($invoice && $invoice['customer_id']){
+        $customer_test = module_customer::get_customer($invoice['customer_id']);
+        if(!$customer_test || $customer_test['customer_id'] != $invoice['customer_id']){
+            echo 'invalid customer id';
+            exit;
+        }
+    }
     // send the actual invoice.
     // step1, generate the PDF for the invoice...
     $pdf_file = module_invoice::generate_pdf($invoice_id);
 
 	if($pdf_file && is_file($pdf_file)){
-        ob_end_clean();
+        // copied from public_print hook
+        @ob_end_clean();
+        @ob_end_clean();
 
-		// send pdf headers and prompt the user to download the PDF
+        // send pdf headers and prompt the user to download the PDF
 
-		header("Pragma: public");
-		header("Expires: 0");
-		header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
-		header("Cache-Control: private",false);
-		header("Content-Type: application/pdf");
-		header("Content-Disposition: attachment; filename=\"".basename($pdf_file)."\";");
-		header("Content-Transfer-Encoding: binary");
-		header("Content-Length: ".filesize($pdf_file));
-		readfile($pdf_file);
+        header("Pragma: public");
+        header("Expires: 0");
+        header("Cache-Control: must-revalidate, post-check=0, pre-check=0");
+        header("Cache-Control: private",false);
+        header("Content-Type: application/pdf");
+        header("Content-Disposition: attachment; filename=\"".basename($pdf_file)."\";");
+        header("Content-Transfer-Encoding: binary");
+        $filesize = filesize($pdf_file);
+        if($filesize>0){
+            header("Content-Length: ".$filesize);
+        }
+        // some hosting providershave issues with readfile()
+        $read = readfile($pdf_file);
+        if(!$read){
+            echo file_get_contents($pdf_file);
+        }
 
 	}
 	exit;
@@ -59,6 +81,7 @@ if(isset($_REQUEST['go'])){
         <?php
         foreach(explode(',',$_REQUEST['invoice_ids']) as $invoice_id){
             $invoice = module_invoice::get_invoice($invoice_id);
+            // todo: confirm invoice pemrissions, possible data slip
             ?>
             <li><a href="#" onclick="return generate(<?php echo $invoice_id;?>,this);"><?php echo $invoice['name'];?></a></li>
             <?php

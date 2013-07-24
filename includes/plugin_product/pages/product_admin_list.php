@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -37,6 +37,7 @@ $pagination = process_pagination($products);
                 'fields'=>array(
                     'Product ID' => 'product_id',
                     'Product Name' => 'name',
+                    'Product Category' => 'category_name',
                     'Hours/Qty' => 'quantity',
                     'Amount' => 'amount',
                     'Description' => 'description',
@@ -51,7 +52,7 @@ $pagination = process_pagination($products);
     } ?>
     <?php } ?>
     <span class="title">
-		<?php echo _l('Job/Invoice Products'); ?> (BETA!)
+		<?php echo _l('Job/Invoice Products'); ?>
 	</span>
 </h2>
 
@@ -63,6 +64,7 @@ $pagination = process_pagination($products);
 	<thead>
 	<tr class="title">
 		<th><?php echo _l('Product Name'); ?></th>
+		<th><?php echo _l('Category Name'); ?></th>
 		<th><?php echo _l('Hours/Quantity'); ?></th>
 		<th><?php echo _l('Amount'); ?></th>
     </tr>
@@ -74,6 +76,11 @@ $pagination = process_pagination($products);
         <tr class="<?php echo ($c++%2)?"odd":"even"; ?>">
             <td class="row_action">
 	            <?php echo module_product::link_open($product['product_id'],true,$product); ?>
+            </td>
+            <td>
+				<?php
+                echo htmlspecialchars($product['product_category_name']);
+				?>
             </td>
             <td>
 				<?php

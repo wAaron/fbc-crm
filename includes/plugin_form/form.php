@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -28,6 +28,7 @@ class module_form extends module_base{
     // 2.222 - fix for delete members (passing arrays in post data)
     // 2.223 - better select box form element generation
     // 2.224 - currency support in form settings
+    // 2.225 - securing forms
 
 
 	public static function get_class() {
@@ -438,6 +439,28 @@ class module_form extends module_base{
             $html = module_encrypt::parse_html_input($setting['page_name'],$html);
         }
         echo $html;
+    }
+
+    public static function check_secure_key(){
+        if(!isset($_REQUEST['form_auth_key']) || $_REQUEST['form_auth_key'] != self::get_secure_key()){
+            return false;
+        }
+        return true;
+    }
+    public static function print_form_auth(){
+        ?>
+        <input type="hidden" name="form_auth_key" value="<?php echo htmlspecialchars(self::get_secure_key());?>">
+        <?php
+    }
+    public static function get_secure_key(){
+        // generate a secure key for all sensitive form submissions.
+        $hash = module_config::c('secure_hash',0);
+        if(!$hash){
+            $hash = md5(microtime().mt_rand(1,4000).__FILE__.time()); // not very secure. meh.
+            module_config::save_config('secure_hash',$hash);
+        }
+        $hash = md5($hash."secure for user ".module_security::get_loggedin_id()." with name ".module_security::get_loggedin_name());
+        return $hash;
     }
 
 }

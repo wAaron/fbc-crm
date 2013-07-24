@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!$user_safe)die('fail');
@@ -93,7 +93,7 @@ if(isset($user['email']) && strlen($user['email'])>3){
 
 
 
-<form action="" method="post">
+<form action="" method="post" autocomplete="off">
 	<input type="hidden" name="_process" value="save_user" />
 	<!-- <input type="hidden" name="_redirect" value="<?php echo $module->link("",array("saved"=>true,"user_id"=>((int)$user_id)?$user_id:'')); ?>" /> -->
 	<input type="hidden" name="user_id" value="<?php echo $user_id; ?>" />
@@ -125,9 +125,7 @@ if(isset($user['email']) && strlen($user['email'])>3){
 				<td valign="top" width="50%">
 					<h3><?php echo _l('User Details'); ?></h3>
 
-					<?php 
-                    include('user_admin_form.php'); 
-                    ?>
+					<?php include('user_admin_form.php'); ?>
 
 
                     <?php if(module_config::c('users_have_address',0)){ ?>
@@ -170,6 +168,43 @@ if(isset($user['email']) && strlen($user['email'])>3){
 					<?php include('user_admin_edit_login.php'); ?>
 
 
+                    <?php if(class_exists('module_company',false) && module_company::can_i('view','Company') && module_company::is_enabled() && module_user::can_i('edit','User')){
+                        $heading = array(
+                    'type' => 'h3',
+                    'title' => 'Assigned Company',
+                );
+                if(module_company::can_i('edit','Company')){
+                    $help_text = addcslashes(_l("Here you can select which Company this Staff belongs to. This is handy if you are running multiple companies through this system and you would like to separate customers between different companies. Staff can be restricted to assigned companies from the User Role"),"'");
+                    $heading['button'] =  array(
+                      'url' => '#',
+                      'onclick' => "alert('$help_text'); return false;",
+                      'title' => 'help',
+                  );
+                }
+                print_heading($heading);
+                ?>
+                    <table class="tableclass tableclass_form tableclass_full">
+					<tbody>
+						<tr>
+							<th class="width1">
+								<?php echo _l('Company'); ?>
+							</th>
+							<td>
+								<?php
+                                $companys = module_company::get_companys();
+                                foreach($companys as $company){ ?>
+                                    <?php if(module_company::can_i('edit','Company')){ ?>
+                                    <input type="hidden" name="available_user_company[<?php echo $company['company_id'];?>]" value="1">
+                                    <input type="checkbox" name="user_company[<?php echo $company['company_id'];?>]" id="customer_company_<?php echo $company['company_id'];?>" value="<?php echo $company['company_id'];?>" <?php echo isset($user['company_ids']) && isset($user['company_ids'][$company['company_id']]) ? ' checked="checked" ':'';?>>
+                                    <?php } ?>
+                                    <label for="customer_company_<?php echo $company['company_id'];?>"><?php echo htmlspecialchars($company['name']);?></label>
+                                <?php } ?>
+							</td>
+						</tr>
+                    </tbody>
+                    </table>
+
+                <?php } ?>
 
                 </td>
 			</tr>

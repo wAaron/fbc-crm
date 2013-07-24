@@ -5,19 +5,19 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
-if(!module_config::can_i('view','Settings')){
+if(!module_config::can_i('view','Settings') || !module_product::can_i('edit','Products')){
     redirect_browser(_BASE_HREF);
 }
 
-$product_id = (int)$_REQUEST['product_id'];
-$product = array();
-
-$product = module_product::get_product($product_id);
+// done in product_admin
+//$product_id = (int)$_REQUEST['product_id'];
+//$product = array();
+//$product = module_product::get_product($product_id);
 
 // check permissions.
 if(class_exists('module_security',false)){
@@ -75,6 +75,14 @@ if(class_exists('module_security',false)){
 							</th>
 							<td>
 								<input type="text" name="name" style="width:250px;" value="<?php echo htmlspecialchars($product['name']); ?>" />
+							</td>
+						</tr>
+						<tr>
+							<th>
+								<?php echo _l('Category'); ?>
+							</th>
+							<td>
+								<?php echo print_select_box(module_product::get_product_categories(),'product_category_id',$product['product_category_id'],'',true,'product_category_name'); ?>
 							</td>
 						</tr>
 						<tr>

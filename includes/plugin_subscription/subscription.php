@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -28,7 +28,11 @@ class module_subscription extends module_base{
 		$this->subscription_types = array();
 		$this->module_name = "subscription";
 		$this->module_position = 30;
-        $this->version = 2.143;
+        $this->version = 2.148;
+        // 2.148 - 2013-04-16 - improved subscription start date
+        // 2.147 - 2013-04-16 - fix for updated invoice system
+
+        // old history:
         // 2.13 - initial release
         // 2.131 - better integration with invoicing sysetem. eg: eamiling an invoice to a member. adding a member_id field to invoice.
         // 2.132 - delete fix.
@@ -42,9 +46,13 @@ class module_subscription extends module_base{
         // 2.141 - fix for subscription in finance upcoming items
         // 2.142 - customer subscription bug fix
         // 2.143 - dashboard alerts bug fix
+        // 2.144 - subscription invoice number improvement
+        // 2.145 - subscription next due date manual editing
+        // 2.146 - 2013-04-13 - subscription next date better calculations + subscription_calc_type advanced setting
 
 
         module_config::register_css('subscription','subscription.css');
+        module_config::register_js('subscription','subscription.js');
 ;
         hook_add('invoice_sidebar','module_subscription::hook_invoice_sidebar');
         hook_add('invoice_deleted','module_subscription::hook_invoice_deleted');
@@ -318,10 +326,23 @@ class module_subscription extends module_base{
                                 query($sql);
                             }
                         }
-                        self::update_next_due_date($subscription_id,$member_id,$customer_hack);
+                        // this input box is set from subscription.js when adjusting the next due date manually.
+                        if(isset($_REQUEST['subscription_next_due_date_change']) && isset($_REQUEST['subscription_next_due_date_change'][$subscription_id])){
+                            $date = input_date($_REQUEST['subscription_next_due_date_change'][$subscription_id]);
+                            if($date){
+                                if($customer_hack){
+                                    $sql = "UPDATE `"._DB_PREFIX."subscription_customer` SET `next_due_date` = '".mysql_real_escape_string($date)."', manual_next_due_date = 1 WHERE `customer_id` = ".(int)$member_id." AND subscription_id = '".(int)$subscription_id."' LIMIT 1";
+                                }else{
+                                    $sql = "UPDATE `"._DB_PREFIX."subscription_member` SET `next_due_date` = '".mysql_real_escape_string($date)."', manual_next_due_date = 1 WHERE `member_id` = ".(int)$member_id." AND subscription_id = '".(int)$subscription_id."' LIMIT 1";
+                                }
+                                query($sql);
+                            }
+                        }else{
+                            self::update_next_due_date($subscription_id,$member_id,$customer_hack,false);
+                        }
 
                     }else{
-                        $start_date = date('Y-m-d');
+                        $start_date = input_date($_REQUEST['subscription_start_date'][$subscription_id]);
                         /*// find history. to modify start date based on first payment.
                         $history = self::get_subscription_history($subscription_id,$member_id);
                         if(count($history)>0){
@@ -346,7 +367,7 @@ class module_subscription extends module_base{
                         }
                         query($sql);
 
-                        self::update_next_due_date($subscription_id,$member_id,$customer_hack);
+                        self::update_next_due_date($subscription_id,$member_id,$customer_hack,true);
                     }
                 }
             }
@@ -417,7 +438,7 @@ class module_subscription extends module_base{
             $invoice_data['date_cancel'] = '0000-00-00';
             $invoice_data['date_create'] = $date;
             $invoice_data['date_due'] = $date;
-            $invoice_data['name'] = 'S'.str_pad($subscription_history_id,6,'0',STR_PAD_LEFT);
+            $invoice_data['name'] = (!$invoice_data['name'] || module_config::c('subscription_invoice_numeric',0)) ? 'S'.str_pad($subscription_history_id,6,'0',STR_PAD_LEFT) : $invoice_data['name'];
             // pick a tax rate for this automatic invoice.
             $invoice_data['total_tax_name'] = module_config::c('subscription_invoice_tax_name','');
             $invoice_data['total_tax_rate'] = module_config::c('subscription_invoice_tax_rate','');
@@ -425,8 +446,10 @@ class module_subscription extends module_base{
             $invoice_data['invoice_invoice_item']=array(
                 'new' => array(
                     'description' => $members_subscriptions[$subscription_id]['name'] . $time_period,
-                    'amount' => $amount,
+                    'hourly_rate' => $amount,
+                    //'amount' => $amount,
                     'completed' => 1, // not needed?
+                    'manual_task_type' => _TASK_TYPE_AMOUNT_ONLY,
                 )
             );
             $invoice_id = module_invoice::save_invoice('new',$invoice_data);
@@ -514,35 +537,63 @@ class module_subscription extends module_base{
         }
     }
 
-    public static function update_next_due_date($subscription_id,$member_id,$customer_hack=false){
+    public static function update_next_due_date($subscription_id,$member_id,$customer_hack=false,$overwrite_any_manual_next_date=true){
         // todo
         $subscription = self::get_subscription($subscription_id);
         if($customer_hack){
             $history = self::get_subscription_history($subscription_id,false,$member_id);
-            $link = array_shift(self::get_subscriptions_by_customer($member_id,$subscription_id));
+            $res = self::get_subscriptions_by_customer($member_id,$subscription_id);
+            $link = array_shift($res);
         }else{
             $history = self::get_subscription_history($subscription_id,$member_id,false);
-            $link = array_shift(self::get_subscriptions_by_member($member_id,$subscription_id));
+            $res = self::get_subscriptions_by_member($member_id,$subscription_id);
+            $link = array_shift($res);
         }
         if(!$link)return;
 
-        $last_paid_date = $link['start_date'];
-
-        $has_history = false;
-        foreach($history as $h){
-            if($h['paid_date']!='0000-00-00'){
-                $has_history = true;
-                $last_paid_date = $h['paid_date'];
-                // find out when this invoice was due.
-                // this is the date we go off.
-                if($h['invoice_id']){
-                    $invoice = module_invoice::get_invoice($h['invoice_id']);
-                    $last_paid_date = $invoice['date_due'];
-                }
-            }
+        if(!$overwrite_any_manual_next_date && isset($link['manual_next_due_date']) && $link['manual_next_due_date']){
+            // we have manually set a next due date, an we don't want to overwrite it
+            return;
         }
 
-        $next_time = strtotime($last_paid_date);
+        if(module_config::c('subscription_calc_type','start_date') == 'start_date'){
+            $next_time = $link['next_due_date'] && $link['next_due_date']!='0000-00-00' ? strtotime($link['next_due_date']) : strtotime($link['start_date']);
+            $has_history = false;
+            foreach($history as $h){
+                if($h['invoice_id']){
+                    $invoice = module_invoice::get_invoice($h['invoice_id']);
+                    if($invoice['date_create'] && $invoice['date_create']!='0000-00-00'){
+                        $t = strtotime($invoice['date_create']);
+                        if($t>=$next_time){
+                            $next_time = $t;
+                            $has_history = true;
+                        }
+                    }
+                }
+            }
+        }else{
+            // calculate based off last paid date.
+
+            $last_paid_time = strtotime($link['start_date']);
+
+            $has_history = false;
+            foreach($history as $h){
+                if($h['paid_date']!='0000-00-00'){
+                    if(strtotime($h['paid_date']) >= $last_paid_time){
+                        $last_paid_time = strtotime($h['paid_date']);
+                        $has_history = true;
+                        // find out when this invoice was due.
+                        // this is the date we go off.
+                        if($h['invoice_id']){
+                            $invoice = module_invoice::get_invoice($h['invoice_id']);
+                            $last_paid_time = strtotime($invoice['date_due']);
+                        }
+                    }
+                }
+            }
+
+            $next_time = $last_paid_time;
+        }
         if($has_history){
             $next_time = strtotime('+'.abs((int)$subscription['days']).' days',$next_time);
             $next_time = strtotime('+'.abs((int)$subscription['months']).' months',$next_time);
@@ -550,9 +601,9 @@ class module_subscription extends module_base{
         }
 
         if($customer_hack){
-            $sql = "UPDATE `"._DB_PREFIX."subscription_customer` SET `next_due_date` = '".date('Y-m-d',$next_time)."' WHERE `customer_id` = ".(int)$member_id." AND subscription_id = '".(int)$subscription_id."' LIMIT 1";
+            $sql = "UPDATE `"._DB_PREFIX."subscription_customer` SET `next_due_date` = '".date('Y-m-d',$next_time)."', manual_next_due_date = 0 WHERE `customer_id` = ".(int)$member_id." AND subscription_id = '".(int)$subscription_id."' LIMIT 1";
         }else{
-            $sql = "UPDATE `"._DB_PREFIX."subscription_member` SET `next_due_date` = '".date('Y-m-d',$next_time)."' WHERE `member_id` = ".(int)$member_id." AND subscription_id = '".(int)$subscription_id."' LIMIT 1";
+            $sql = "UPDATE `"._DB_PREFIX."subscription_member` SET `next_due_date` = '".date('Y-m-d',$next_time)."', manual_next_due_date = 0 WHERE `member_id` = ".(int)$member_id." AND subscription_id = '".(int)$subscription_id."' LIMIT 1";
         }
         query($sql);
     }
@@ -759,20 +810,24 @@ class module_subscription extends module_base{
         if(!isset($fields['customer_id'])){
             $sql .= 'ALTER TABLE `'._DB_PREFIX.'subscription_history` ADD `customer_id` INT(11) NOT NULL DEFAULT \'0\' AFTER `member_id`;';
         }
-        $res = qa1("SHOW TABLES LIKE '"._DB_PREFIX."subscription_customer'");
-        if(isset($_REQUEST['upgrade_debug'])){
-            echo "SHOW TABLES LIKE '"._DB_PREFIX."subscription_customer'";
-            var_export($res);exit;
-        }
-        if(!$res || !count($res)){
+        if(!self::db_table_exists('subscription_customer')){
             $sql .= 'CREATE TABLE `'._DB_PREFIX.'subscription_customer` (
  `subscription_id` int(11) NOT NULL ,
   `customer_id` int(11) NOT NULL,
   `deleted` INT NOT NULL DEFAULT  \'0\',
 `start_date` date NOT NULL,
 `next_due_date` date NOT NULL COMMENT \'calculated in php when saving\',
+`manual_next_due_date` tinyint(1) NOT NULL DEFAULT \'0\',
   PRIMARY KEY  (`subscription_id`, `customer_id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 ;';
+        }
+        $fields = get_fields('subscription_customer');
+        if(!isset($fields['manual_next_due_date'])){
+            $sql .= 'ALTER TABLE `'._DB_PREFIX.'subscription_customer` ADD `manual_next_due_date` tinyint(11) NOT NULL DEFAULT \'0\' AFTER `next_due_date`;';
+        }
+        $fields = get_fields('subscription_member');
+        if(!isset($fields['manual_next_due_date'])){
+            $sql .= 'ALTER TABLE `'._DB_PREFIX.'subscription_member` ADD `manual_next_due_date` tinyint(11) NOT NULL DEFAULT \'0\' AFTER `next_due_date`;';
         }
         return $sql;
     }
@@ -799,6 +854,7 @@ CREATE TABLE `<?php echo _DB_PREFIX; ?>subscription_member` (
   `deleted` INT NOT NULL DEFAULT  '0',
 `start_date` date NOT NULL,
 `next_due_date` date NOT NULL COMMENT 'calculated in php when saving',
+`manual_next_due_date` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY  (`subscription_id`, `member_id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 ;
 
@@ -808,6 +864,7 @@ CREATE TABLE `<?php echo _DB_PREFIX; ?>subscription_customer` (
   `deleted` INT NOT NULL DEFAULT  '0',
 `start_date` date NOT NULL,
 `next_due_date` date NOT NULL COMMENT 'calculated in php when saving',
+`manual_next_due_date` tinyint(1) NOT NULL DEFAULT '0',
   PRIMARY KEY  (`subscription_id`, `customer_id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 ;
 

@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 class module_mobile extends module_base{
@@ -25,7 +25,7 @@ class module_mobile extends module_base{
 		$this->module_name = "mobile";
 		$this->module_position = 8882;
 
-        $this->version = 2.23;
+        $this->version = 2.24;
         // 2.2 - started with custom mobile themed files. in conjunction with recent theme plugin update.
         // 2.22 - added ticket layout
         // 2.221 - ticket layout fix.
@@ -38,6 +38,7 @@ class module_mobile extends module_base{
         // 2.228 - new version of jQuery + jQuery Mobile
         // 2.229 - mobile bug fix
         // 2.23 - mobile layout improvements
+        // 2.24 - mobile_enabled option, use this to disable built in mobile layout
 
         if(get_display_mode()=='mobile'){
             module_config::register_css('mobile','mobile.css');
@@ -179,6 +180,8 @@ class module_mobile extends module_base{
     }
 
     public static function is_mobile_browser(){
+
+        if(!module_config::c('mobile_enabled',1))return false;
 
         if(!isset($_SERVER['HTTP_USER_AGENT']))return false;
         if(!isset($_SERVER['HTTP_ACCEPT']))return false;

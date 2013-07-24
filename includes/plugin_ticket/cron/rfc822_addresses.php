@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 /*
  * rfc822_addresses.php
@@ -22,7 +22,7 @@
 	<package>net.manuellemos.mimeparser</package>
 
 	<version>@(#) $Id: rfc822_addresses.php,v 1.12 2008/12/13 02:46:09 mlemos Exp $</version>
-	<copyright>Copyright ï¿½ (C) Manuel Lemos 2006 - 2008</copyright>
+	<copyright>Copyright © (C) Manuel Lemos 2006 - 2008</copyright>
 	<title>RFC 822 e-mail addresses parser</title>
 	<author>Manuel Lemos</author>
 	<authoraddress>mlemos-at-acm.org</authoraddress>

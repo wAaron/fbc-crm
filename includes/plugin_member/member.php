@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -28,7 +28,9 @@ class module_member extends module_base{
 		$this->member_types = array();
 		$this->module_name = "member";
 		$this->module_position = 20.1;
-        $this->version = 2.167;
+        $this->version = 2.168;
+        // 2.168 - 2013-05-06 - member import csv fix
+
         // 2.14 - delete member from a group
         // 2.15 - newsletter subscriptions and modifying subscription details.
         // 2.16 - release of the subscription plugin, incrememt version number just for the push
@@ -74,6 +76,7 @@ class module_member extends module_base{
             }
 		}
 
+        if(class_exists('module_template',false)){
         module_template::init_template('member_subscription_form','<h2>Subscribe</h2>
 <form action="" method="post">
     <p>Please Enter Your Email Address: <input type="text" name="member[email]" value="{EMAIL}"> </p>
@@ -108,6 +111,7 @@ class module_member extends module_base{
     ','Displayed when updating details is successful.','code',array(
             'EMAIL'=>'Users email address',
         ));
+        }
     }
 
     /** static stuff */
@@ -375,6 +379,37 @@ class module_member extends module_base{
             }
             $member_id = update_insert("member_id",$member_id,"member",$row);
 
+            // handle any extra fields.
+            $extra = array();
+            foreach($row as $key=>$val){
+                if(!strlen(trim($val)))continue;
+                if(strpos($key,'extra:')!==false){
+                    $extra_key = str_replace('extra:','',$key);
+                    if(strlen($extra_key)){
+                        $extra[$extra_key] = $val;
+                    }
+                }
+            }
+            if($extra){
+                foreach($extra as $extra_key => $extra_val){
+                    // does this one exist?
+                    $existing_extra = module_extra::get_extras(array('owner_table'=>'member','owner_id'=>$member_id,'extra_key'=>$extra_key));
+                    $extra_id = false;
+                    foreach($existing_extra as $key=>$val){
+                        if($val['extra_key']==$extra_key){
+                            $extra_id = $val['extra_id'];
+                        }
+                    }
+                    $extra_db = array(
+                        'extra_key' => $extra_key,
+                        'extra' => $extra_val,
+                        'owner_table' => 'member',
+                        'owner_id' => $member_id,
+                    );
+                    $extra_id = (int)$extra_id;
+                    update_insert('extra_id',$extra_id,'extra',$extra_db);
+                }
+            }
 
             foreach($add_to_group as $group_id => $tf){
                 module_group::add_to_group($group_id,$member_id);
@@ -573,7 +608,7 @@ class module_member extends module_base{
                             }
                             // find out what newsletter subscriptions this member has.
                             if(class_exists('module_newsletter',false)){
-                                $newsletter_member_id = module_newsletter::member_from_email($member['email'],true,true);
+                                $newsletter_member_id = module_newsletter::member_from_email($member,true,true);
                                 $newsletter_subscriptions = module_group::get_member_groups('newsletter_subscription',$provided_member_id);
                             }
                         }

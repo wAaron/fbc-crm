@@ -83,6 +83,44 @@ $sales = module_customer::get_sales();
 		<tr>
 			<td width="50%" valign="top">
 
+                <?php if(class_exists('module_company',false) && module_company::can_i('view','Company') && module_company::is_enabled()){
+                $heading = array(
+                    'type' => 'h3',
+                    'title' => 'Company Information',
+                );
+                if(module_company::can_i('edit','Company')){
+                    $help_text = addcslashes(_l("Here you can select which Company this Customer belongs to. This is handy if you are running multiple companies through this system and you would like to separate customers between different companies."),"'");
+                    $heading['button'] =  array(
+                      'url' => '#',
+                      'onclick' => "alert('$help_text'); return false;",
+                      'title' => 'help',
+                  );
+                }
+                print_heading($heading);
+                ?>
+                    <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
+					<tbody>
+						<tr>
+							<th class="width1">
+								<?php echo _l('Company'); ?>
+							</th>
+							<td>
+								<?php
+                                $companys = module_company::get_companys();
+                                foreach($companys as $company){ ?>
+                                    <?php if(module_company::can_i('edit','Company')){ ?>
+                                    <input type="hidden" name="available_customer_company[<?php echo $company['company_id'];?>]" value="1">
+                                    <input type="checkbox" name="customer_company[<?php echo $company['company_id'];?>]" id="customer_company_<?php echo $company['company_id'];?>" value="<?php echo $company['company_id'];?>" <?php echo isset($customer['company_ids'][$company['company_id']]) ? ' checked="checked" ':'';?>>
+                                    <?php } ?>
+                                    <label for="customer_company_<?php echo $company['company_id'];?>"><?php echo htmlspecialchars($company['name']);?></label>
+                                <?php } ?>
+							</td>
+						</tr>
+                    </tbody>
+                    </table>
+
+                <?php } ?>
+			
 				<h3><?php echo _l('Customer Core Information'); ?></h3>
 
 				<table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
@@ -92,7 +130,7 @@ $sales = module_customer::get_sales();
 								<?php echo _l('Customer Name'); ?>
 							</th>
 							<td>
-								<input type="text" name="customer_name" id="customer_name" style="width:250px;" value="<?php echo htmlspecialchars($customer['customer_name']); ?>" />
+								<input type="text" name="customer_name" id="customer_name" class="medium_width" value="<?php echo htmlspecialchars($customer['customer_name']); ?>" />
 							</td>
 						</tr>
                         <?php if($customer_id && $customer_id!='new'){ ?>
@@ -160,7 +198,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("分部门", "子公司", "分支机构"), "customer_type", $customer['customer_type']);
+                                echo print_select_box_nokey(array("鍒嗛儴闂�, "瀛愬叕鍙�, "鍒嗘敮鏈烘瀯"), "customer_type", $customer['customer_type']);
                                 ?>
                             </td>
                         </tr>
@@ -205,7 +243,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("互联网", "朋友介绍", "宣传资料", "电子邮件", "传真"), "customer_from", $customer['customer_from']);
+                                echo print_select_box_nokey(array("浜掕仈缃�, "鏈嬪弸浠嬬粛", "瀹ｄ紶璧勬枡", "鐢靛瓙閭欢", "浼犵湡"), "customer_from", $customer['customer_from']);
                                 ?>
                             </td>
                         </tr>
@@ -226,7 +264,7 @@ $sales = module_customer::get_sales();
                             <td>
                                 <input type="text" name="translate_speed" id="translate_speed" class="currency" style="width:40px;" value="<?php echo htmlspecialchars($customer['translate_speed']); ?>" />
                                 <?php
-                                echo print_select_box_nokey(array("中文/天", "英文/天"), "translate_speed_unit", $customer['translate_speed_unit']);
+                                echo print_select_box_nokey(array("涓枃/澶�, "鑻辨枃/澶�), "translate_speed_unit", $customer['translate_speed_unit']);
                                 ?>
                             </td>
                         </tr>
@@ -257,7 +295,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("是", "否"), "customer_vip", $customer['customer_vip']);
+                                echo print_select_box_nokey(array("鏄�, "鍚�), "customer_vip", $customer['customer_vip']);
                                 ?>
                             </td>
                         </tr>
@@ -297,6 +335,41 @@ $sales = module_customer::get_sales();
 
                     <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form info-{{info.advance.hide}}">
                         <tbody>
+                            <?php if(module_customer::can_i('edit','Customer Staff')){
+                                $staff_members = module_user::get_staff_members();
+                                $staff_member_rel = array();
+                                foreach($staff_members as $staff_member){
+                                    $staff_member_rel[$staff_member['user_id']] = $staff_member['name'];
+                                }
+                                if(!isset($customer['staff_ids']) || !is_array($customer['staff_ids']) || !count($customer['staff_ids'])){
+                                    $customer['staff_ids']= array(false);
+                                }
+                                ?>
+                            <tr>
+                                <th class="width1">
+                                    <?php echo htmlspecialchars(module_config::c('customer_staff_name','Staff')); ?>
+                                </th>
+                                <td>
+                                    <div id="staff_ids_holder" style="float:left;">
+                                    <?php foreach($customer['staff_ids'] as $staff_id){ ?>
+                                    <div class="dynamic_block">
+
+                                        <?php echo print_select_box($staff_member_rel,'staff_ids[]',$staff_id);
+                                     ?>
+                                        <a href="#" class="add_addit" onclick="return seladd(this);">+</a>
+                                        <a href="#" class="remove_addit" onclick="return selrem(this);">-</a>
+                                    </div>
+                                    <?php } ?>
+
+                                </div>
+                                    <?php _h('Assign a staff member to this customer. Staff members are users who have EDIT permissions on Job Tasks. Click the plus sign to add more staff members. You can apply the "Only Assigned Staff" permission in User Role settings to restrict staff members to these customers.');  ?>
+                                <script type="text/javascript">
+                                    set_add_del('staff_ids_holder');
+                                </script>
+                                </td>
+                            </tr>
+                            <?php } ?>
+                        
                             <?php if(module_customer::can_i('edit','Customer Credit')){ ?>
                             <tr>
                                 <th class="width1">
@@ -383,7 +456,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("国有大型", "外商独资法人企业", "外商驻华代表处", "中外合资企业", "国内私营企业"), "customer_company_type", $customer['customer_company_type']);
+                                echo print_select_box_nokey(array("鍥芥湁澶у瀷", "澶栧晢鐙祫娉曚汉浼佷笟", "澶栧晢椹诲崕浠ｈ〃澶�, "涓鍚堣祫浼佷笟", "鍥藉唴绉佽惀浼佷笟"), "customer_company_type", $customer['customer_company_type']);
                                 ?>
                             </td>
                         </tr>
@@ -428,7 +501,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("10名以内", "10-50", "50-100名", "100名以上"), "customer_staff", $customer['customer_staff']);
+                                echo print_select_box_nokey(array("10鍚嶄互鍐�, "10-50", "50-100鍚�, "100鍚嶄互涓�), "customer_staff", $customer['customer_staff']);
                                 ?>
                             </td>
                         </tr>
@@ -467,7 +540,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("按月", "按季"), "customer_pay_period", $customer['customer_pay_period']);
+                                echo print_select_box_nokey(array("鎸夋湀", "鎸夊"), "customer_pay_period", $customer['customer_pay_period']);
                                 ?>
                             </td>
                         </tr>
@@ -477,7 +550,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("青睐", "韦勋", "两者"), "customer_ticket_type", $customer['customer_ticket_type']);
+                                echo print_select_box_nokey(array("闈掔潗", "闊﹀媼", "涓よ�"), "customer_ticket_type", $customer['customer_ticket_type']);
                                 ?>
                             </td>
                         </tr>
@@ -525,7 +598,7 @@ $sales = module_customer::get_sales();
 						<tr>
 							<td valign="top">
 				<?php 
-					$service_candidates = array('笔译', '口译', 'DTP', '撰写', '网站', '软件', '多媒体', '课件', '3D', 'APP');
+					$service_candidates = array('绗旇瘧', '鍙ｈ瘧', 'DTP', '鎾板啓', '缃戠珯', '杞欢', '澶氬獟浣�, '璇句欢', '3D', 'APP');
 					$service_high = strlen($customer['demand_high']) > 0 ? explode(',', trim($customer['demand_high'])) : array();
 					$service_low = strlen($customer['demand_low']) > 0 ? explode(',', trim($customer['demand_low'])) : array();
 					$service_none = strlen($customer['demand_none']) > 0 ? explode(',', trim($customer['demand_none'])) : array();

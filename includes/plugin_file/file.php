@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 define('_FILE_UPLOAD_ALERT_STRING','Receive File Upload Alerts');
@@ -15,6 +15,7 @@ define('_FILE_NOTIFICATION_TYPE_UPLOADED',1);
 define('_FILE_NOTIFICATION_TYPE_UPDATED',2);
 define('_FILE_NOTIFICATION_TYPE_COMMENTED',3);
 
+define('_FILE_UPLOAD_PATH','includes/plugin_file/upload/');
 
 class module_file extends module_base{
 	
@@ -32,7 +33,7 @@ class module_file extends module_base{
 		$this->module_name = "file";
 		$this->module_position = 21;
 
-        $this->version = 2.531;
+        $this->version = 2.539;
         // fix for files linked to multiple jobs
         // 2.42 - extra protection for assigning files to different customers.
         // 2.421 - job name displaying. htmlspecialchars removing.
@@ -58,6 +59,14 @@ class module_file extends module_base{
         // 2.529 - newsletter system fixes
         // 2.53 - sql bug fix
         // 2.531 - email file notification fix
+        // 2.532 - extra fields update - show in main listing option
+        // 2.533 - better document support
+        // 2.534 - improved quick search
+        // 2.535 - 2013-04-10 - new customer permissions
+        // 2.536 - 2013-05-11 - file upload progress indicator (swap back with 'file_upload_old' setting)
+        // 2.537 - 2013-06-07 - file saving fix
+        // 2.538 - 2013-06-21 - permission update
+        // 2.539 - 2013-07-17 - progress bar
 
         if(class_exists('module_template',false)){
             module_template::init_template('file_upload_alert_email','Dear {TO_NAME},<br>
@@ -93,7 +102,7 @@ Comment: {COMMENT}
     public function pre_menu(){
 
         if($this->can_i('edit','Files') || $this->can_i('view','Files')){
-            $this->ajax_search_keys = array(
+            /*$this->ajax_search_keys = array(
                 _DB_PREFIX.'file' => array(
                     'plugin' => 'file',
                     'search_fields' => array(
@@ -103,7 +112,7 @@ Comment: {COMMENT}
                     'key' => 'file_id',
                     'title' => _l('File: '),
                 ),
-            );
+            );*/
 
             // only display if a customer has been created.
             if(isset($_REQUEST['customer_id']) && $_REQUEST['customer_id'] && $_REQUEST['customer_id']!='new'){
@@ -152,6 +161,43 @@ Comment: {COMMENT}
                 );
             }*/
         }
+    }
+    
+    public function ajax_search($search_key){
+        // return results based on an ajax search.
+        $ajax_results = array();
+        $search_key = trim($search_key);
+        if(strlen($search_key) > module_config::c('search_ajax_min_length',2)){
+            //$sql = "SELECT * FROM `"._DB_PREFIX."file` c WHERE ";
+            //$sql .= " c.`file_name` LIKE %$search_key%";
+            //$results = qa($sql);
+            $results = $this->get_files(array('generic'=>$search_key));
+            if(count($results)){
+                foreach($results as $result){
+                    // what part of this matched?
+                    /*if(
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['name']) ||
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['last_name']) ||
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['phone'])
+                    ){
+                        // we matched the file contact details.
+                        $match_string = _l('File Contact: ');
+                        $match_string .= _shl($result['file_name'],$search_key);
+                        $match_string .= ' - ';
+                        $match_string .= _shl($result['name'],$search_key);
+                        // hack
+                        $_REQUEST['file_id'] = $result['file_id'];
+                        $ajax_results [] = '<a href="'.module_user::link_open_contact($result['user_id']) . '">' . $match_string . '</a>';
+                    }else{*/
+                        $match_string = _l('File: ');
+                        $match_string .= _shl($result['file_name'],$search_key);
+                        $ajax_results [] = '<a href="'.$this->link_open($result['file_id']) . '">' . $match_string . '</a>';
+                        //$ajax_results [] = $this->link_open($result['file_id'],true);
+                    /*}*/
+                }
+            }
+        }
+        return $ajax_results;
     }
 
     
@@ -360,7 +406,7 @@ Comment: {COMMENT}
 			?>
 
 			<div class="file_<?php echo $file_item['file_id'];?>" style="float:left; width:110px; margin:3px; border:1px solid #CCC; text-align:center;">
-				<div style="width:110px; height:90px; overflow:hidden; ">
+				<div style="width:110px; min-height:40px; ">
                     <?php
                     $link = $this->link('',array('_process'=>'download','file_id'=>$file_id),'file',false);
                     if(isset($options['click_callback'])){
@@ -384,16 +430,19 @@ Comment: {COMMENT}
 								<?php
 								break;
 							default:
-								echo 'Download';
+                                ?>
+                                <img src="<?php echo full_link('includes/plugin_file/images/file_icon.png');?>" width="100" alt="<?php _e('Download');?>">
+                                <?php
+								//echo 'Download';
 						}
 					}
 					?>
 					</a>
 				</div>
 				<?php if($editable){ ?>
-				<a href="#" class="file_edit<?php echo $file_item['owner_table'];?>_<?php echo $file_item['owner_id'];?>" rel="<?php echo $file_item['file_id'];?>"><?php echo nl2br(htmlspecialchars($file_item['file_name']));?></a>
+				    <a href="#" class="file_edit<?php echo $file_item['owner_table'];?>_<?php echo $file_item['owner_id'];?>" rel="<?php echo $file_item['file_id'];?>"><?php echo nl2br(wordwrap(htmlspecialchars($file_item['file_name']),15,'<wbr>',true));?></a>
 				<?php }else{ ?>
-				<a href="<?php echo $this->link('',array('_process'=>'download','file_id'=>$file_item['file_id']),'file',false);?>"><?php echo nl2br(htmlspecialchars($file_item['file_name']));?></a>
+				    <a href="<?php echo $this->link('',array('_process'=>'download','file_id'=>$file_item['file_id']),'file',false);?>"><?php echo nl2br(wordwrap(htmlspecialchars($file_item['file_name']),15,'<wbr>',true));?></a>
 				<?php } ?>
 			</div>
 			<?php
@@ -413,7 +462,133 @@ Comment: {COMMENT}
 		return ob_get_clean();
 	}
 	function process(){
-		if('download' == $_REQUEST['_process']){
+		if('plupload' == $_REQUEST['_process']){
+
+            @ob_end_clean();
+
+            // HTTP headers for no cache etc
+            header("Expires: Mon, 26 Jul 1997 05:00:00 GMT");
+            header("Last-Modified: " . gmdate("D, d M Y H:i:s") . " GMT");
+            header("Cache-Control: no-store, no-cache, must-revalidate");
+            header("Cache-Control: post-check=0, pre-check=0", false);
+            header("Pragma: no-cache");
+
+            // Settings
+            $targetDir = _FILE_UPLOAD_PATH . "plupload";
+            //$targetDir = 'uploads';
+
+            $cleanupTargetDir = true; // Remove old files
+            $maxFileAge = 5 * 3600; // Temp file age in seconds
+
+            // 5 minutes execution time
+            @set_time_limit(5 * 60);
+
+            // Uncomment this one to fake upload time
+            // usleep(5000);
+
+            // Get parameters
+            $chunk = isset($_REQUEST["chunk"]) ? intval($_REQUEST["chunk"]) : 0;
+            $chunks = isset($_REQUEST["chunks"]) ? intval($_REQUEST["chunks"]) : 0;
+            $fileName = isset($_REQUEST["plupload_key"]) ? $_REQUEST["plupload_key"] : '';
+            $fileName = preg_replace('/[^a-zA-Z0-9]+/', '', $fileName);
+            if(!$fileName){
+                die('{"jsonrpc" : "2.0", "error" : {"code": 102, "message": "No plupload_key defined."}, "id" : "id"}');
+            }
+
+            // Make sure the fileName is unique but only if chunking is disabled
+            if ($chunks < 2 && file_exists($targetDir . DIRECTORY_SEPARATOR . $fileName)) {
+                $ext = strrpos($fileName, '.');
+                $fileName_a = substr($fileName, 0, $ext);
+                $fileName_b = substr($fileName, $ext);
+
+                $count = 1;
+                while (file_exists($targetDir . DIRECTORY_SEPARATOR . $fileName_a . '_' . $count . $fileName_b))
+                    $count++;
+
+                $fileName = $fileName_a . '_' . $count . $fileName_b;
+            }
+
+            $filePath = $targetDir . DIRECTORY_SEPARATOR . $fileName;
+
+            // Create target dir
+            if (!file_exists($targetDir))
+                @mkdir($targetDir);
+
+            // Remove old temp files
+            if ($cleanupTargetDir) {
+                if (is_dir($targetDir) && ($dir = opendir($targetDir))) {
+                    while (($file = readdir($dir)) !== false) {
+                        $tmpfilePath = $targetDir . DIRECTORY_SEPARATOR . $file;
+
+                        // Remove temp file if it is older than the max age and is not the current file
+                        if (preg_match('/\.part$/', $file) && (filemtime($tmpfilePath) < time() - $maxFileAge) && ($tmpfilePath != "{$filePath}.part")) {
+                            @unlink($tmpfilePath);
+                        }
+                    }
+                    closedir($dir);
+                } else {
+                    die('{"jsonrpc" : "2.0", "error" : {"code": 100, "message": "Failed to open temp directory."}, "id" : "id"}');
+                }
+            }
+
+            // Look for the content type header
+            $contentType = '';
+            if (isset($_SERVER["HTTP_CONTENT_TYPE"]))
+                $contentType = $_SERVER["HTTP_CONTENT_TYPE"];
+
+            if (isset($_SERVER["CONTENT_TYPE"]))
+                $contentType = $_SERVER["CONTENT_TYPE"];
+
+            // Handle non multipart uploads older WebKit versions didn't support multipart in HTML5
+            if (strpos($contentType, "multipart") !== false) {
+                if (isset($_FILES['file']['tmp_name']) && is_uploaded_file($_FILES['file']['tmp_name'])) {
+                    // Open temp file
+                    $out = @fopen("{$filePath}.part", $chunk == 0 ? "wb" : "ab");
+                    if ($out) {
+                        // Read binary input stream and append it to temp file
+                        $in = @fopen($_FILES['file']['tmp_name'], "rb");
+
+                        if ($in) {
+                            while ($buff = fread($in, 4096))
+                                fwrite($out, $buff);
+                        } else
+                            die('{"jsonrpc" : "2.0", "error" : {"code": 101, "message": "Failed to open input stream."}, "id" : "id"}');
+                        @fclose($in);
+                        @fclose($out);
+                        @unlink($_FILES['file']['tmp_name']);
+                    } else
+                        die('{"jsonrpc" : "2.0", "error" : {"code": 102, "message": "Failed to open output stream."}, "id" : "id"}');
+                } else
+                    die('{"jsonrpc" : "2.0", "error" : {"code": 103, "message": "Failed to move uploaded file."}, "id" : "id"}');
+            } else {
+                // Open temp file
+                $out = @fopen("{$filePath}.part", $chunk == 0 ? "wb" : "ab");
+                if ($out) {
+                    // Read binary input stream and append it to temp file
+                    $in = @fopen("php://input", "rb");
+
+                    if ($in) {
+                        while ($buff = fread($in, 4096))
+                            fwrite($out, $buff);
+                    } else
+                        die('{"jsonrpc" : "2.0", "error" : {"code": 101, "message": "Failed to open input stream."}, "id" : "id"}');
+
+                    @fclose($in);
+                    @fclose($out);
+                } else
+                    die('{"jsonrpc" : "2.0", "error" : {"code": 102, "message": "Failed to open output stream."}, "id" : "id"}');
+            }
+
+            // Check if file has been uploaded
+            if (!$chunks || $chunk == $chunks - 1) {
+                // Strip the temp .part suffix off
+                rename("{$filePath}.part", $filePath);
+            }
+
+            die('{"jsonrpc" : "2.0", "result" : null, "id" : "id"}');
+
+
+        }else if('download' == $_REQUEST['_process']){
             @ob_end_clean();
 			$file_id = (int)$_REQUEST['file_id'];
 			$file_data = $this->get_file($file_id);
@@ -445,7 +620,7 @@ Comment: {COMMENT}
 				// copy to file area.
 				$file_name = basename($_FILES['file_upload']['name']);
 				if($file_name){
-					$file_path = 'includes/plugin_file/upload/'.md5(time().$file_name);
+					$file_path = _FILE_UPLOAD_PATH.md5(time().$file_name);
 					if(move_uploaded_file($_FILES['file_upload']['tmp_name'],$file_path)){
 						// it worked. umm.. do something.
 					}else{
@@ -532,11 +707,29 @@ Comment: {COMMENT}
                 if(self::can_i('edit','Files') || self::can_i('create','Files')){
                     // have we uploaded anything
                     $file_changed = false;
-                    if(isset($_FILES['file_upload']) && is_uploaded_file($_FILES['file_upload']['tmp_name'])){
+                    if(isset($_REQUEST['plupload_key'])&&strlen(preg_replace('/[^a-zA-Z0-9]+/', '', basename($_REQUEST['plupload_key'])))){
+                        $plupload_key =  preg_replace('/[^a-zA-Z0-9]+/', '', basename($_REQUEST['plupload_key']));
+                        if($plupload_key && is_file(_FILE_UPLOAD_PATH.'plupload'.DIRECTORY_SEPARATOR.$plupload_key)){
+                            $file_name = basename($_REQUEST['plupload_file_name']);
+                            if($file_name){
+                                $file_path = _FILE_UPLOAD_PATH.md5(time().$file_name);
+                                if(rename(_FILE_UPLOAD_PATH.'plupload'.DIRECTORY_SEPARATOR.$plupload_key,$file_path)){
+                                    // it worked. umm.. do something.
+                                    $file_changed = true;
+                                }else{
+                                    // it didnt work. todo: display error.
+                                    $file_path = false;
+                                    $file_name = false;
+                                    set_error('Unable to save file via plupload.');
+                                }
+                            }
+                        }
+                    }
+                    if(!$file_changed && isset($_FILES['file_upload']) && is_uploaded_file($_FILES['file_upload']['tmp_name'])){
                         // copy to file area.
                         $file_name = basename($_FILES['file_upload']['name']);
                         if($file_name){
-                            $file_path = 'includes/plugin_file/upload/'.md5(time().$file_name);
+                            $file_path = _FILE_UPLOAD_PATH.md5(time().$file_name);
                             if(move_uploaded_file($_FILES['file_upload']['tmp_name'],$file_path)){
                                 // it worked. umm.. do something.
                                 $file_changed = true;
@@ -902,14 +1095,13 @@ Comment: {COMMENT}
                 case _CUSTOMER_ACCESS_ALL:
                     // all customers! so this means all files!
                     break;
+                case _CUSTOMER_ACCESS_ALL_COMPANY:
                 case _CUSTOMER_ACCESS_CONTACTS:
-                    // we only want customers that are directly linked with the currently logged in user contact.
-
-
+                case _CUSTOMER_ACCESS_TASKS:
+                case _CUSTOMER_ACCESS_STAFF:
                     $valid_customer_ids = module_security::get_customer_restrictions();
                     if(count($valid_customer_ids)){
-
-                        $where .= " AND ( ( ";
+                        $where .= " AND ( ";
                         foreach($valid_customer_ids as $valid_customer_id){
                             if(isset($search['owner_table'])){
                                 $where .= " (f.owner_table = 'customer' AND f.owner_id = '".(int)$valid_customer_id."') OR ";
@@ -922,63 +1114,9 @@ Comment: {COMMENT}
                         }
                         $where = rtrim($where,'OR ');
                         $where .= ' ) ';
-                        // their job is listed in the customers jobs.
-                        if(class_exists('module_job',false)){
-                            $our_job_ids = array();
-                            foreach(module_job::get_jobs() as $job){
-                                $our_job_ids[]=$job['job_id'];
-                            }
-                            if(count($our_job_ids)>0){
-                                $where .= " OR ";
-                                $where .= " f.job_id IN (".implode(",",$our_job_ids).") ";
-                            }
-                        }
-                        $where .= " ) ";
-
                     }
-                    /*if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                        // this session variable is set upon login, it holds their customer id.
-                        // todo - share a user account between multiple customers!
-                        //$where .= " AND c.customer_id IN (SELECT customer_id FROM )";
-                        // we are searching for files that match this customer_id
-                        // we are also search for files that have an owner_table of customer and an owner_id of $customer_id
-
-                        $where .= " AND ( ";
-                        if(isset($search['owner_table'])){
-                            $where .= " (f.owner_table = 'customer' AND f.owner_id = '".(int)$_SESSION['_restrict_customer_id']."')";
-                        }else{
-                            $where .= " (f.customer_id = '".(int)$_SESSION['_restrict_customer_id']."')";
-                        }
-                        // their job is listed in the customers jobs.
-                        if(class_exists('module_job',false)){
-                            $our_job_ids = array();
-                            foreach(module_job::get_jobs() as $job){
-                                $our_job_ids[]=$job['job_id'];
-                            }
-                            if(count($our_job_ids)>0){
-                                $where .= " OR ";
-                                $where .= " f.job_id IN (".implode(",",$our_job_ids).") ";
-                            }
-                        }
-                        $where .= " ) ";
-                    }*/
                     break;
-                case _CUSTOMER_ACCESS_TASKS:
-                    // only customers who have a job that I have a task under.
-                    // this is different to "assigned jobs" Above
-                    // this will return all jobs for a customer even if we're only assigned a single job for that customer
-                    // tricky!
-                    // copied from customer.php
-                    //$where .= " AND ( f.customer_id IS NULL OR f.customer_id = 0 OR f.customer_id IN ";
-                    $where .= " AND ( f.customer_id IN ";
-                    $where .= " ( SELECT cc.customer_id FROM `"._DB_PREFIX."customer` cc ";
-                    $where .= " LEFT JOIN `"._DB_PREFIX."job` jj ON cc.customer_id = jj.customer_id ";
-                    $where .= " LEFT JOIN `"._DB_PREFIX."task` tt ON jj.job_id = tt.job_id ";
-                    $where .= " WHERE (jj.user_id = ".(int)module_security::get_loggedin_id()." OR tt.user_id = ".(int)module_security::get_loggedin_id().")";
-                    $where .= " )";
-                    $where .= " )";
 
-                    break;
             }
         }
 

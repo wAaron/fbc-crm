@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 // $Header: /cvsroot/html2ps/output.fpdf.class.php,v 1.27 2007/05/17 13:55:13 Konstantin Exp $
 
@@ -416,7 +416,7 @@ class OutputDriverFPDF extends OutputDriverGenericPDF {
                      $watermark);
   }
 
-  function _mktempimage($image) {   
+  function _mktempimage($image) {
     $tempnam = tempnam(WRITER_TEMPDIR, WRITER_FILE_PREFIX);
 
     switch ($image->get_type()) {
@@ -428,7 +428,7 @@ class OutputDriverFPDF extends OutputDriverGenericPDF {
     case 'image/jpeg':
     default:
       $filename = $tempnam . '.jpg';
-      imagejpeg($image->get_handle(), $filename);
+      imagejpeg($image->get_handle(), $filename, 100);
       break;
     }
 

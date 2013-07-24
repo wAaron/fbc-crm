@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 if(!isset($options) && isset($_REQUEST['options'])){
     $options = unserialize(base64_decode($_REQUEST['options']));
@@ -33,11 +33,11 @@ extract($options);
         </th>
         <td>
             <div id="email_from_view">
-            <?php echo htmlspecialchars(module_config::c('admin_system_name') . ' <'.module_config::c('admin_email_address').'>'); ?> <a href="#" onclick="$(this).parent().hide(); $('#email_from_edit').show(); return false;"><?php _e('edit');?></a>
+            <?php echo htmlspecialchars($from_name . ' <'.$from_email.'>'); ?> <a href="#" onclick="$(this).parent().hide(); $('#email_from_edit').show(); return false;"><?php _e('edit');?></a>
             </div>
             <div id="email_from_edit" style="display:none;">
-            <input type="text" name="from_name" value="<?php echo htmlspecialchars(module_config::c('admin_system_name'));?>">
-            &lt;<input type="text" name="from_email" value="<?php echo htmlspecialchars(module_config::c('admin_email_address'));?>">&gt
+            <input type="text" name="from_name" value="<?php echo htmlspecialchars($from_name);?>">
+            &lt;<input type="text" name="from_email" value="<?php echo htmlspecialchars($from_email);?>">&gt
             </div>
         </td>
     </tr>
@@ -150,12 +150,12 @@ extract($options);
             <?php _e('Message:'); ?>
         </th>
         <td>
-            <textarea name="content" id="email_content" rows="10" cols="30" style="width:450px; height: 350px;"><?php echo htmlspecialchars($content); ?></textarea>
+            <textarea name="content" id="email_content_editor" rows="10" cols="30" style="width:450px; height: 350px;"><?php echo htmlspecialchars($content); ?></textarea>
 
                                     <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/tiny_mce3.4.4/jquery.tinymce.js"></script>
 <script type="text/javascript">
 	$().ready(function() {
-		$('#email_content').tinymce({
+		$('#email_content_editor').tinymce({
 			// Location of TinyMCE script
 			script_url : '<?php echo _BASE_HREF;?>js/tiny_mce3.4.4/tiny_mce.js',
 
@@ -164,7 +164,7 @@ extract($options);
 
 			// General options
 			theme : "advanced",
-			plugins : "fullpage,autolink,lists,pagebreak,style,layer,table,save,advhr,advimage,advlink,emotions,iespell,inlinepopups,insertdatetime,preview,media,searchreplace,print,contextmenu,paste,directionality,fullscreen,noneditable,visualchars,nonbreaking,xhtmlxtras,template,advlist",
+			plugins : "autolink,lists,pagebreak,style,layer,table,save,advhr,advimage,advlink,emotions,iespell,inlinepopups,insertdatetime,preview,media,searchreplace,print,contextmenu,paste,directionality,fullscreen,noneditable,visualchars,nonbreaking,xhtmlxtras,template,advlist",
 
 			// Theme options
             theme_advanced_buttons1 : "undo,redo,|,bold,italic,underline,strikethrough,|,justifyleft,justifycenter,justifyright,justifyfull,|,formatselect,fontselect,fontsizeselect",

@@ -1,4 +1,5 @@
 ucm.timer = {
+    mode: 1, // 1 = one timer at a time (new version), 2 = multiple active timers at a time (original version)
     timers: [], // array of active timers, stored in cookies
     chunk_split: '||$|$||',
     split_chunk: '$$|$|$$',
@@ -198,6 +199,7 @@ ucm.timer = {
     timer_click: function(job_id, task_id){
         // does this timer exist already?
         var exists=false;
+        var starting_a_timer=false;
         for(var i in this.timers){
             if (this.timers.hasOwnProperty(i)) {
                 if(this.timers[i]['job_id'] == job_id && this.timers[i]['task_id']==task_id){
@@ -213,6 +215,7 @@ ucm.timer = {
                         // increase the start time by the duration this timer was paused for
                         this.timers[i]['start_time'] = this.timers[i]['start_time'] + (this.now() - this.timers[i]['pause_time']);
                         this.timers[i]['pause_time'] = 0; // clear pause state.
+                        starting_a_timer = this.timers[i];
                     }
                 }
             }
@@ -223,15 +226,29 @@ ucm.timer = {
             if(name.length<=0){
                 name = 'Timer Task';
             }
-            this.timers.push({
+            var newtimer = {
                 name: name,
                 url: window.location.href,
                 start_time: this.now(), // in seconds
                 pause_time: 0,
                 job_id: job_id,
                 task_id: task_id
-            });
+            };
+            this.timers.push(newtimer);
+            starting_a_timer = newtimer;
         }
+        // clear other started timers if we're in the mode 1
+        if(this.mode==1 && starting_a_timer){
+            for(var x in this.timers){
+                if (this.timers.hasOwnProperty(x)) {
+                    if(this.timers[x]['pause_time']==0 && this.timers[x] != starting_a_timer){
+                        // this timer is running, we should stop it
+                        this.timers[x]['pause_time'] = this.now();
+                    }
+                }
+            }
+        }
+
         this.tick(false);// tick will pick this up and clean it up and start displaying it.
     },
     timer_delete: function(timer_object){

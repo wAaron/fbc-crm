@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 //$ticket_id > 0 &&
 if(module_config::c('ticket_allow_extra_data',1)){
@@ -34,16 +34,21 @@ if(module_config::c('ticket_allow_extra_data',1)){
 
                 if((!isset($extras_editable) || $extras_editable) ){
                     module_form::generate_form_element(array(
-                    'type' => $extra['type'],
-                    'name' => 'ticket_extra['.$extra['ticket_data_key_id'].']',
-                    'value' => isset($ticket['extra_data'][$extra['ticket_data_key_id']]) ? $ticket['extra_data'][$extra['ticket_data_key_id']]['value'] : '',
-                    'options' => isset($extra['options']) && $extra['options'] ? unserialize($extra['options']) : array(),
-                    'class' => 'no_permissions',
-                        // encryption is available on this field
-                    'encrypt' => (class_exists('module_encrypt',false) && isset($extra['encrypt_key_id']) && $extra['encrypt_key_id']),
-                    'page_name' => 'ticket_extras', // this is also set within ticket.php in public saving.
-                    'id' => 'ticket_extras_'.$extra['ticket_data_key_id'], // this is also set within ticket.php in public saving.
-                ));
+                        'type' => $extra['type'],
+                        'name' => 'ticket_extra['.$extra['ticket_data_key_id'].']',
+                        'value' => isset($ticket['extra_data'][$extra['ticket_data_key_id']]) ? $ticket['extra_data'][$extra['ticket_data_key_id']]['value'] : '',
+                        'options' => isset($extra['options']) && $extra['options'] ? unserialize($extra['options']) : array(),
+                        'class' => 'no_permissions',
+                            // encryption is available on this field
+                        'encrypt' => (class_exists('module_encrypt',false) && isset($extra['encrypt_key_id']) && $extra['encrypt_key_id']),
+                        'page_name' => 'ticket_extras', // this is also set within ticket.php in public saving.
+                        'id' => 'ticket_extras_'.$extra['ticket_data_key_id'], // this is also set within ticket.php in public saving.
+                    ));
+                    if(preg_match('#(https?://[^\s]*)$#',isset($ticket['extra_data'][$extra['ticket_data_key_id']]) ? $ticket['extra_data'][$extra['ticket_data_key_id']]['value'] : '',$matches)){
+                        ?> <a href="<?php echo htmlspecialchars($matches[1]);?>" target="_blank"><?php _e('Open');?> &raquo;</a> <?php
+                    }else if(preg_match('#(www\.[^\s]*)$#',isset($ticket['extra_data'][$extra['ticket_data_key_id']]) ? $ticket['extra_data'][$extra['ticket_data_key_id']]['value'] : '',$matches)){
+                        ?> <a href="http://<?php echo htmlspecialchars($matches[1]);?>" target="_blank"><?php _e('Open');?> &raquo;</a> <?php
+                    }
                 }else{
                     if(class_exists('module_encrypt',false) && isset($extra['encrypt_key_id']) && $extra['encrypt_key_id']){
                         echo '********';

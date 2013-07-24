@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */ echo _l('Subscriptions &amp; Payments'); ?></h3>
 
 <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
@@ -52,7 +52,7 @@
                 if(!module_subscription::can_i('edit','Subscriptions') && !isset($members_subscriptions[$subscription['subscription_id']]))continue;
                 ?>
                 <div class="subscription<?php echo isset($members_subscriptions[$subscription['subscription_id']])?' active':'';?>">
-                <input type="checkbox" name="subscription[<?php echo $subscription['subscription_id'];?>]" value="1" id="subscription_<?php echo $subscription['subscription_id'];?>" <?php if(isset($members_subscriptions[$subscription['subscription_id']])) echo 'checked';?>>
+                <input type="checkbox" name="subscription[<?php echo $subscription['subscription_id'];?>]" value="1" id="subscription_<?php echo $subscription['subscription_id'];?>" <?php if(isset($members_subscriptions[$subscription['subscription_id']])) echo 'checked';?> onchange="$(this).parent().find('.subscription_start_date').show();">
                     <label for="subscription_<?php echo $subscription['subscription_id'];?>"><?php echo htmlspecialchars($subscription['name']);?></label> - <?php echo dollar($subscription['amount']);
 
                 if(!$subscription['days']&&!$subscription['months']&&!$subscription['years']){
@@ -71,22 +71,27 @@
                     echo ' ';
                     echo _l('Every %s',implode(', ',$bits));
                 }
-                if(isset($members_subscriptions[$subscription['subscription_id']])){
-                    echo _l(' starting from ');
                     ?>
-                    <input type="text" name="subscription_start_date[<?php echo $subscription['subscription_id'];?>]" value="<?php echo print_date($members_subscriptions[$subscription['subscription_id']]['start_date']);?>" class="date_field">
-                    <?php
-                }
-                ?>  <br/>
+                    <span class="subscription_start_date" style="<?php echo isset($members_subscriptions[$subscription['subscription_id']]) ? '' : 'display:none;'; ?>">
+                        <?php
+                        echo _l(' starting from ');
+                        ?>
+                        <input type="text" name="subscription_start_date[<?php echo $subscription['subscription_id'];?>]" value="<?php echo print_date( isset($members_subscriptions[$subscription['subscription_id']]) ? $members_subscriptions[$subscription['subscription_id']]['start_date'] : time());?>" class="date_field">
+                        <?php
+                ?>
+                        </span>
+                        <br/>
                     <?php
 
 
                 // and if it is active, when the next one is due.
                 if(isset($members_subscriptions[$subscription['subscription_id']])){
                     if($members_subscriptions[$subscription['subscription_id']]['next_due_date'] && $members_subscriptions[$subscription['subscription_id']]['next_due_date'] != '0000-00-00'){
-                        echo '<strong>';
-                        _e('Next due date is: %s',print_date($members_subscriptions[$subscription['subscription_id']]['next_due_date']));
-                        echo '</strong>';
+                        ?>
+                        <strong>
+                        <?php _e('Next due date is: %s','<span class="next_due_date_change" data-id="'.$subscription['subscription_id'].'">'.print_date($members_subscriptions[$subscription['subscription_id']]['next_due_date']).'</span>'); ?>
+                        </strong>
+                        <?php
                         $next_due_time = strtotime($members_subscriptions[$subscription['subscription_id']]['next_due_date']);
 
                         $days = ceil(($next_due_time - time())/86400);

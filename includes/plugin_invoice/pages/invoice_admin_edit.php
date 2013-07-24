@@ -5,10 +5,9 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
-
 if(!$invoice_safe)die('failed');
 
 $invoice_id = (int)$_REQUEST['invoice_id'];
@@ -43,8 +42,12 @@ if($invoice_id>0 && $invoice && $invoice['invoice_id']==$invoice_id){
 	}
 	module_security::sanatise_data('invoice',$invoice);
 }
-$invoice_items = module_invoice::get_invoice_items($invoice_id);
+$invoice_items = module_invoice::get_invoice_items($invoice_id,$invoice);
 $invoice_locked = ($invoice['date_sent'] && $invoice['date_sent'] != '0000-00-00') || ($invoice['date_paid'] && $invoice['date_paid'] != '0000-00-00');
+if(isset($_REQUEST['as_deposit'])&&isset($_REQUEST['job_id'])){
+    $invoice['deposit_job_id'] = (int)$_REQUEST['job_id'];
+}
+$discounts_allowed = !(isset($invoice['deposit_job_id']) && $invoice['deposit_job_id'] > 0);
 
 $customer_data = array();
 if($invoice['customer_id']){
@@ -54,6 +57,20 @@ if($invoice['customer_id']){
 $show_task_dates = module_config::c('invoice_task_list_show_date',1);
 $colspan = 2;
 if($show_task_dates)$colspan++;
+
+
+if(isset($invoice['credit_note_id']) && $invoice['credit_note_id']){
+    // this invoice is a credit note.
+    // display a slightly different layout.
+    include(module_theme::include_ucm("includes/plugin_invoice/pages/invoice_admin_credit.php"));
+    return;
+}
+
+// find out all the payment methods.
+$payment_methods = handle_hook('get_payment_methods',$module);
+$x=1;
+$default_payment_method = module_config::c('invoice_default_payment_method','paymethod_paypal');
+
 ?>
 
 
@@ -65,7 +82,8 @@ if($show_task_dates)$colspan++;
     <input type="hidden" name="customer_id" value="<?php echo $invoice['customer_id']; ?>" />
     <?php } ?>
     <input type="hidden" name="job_id" value="<?php echo isset($invoice['job_id']) ? (int)$invoice['job_id'] : 0; ?>" />
-    <?php if(isset($_REQUEST['as_deposit'])){ ?>
+    <?php if(isset($_REQUEST['as_deposit'])){
+        ?>
     <input type="hidden" name="deposit_job_id" value="<?php echo isset($invoice['job_id']) ? (int)$invoice['job_id'] : 0; ?>" />
     <?php } ?>
     <input type="hidden" name="total_tax_rate" value="<?php echo $invoice['total_tax_rate']; ?>" />
@@ -165,7 +183,7 @@ if($show_task_dates)$colspan++;
                                 <td>
                                     <input type="text" name="total_tax_name" value="<?php echo htmlspecialchars($invoice['total_tax_name']);?>" style="width:30px;">
                                     @
-                                    <input type="text" name="total_tax_rate" value="<?php echo htmlspecialchars($invoice['total_tax_rate']);?>" style="width:35px;">%
+                                    <input type="text" name="total_tax_rate" value="<?php echo htmlspecialchars(number_out($invoice['total_tax_rate']));?>" style="width:35px;">%
 
                                 </td>
                             </tr>
@@ -182,7 +200,7 @@ if($show_task_dates)$colspan++;
                                     <?php echo _l('Hourly Rate'); ?>
                                 </th>
                                 <td>
-                                    <?php echo currency('<input type="text" name="hourly_rate" class="currency" value="'.$invoice['hourly_rate'].'">',true,$invoice['currency_id']);
+                                    <?php echo currency('<input type="text" name="hourly_rate" class="currency" value="'.number_out($invoice['hourly_rate']).'">',true,$invoice['currency_id']);
                                     echo _h('This hourly rate will be applied to all manual tasks (tasks that did not come from jobs) in this invoice');
                                     ?>
                                     <?php
@@ -335,13 +353,10 @@ if($show_task_dates)$colspan++;
 
 
 
-                    <?php if((int)$invoice_id > 0){
+                    <?php
 
 
-                        // find out all the payment methods.
-                        $payment_methods = handle_hook('get_payment_methods',$module);
-                        $x=1;
-                        $default_payment_method = module_config::c('invoice_default_payment_method','paymethod_paypal');
+                    if((int)$invoice_id > 0){
 
                         ?>
                         <h3><?php _e('Make a Payment');?></h3>
@@ -369,7 +384,7 @@ if($show_task_dates)$colspan++;
                                     <?php _e('Payment Amount'); ?>
                                 </th>
                                 <td>
-                                    <?php echo currency('<input type="text" name="payment_amount" value="'.number_format($invoice['total_amount_due'],2,'.','').'" class="currency no_permissions">',true,$invoice['currency_id']);?>
+                                    <?php echo currency('<input type="text" name="payment_amount" value="'.number_out($invoice['total_amount_due']).'" class="currency no_permissions">',true,$invoice['currency_id']);?>
                                 </td>
                             </tr>
                             <tr>
@@ -381,12 +396,14 @@ if($show_task_dates)$colspan++;
                             </tr>
                             </tbody>
                         </table>
+                        <?php } ?>
 
                         <?php if(module_invoice::can_i('edit','Invoices')){ ?>
 
                         <h3><?php _e('Advanced');?></h3>
                         <table class="tableclass tableclass_form tableclass_full" cellpadding="0" cellspacing="0">
                             <tbody>
+                            <?php if((int)$invoice_id > 0){ ?>
                             <tr>
                                 <th class="width1">
                                     <?php _e('Customer Link');?>
@@ -395,8 +412,9 @@ if($show_task_dates)$colspan++;
                                     <a href="<?php echo module_invoice::link_public($invoice_id);?>" target="_blank"><?php echo _l('Click to view external link');?></a> <?php _h('You can send this link to your customer and they can preview the invoice, pay for the invoice as well as optionally download the invoice as a PDF'); ?>
                                 </td>
                             </tr>
+                            <?php } ?>
                             <tr>
-                                <th>
+                                <th class="width1">
                                     <?php _e('Allowed Payments');?>
                                 </th>
                                 <td>
@@ -415,35 +433,80 @@ if($show_task_dates)$colspan++;
                             </tr>
                             <tr>
                                 <th>
+                                    <?php _e('Tax Type'); ?>
+                                </th>
+                                <td>
+                                    <?php echo print_select_box(array('0'=>_l('Tax Added'),1=>_l('Tax Included')),'tax_type',$invoice['tax_type']);?>
+                                </td>
+                            </tr>
+                            <?php if ($discounts_allowed){ ?>
+                            <tr>
+                                <th>
+                                    <?php _e('Discount Amount'); ?>
+                                </th>
+                                <td>
+                                    <?php  echo ($invoice_locked || !module_security::is_page_editable()) ?
+                                        '<span class="currency">'.dollar($invoice['discount_amount'],true,$invoice['currency_id']).'</span>' :
+                                        currency('<input type="text" name="discount_amount" value="'.number_out($invoice['discount_amount']).'" class="currency">') ?>
+                                    <?php  _h('Here you can apply a before tax discount to this invoice. You can name this anything, eg: DISCOUNT, CREDIT, REFUND, etc..'); ?>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>
+                                    <?php _e('Discount Name'); ?>
+                                </th>
+                                <td>
+                                    <?php  echo ($invoice_locked || !module_security::is_page_editable()) ?
+                                        htmlspecialchars($invoice['discount_description']) :
+                                        '<input type="text" name="discount_description" value="'.htmlspecialchars($invoice['discount_description']).'" style="width:80px;">' ?>
+                                </td>
+                            </tr>
+                            <tr>
+                                <th>
                                     <?php _e('Discount Type'); ?>
                                 </th>
                                 <td>
                                     <?php echo print_select_box(array('0'=>_l('Before Tax'),1=>_l('After Tax')),'discount_type',$invoice['discount_type']);?>
                                 </td>
                             </tr>
-                            <?php // see if this invoice was renewed from anywhere
-                            $invoice_history = module_invoice::get_invoices(array('renew_invoice_id'=>$invoice_id));
-                            if(count($invoice_history)){
-                                foreach($invoice_history as $invoice_h){
-                                    ?>
-                                    <tr>
-                                        <th class="width1">
-                                            <?php echo _l('Renewal History'); ?>
-                                        </th>
-                                        <td>
-                                            <?php echo _l('This invoice was renewed from %s on %s',module_invoice::link_open($invoice_h['invoice_id'],true),print_date($invoice_h['date_renew'])); ?>
-                                        </td>
-                                    </tr>
+                            <?php } ?>
+                            <tr>
+                                <th>
+                                    <?php _e('Task Type');?>
+                                </th>
+                                <td>
                                     <?php
+                                    echo print_select_box(module_job::get_task_types(),'default_task_type',isset($invoice['default_task_type'])?$invoice['default_task_type']:0,'',false);?>
+                                    <?php _h('The default is hourly rate + amount. This will show the "Hours" column along with an "Amount" column. Inputing a number of hours will auto complete the price based on the job hourly rate. <br>Quantity and Amount will allow you to input a Quantity (eg: 2) and an Amount (eg: $100) and the final price will be $200 (Quantity x Amount). The last option "Amount Only" will just have the amount column for manual input of price. Change the advanced setting "default_task_type" between 0, 1 and 2 to change the default here.'); ?>
+
+                                </td>
+                            </tr>
+                            <?php if((int)$invoice_id > 0){
+                                // see if this invoice was renewed from anywhere
+                                $invoice_history = module_invoice::get_invoices(array('renew_invoice_id'=>$invoice_id));
+                                if(count($invoice_history)){
+                                    foreach($invoice_history as $invoice_h){
+                                        ?>
+                                        <tr>
+                                            <th class="width1">
+                                                <?php echo _l('Renewal History'); ?>
+                                            </th>
+                                            <td>
+                                                <?php echo _l('This invoice was renewed from %s on %s',module_invoice::link_open($invoice_h['invoice_id'],true),print_date($invoice_h['date_renew'])); ?>
+                                            </td>
+                                        </tr>
+                                        <?php
+                                    }
                                 }
-                            } ?>
+                            }
+                            ?>
 
                             <tr>
                                 <th>
                                     <?php echo _l('Renewal Date'); ?>
                                 </th>
                                 <td>
-                                <?php if($invoice['renew_invoice_id']){
+                                <?php if(isset($invoice['renew_invoice_id']) && $invoice['renew_invoice_id']){
                                     echo _l('This invoice was renewed on %s.',print_date($invoice['date_renew']));
                                     echo '<br/>';
                                     echo _l('A new invoice was created, please click <a href="%s">here</a> to view it.',module_invoice::link_open($invoice['renew_invoice_id']));
@@ -479,6 +542,7 @@ if($show_task_dates)$colspan++;
                                 } ?>
                                 </td>
                             </tr>
+                            <?php if((int)$invoice_id > 0){ ?>
                             <tr>
                                 <th>
                                     <?php _e('Cancel Date');?>
@@ -488,6 +552,7 @@ if($show_task_dates)$colspan++;
                                     <?php _h('If the invoice has been cancelled set the date here. Payment reminders for this invoice will no longer be generated.'); ?>
                                 </td>
                             </tr>
+                            <?php } ?>
                             <?php // check if there are multiple invoice templates available
                             $find_other_templates = 'invoice_print';
                             $current_template = isset($invoice['invoice_template_print']) && strlen($invoice['invoice_template_print']) ? $invoice['invoice_template_print'] : module_config::c('invoice_template_print_default','invoice_print');
@@ -522,7 +587,6 @@ if($show_task_dates)$colspan++;
                             </tbody>
                         </table>
 
-                        <?php } ?>
                         <?php
                     } ?>
 
@@ -533,6 +597,25 @@ if($show_task_dates)$colspan++;
                     <h3 class="error_text"><?php _e('Invoice Cancelled');?></h3>
                         <div class="tableclass_form content">
                             <p align="center"><?php echo _l('This invoice has been cancelled!'); ?></p>
+                            <?php // we do a bit of a hack here to handle credit notes.
+                            // if this invoice has been cancelled (date_cancel) then we do a quick search for another invoice with a matching "credit_note_id" to this invoice.
+                                $other_invoice = module_invoice::get_invoices(array('credit_note_id'=>$invoice_id));
+                                if(count($other_invoice)){
+                                    foreach($other_invoice as $other_i){
+                                        // this invoice has been cancelled and there is another invoice that is a credit note against this invoice.
+                                        ?>
+                                        <p align="center"><?php _e('A Credit Note has been generated against this cancelled invoice: %s',module_invoice::link_open($other_i['invoice_id'],true,$other_i));?></p>
+                                        <?php
+                                    }
+                            }else if(module_invoice::can_i('create','Invoices')){
+                                    ?>
+                                    <p style="text-align: center">
+                                        <input type="submit" name="butt_generate_credit" value="<?php _e('Generate Credit Note');?>" class="submit_button">
+                                    </p>
+                                    <?php
+                                }
+
+                            ?>
                         </div>
                     <?php }else if (($invoice['date_due'] && $invoice['date_due']!='0000-00-00') && (!$invoice['date_paid'] || $invoice['date_paid'] == '0000-00-00') && strtotime($invoice['date_due']) < time()){ ?>
                     <h3 class="error_text"><?php _e('Invoice Overdue');?></h3>
@@ -561,7 +644,7 @@ if($show_task_dates)$colspan++;
                                 <?php _e('The deposit will apply to this job once this invoice is paid.'); ?>
                             </p>
                         </div>
-                    <?php }else if($invoice['total_amount_due']>0 && module_security::is_page_editable() && module_invoice::can_i('create','Invoice Payments')){
+                    <?php }else if($invoice_id > 0 && $invoice['total_amount_due']>0 && module_security::is_page_editable() && module_invoice::can_i('create','Invoice Payments')){
                         foreach($invoice['job_ids'] as $possible_job_id){
                             // find any deposit invoices matching this job.
                             $possible_invoices = module_invoice::get_invoices(array('deposit_job_id'=>$possible_job_id));
@@ -596,7 +679,7 @@ if($show_task_dates)$colspan++;
                     ?>
 
                 <?php
-                if((int)$invoice_id>0 && !$invoice_locked && $customer_data && $customer_data['credit']>0){
+                if((int)$invoice_id>0 && !$invoice_locked && $customer_data && $customer_data['credit']>0 && (!$invoice['date_cancel']||$invoice['date_cancel']=='0000-00-00')){
 
                     $apply_credit = min($invoice['total_amount_due'],$customer_data['credit']);
                     ?>
@@ -617,9 +700,11 @@ if($show_task_dates)$colspan++;
                 <script type="text/javascript">
                     function setamount(a,invoice_item_id,rate){
                         var ee = parseFloat(a);
-                        if(!rate)rate = $('#'+invoice_item_id+'invoice_itemrate').val(); //<?php echo $invoice['hourly_rate'];?>;
-                        if(ee>0){
-                            $('#'+invoice_item_id+'invoice_itemamount').val(ee * rate);
+                        if(!rate)rate = $('#'+invoice_item_id+'invoice_itemrate').val();
+                        if(typeof a != 'undefined' && a.length>0 && ee>=0){
+                            $('#'+invoice_item_id+'invoice_itemamount').html(ee * rate);
+                        }else{
+                            $('#'+invoice_item_id+'invoice_itemamount').html(rate);
                         }
                     }
                     function editinvoice_item(invoice_item_id,hours){
@@ -649,7 +734,7 @@ if($show_task_dates)$colspan++;
 
                 <?php
                 // here we check if this invoice can be merged with any other invoices.
-                if($invoice_id>0&&!$invoice_locked && module_invoice::can_i('edit','Invoices') && (!isset($invoice['deposit_job_id']) || !$invoice['deposit_job_id'])){
+                if($invoice_id>0&&!$invoice_locked && module_invoice::can_i('edit','Invoices') && (!isset($invoice['deposit_job_id']) || !$invoice['deposit_job_id'])  && (!$invoice['date_cancel']||$invoice['date_cancel']=='0000-00-00') && !$invoice['total_amount_paid'] ){
                     $merge_invoice_ids = module_invoice::check_invoice_merge($invoice_id);
                     if($merge_invoice_ids){
                         ?>
@@ -664,14 +749,20 @@ if($show_task_dates)$colspan++;
                                     $merge_invoice = module_invoice::get_invoice($merge_invoice['invoice_id']);
                                     ?>
                                     <li>
+                                        <?php if($merge_invoice['total_amount_paid']){
+                                            _e('(cannot merge, invoice already has payment)');
+                                        }else{
+                                        ?>
                                         <input type="checkbox" name="merge_invoice[<?php echo $merge_invoice['invoice_id'];?>]" value="1">
+                                        <?php } ?>
                                         <?php echo module_invoice::link_open($merge_invoice['invoice_id'],true);?>
                                         <?php echo dollar($merge_invoice['total_amount'],true,$invoice['currency_id']);?>
                                         <?php if($merge_invoice['discount_amount']>0){
                                             _e('(You will have to apply the %s discount to this invoice again manually.)',dollar($merge_invoice['discount_amount'],true,$invoice['currency_id']));
                                         } ?>
                                     </li>
-                                <?php } ?>
+                                <?php }
+                                ?>
                             </ul>
                                 <input type="hidden" name="butt_merge" value="" id="butt_merge">
                             <input type="button" name="butt_merge_do" value="<?php _e('Merge selected invoices into this invoice');?>" class="submit_button" onclick="$('#butt_merge').val(1); this.form.submit();">
@@ -694,8 +785,22 @@ if($show_task_dates)$colspan++;
                             <?php if($show_task_dates){ ?>
                             <th width="10%"><?php _e('Date');?></th>
                             <?php } ?>
-                            <th width="10%"><?php echo module_config::c('task_hours_name',_l('Hours'));?></th>
-                            <th width="10%"><?php _e('Price');?></th>
+                            <th width="10%">
+                                <?php if($invoice['default_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                }else if($invoice['default_task_type']==_TASK_TYPE_QTY_AMOUNT){
+                                    echo module_config::c('task_qty_name','Qty');
+                                }else if($invoice['default_task_type']==_TASK_TYPE_HOURS_AMOUNT){
+                                    echo module_config::c('task_hours_name','Hours');
+                                } ?>
+                            </th>
+                            <th width="10%">
+                                <?php if($invoice['default_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                    echo module_config::c('invoice_amount_name','Amount');
+                                }else if($invoice['default_task_type']==_TASK_TYPE_QTY_AMOUNT){
+                                    echo module_config::c('invoice_amount_name','Amount');
+                                }else if($invoice['default_task_type']==_TASK_TYPE_HOURS_AMOUNT){
+                                    echo module_config::c('invoice_rate_name','Rate');
+                                } ?>
                             <th width="10%"><?php _e('Sub-Total');?></th>
                             <th width="80"> </th>
                         </tr>
@@ -709,7 +814,11 @@ if($show_task_dates)$colspan++;
                             </td>
                             <?php } ?>
                             <td>
-                                <input type="text" name="invoice_invoice_item[new][description]" value="" style="width:90%;">
+                                <input type="text" name="invoice_invoice_item[new][description]" value="" style="width:90%;" class="edit_task_description" id="invoice_item_desc_new" data-id="new"><?php
+                                if(class_exists('module_product',false)){
+                                    // looks for class edit_task_description
+                                    module_product::print_invoice_task_dropdown('new');
+                                } ?>
                                 <a href="#" class="task_toggle_long_description">&raquo;</a>
                                 <div class="task_long_description">
                                     <textarea name="invoice_invoice_item[new][long_description]" id="new_task_long_description" class="edit_task_long_description no_permissions"></textarea>
@@ -721,13 +830,26 @@ if($show_task_dates)$colspan++;
                             </td>
                             <?php } ?>
                             <td>
-                                <input type="text" name="invoice_invoice_item[new][hours]" value="" id="newinvoice_itemqty" size="3" style="width:25px;" onchange="setamount(this.value,'new');" onkeyup="setamount(this.value,'new');">
+                                <?php if($invoice['default_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                    ?>
+                                    -
+                                    <?php
+                                }else if($invoice['default_task_type']==_TASK_TYPE_QTY_AMOUNT || $invoice['default_task_type']==_TASK_TYPE_HOURS_AMOUNT){
+                                    ?>
+                                     <input type="text" name="invoice_invoice_item[new][hours]" value="" id="newinvoice_itemqty" size="3" style="width:25px;" onchange="setamount(this.value,'new');" onkeyup="setamount(this.value,'new');">
+                                <?php
+                                } ?>
+
                             </td>
                             <td>
-                                <input type="text" name="invoice_invoice_item[new][hourly_rate]" value="<?php echo $invoice['hourly_rate'];?>" id="newinvoice_itemrate"  size="3" style="width:35px;" onchange="setamount($('#newinvoice_itemqty').val(),'new');" onkeyup="setamount($('#newinvoice_itemqty').val(),'new');">
+                                <input type="text" name="invoice_invoice_item[new][hourly_rate]" value="<?php echo $invoice['default_task_type']==_TASK_TYPE_HOURS_AMOUNT ? $invoice['hourly_rate'] : 0;?>" id="newinvoice_itemrate"  size="3" style="width:35px;" onchange="setamount($('#newinvoice_itemqty').val(),'new');" onkeyup="setamount($('#newinvoice_itemqty').val(),'new');">
                             </td>
                             <td nowrap="">
-                                <?php echo currency('<input type="text" name="invoice_invoice_item[new][amount]" value="" id="newinvoice_itemamount" class="currency">',true,$invoice['currency_id']);?>
+                                <span class="currency">
+                                <?php
+                                //name="invoice_invoice_item[new][amount]"
+                                echo currency('<span value="" id="newinvoice_itemamount" class="">0</span>',true,$invoice['currency_id']);?>
+                                </span>
                             </td>
                             <td align="center">
                                 <input type="submit" name="save" value="<?php _e('Add Item');?>" class="save_invoice_item small_button">
@@ -766,53 +888,6 @@ if($show_task_dates)$colspan++;
                         )*/
                         foreach($invoice_items as $invoice_item_id => $invoice_item_data){
 
-                            // copy any changes here to template/invoice_task_list.php
-                            $task_hourly_rate = isset($invoice_item_data['hourly_rate']) && $invoice_item_data['hourly_rate']!=0 ? $invoice_item_data['hourly_rate'] : $invoice['hourly_rate'];
-                            // if there are no hours logged against this task
-                            if(!$invoice_item_data['hours']){
-                                //$task_hourly_rate=0;
-                            }
-                            // if we have a custom price for this task
-                            if($invoice_item_data['amount']!=0 && $invoice_item_data['amount'] != ($invoice_item_data['hours']*$task_hourly_rate)){
-                                $invoice_item_amount = $invoice_item_data['amount'];
-                                if(module_config::c('invoice_calculate_item_price_auto',1) && $invoice_item_data['hours'] > 0){
-                                    $task_hourly_rate = round($invoice_item_amount/$invoice_item_data['hours'],module_config::c('currency_decimal_places',2));
-                                }else{
-                                    $task_hourly_rate = false;
-                                }
-                            }else if($invoice_item_data['hours']>0){
-                                $invoice_item_amount = $invoice_item_data['hours']*$task_hourly_rate;
-                            }else{
-                                $invoice_item_amount = 0;
-                                $task_hourly_rate = false;
-                            }
-                            /*$invoice_item_amount = $invoice_item_data['amount'] > 0 ? $invoice_item_data['amount'] : $invoice_item_data['hours']*$task_hourly_rate;
-                            if($invoice_item_data['amount']>0 && !$invoice_item_data['hours']){
-                                $invoice_item_amount = $invoice_item_data['amount'];
-                                $invoice_item_data['hours'] = 1;
-                                $task_hourly_rate = $invoice_item_data['amount']; // not sure if this will be buggy
-                            }else{
-                                $invoice_item_amount = $invoice_item_data['hours']*$task_hourly_rate;
-                            }*/
-
-                            // new feature, date done.
-                            if(isset($invoice_item_data['date_done']) && $invoice_item_data['date_done'] != '0000-00-00'){
-                                // $invoice_item_data['date_done'] is ok to print!
-                            }else{
-                                $invoice_item_data['date_done'] = '0000-00-00';
-                                // check if this is linked to a task.
-                                if($invoice_item_data['task_id']){
-                                    $task = get_single('task','task_id',$invoice_item_data['task_id']);
-                                    if($task && isset($task['date_done']) && $task['date_done'] != '0000-00-00'){
-                                        $invoice_item_data['date_done'] = $task['date_done']; // move it over ready for printing below
-                                    }else{
-                                        if(isset($invoice['date_create']) && $invoice['date_create'] != '0000-00-00'){
-                                            $invoice_item_data['date_done'] = $invoice['date_create'];
-                                        }
-                                    }
-                                }
-                            }
-
                             ?>
                                 <?php if(!$invoice_locked){ ?>
                                 <tbody id="invoice_item_edit_<?php echo $invoice_item_id;?>" style="display:none;">
@@ -831,7 +906,11 @@ if($show_task_dates)$colspan++;
                                     <td>
                                         <input type="hidden" name="invoice_invoice_item[<?php echo $invoice_item_id;?>][task_id]" value="<?php echo htmlspecialchars($invoice_item_data['task_id']);?>">
 
-                                        <input type="text" name="invoice_invoice_item[<?php echo $invoice_item_id;?>][description]" value="<?php echo htmlspecialchars($invoice_item_data['custom_description'] ? $invoice_item_data['custom_description'] : $invoice_item_data['description']);?>" style="width:90%;" id="invoice_item_desc_<?php echo $invoice_item_id;?>">
+                                        <input type="text" name="invoice_invoice_item[<?php echo $invoice_item_id;?>][description]" value="<?php echo htmlspecialchars($invoice_item_data['custom_description'] ? $invoice_item_data['custom_description'] : $invoice_item_data['description']);?>" style="width:90%;" class="edit_task_description" id="invoice_item_desc_<?php echo $invoice_item_id;?>" data-id="<?php echo $invoice_item_id;?>"><?php
+                                if(class_exists('module_product',false)){
+                                    // looks for class edit_task_description
+                                    module_product::print_invoice_task_dropdown($invoice_item_id,$invoice_item_data);
+                                } ?>
                                         <br/>
                                         <textarea name="invoice_invoice_item[<?php echo $invoice_item_id;?>][long_description]" style="width:90%;"><?php echo htmlspecialchars($invoice_item_data['custom_long_description'] ? $invoice_item_data['custom_long_description'] : $invoice_item_data['long_description']);?></textarea>
                                         <?php if($invoice_item_data['task_id']){
@@ -848,13 +927,24 @@ if($show_task_dates)$colspan++;
                                     </td>
                                     <?php } ?>
                                     <td>
-                                        <input type="text" name="invoice_invoice_item[<?php echo $invoice_item_id;?>][hours]" value="<?php echo $invoice_item_data['hours'];?>" size="3" style="width:25px;"  onchange="setamount(this.value,'<?php echo $invoice_item_id;?>',<?php echo $task_hourly_rate;?>);" id="<?php echo $invoice_item_id;?>invoice_itemqty" onkeyup="setamount(this.value,'<?php echo $invoice_item_id;?>',<?php echo $task_hourly_rate;?>);">
+                                        <?php if($invoice_item_data['manual_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                        echo '-';
+                                        }else{ ?>
+                                        <input type="text" name="invoice_invoice_item[<?php echo $invoice_item_id;?>][hours]" value="<?php echo number_out($invoice_item_data['hours']);?>" size="3" style="width:25px;"  onchange="setamount(this.value,'<?php echo $invoice_item_id;?>',<?php echo $invoice_item_data['task_hourly_rate'];?>);" id="<?php echo $invoice_item_id;?>invoice_itemqty" onkeyup="setamount(this.value,'<?php echo $invoice_item_id;?>',<?php echo $invoice_item_data['task_hourly_rate'];?>);">
+                                        <?php } ?>
                                     </td>
                                     <td>
-                                        <input type="text" name="invoice_invoice_item[<?php echo $invoice_item_id;?>][hourly_rate]" value="<?php echo $task_hourly_rate;?>" id="<?php echo $invoice_item_id;?>invoice_itemrate"  size="3" style="width:35px;" onchange="setamount($('#<?php echo $invoice_item_id;?>invoice_itemqty').val(),<?php echo $invoice_item_id;?>);" onkeyup="setamount($('#<?php echo $invoice_item_id;?>invoice_itemqty').val(),<?php echo $invoice_item_id;?>);">
+                                        <input type="text" name="invoice_invoice_item[<?php echo $invoice_item_id;?>][hourly_rate]" value="<?php echo number_out($invoice_item_data['task_hourly_rate']);?>" id="<?php echo $invoice_item_id;?>invoice_itemrate"  size="3" style="width:35px;" onchange="setamount($('#<?php echo $invoice_item_id;?>invoice_itemqty').val(),<?php echo $invoice_item_id;?>);" onkeyup="setamount($('#<?php echo $invoice_item_id;?>invoice_itemqty').val(),<?php echo $invoice_item_id;?>);">
                                     </td>
                                     <td nowrap="">
-                                        <?php echo currency('<input type="text" name="invoice_invoice_item['.$invoice_item_id.'][amount]" value="'.$invoice_item_amount.'" id="'.$invoice_item_id.'invoice_itemamount" class="currency">',true,$invoice['currency_id']);?>
+                                        <span class="currency">
+                                <?php
+                                //name="invoice_invoice_item[new][amount]"
+                                echo currency('<span value="" id="'.$invoice_item_id.'invoice_itemamount" class="">'.$invoice_item_data['invoice_item_amount'].'</span>',true,$invoice['currency_id']);?>
+                                </span>
+
+                                        <?php
+                                        //echo currency('<input type="text" name="invoice_invoice_item['.$invoice_item_id.'][amount]" value="'.$invoice_item_data['invoice_item_amount'].'" id="'.$invoice_item_id.'invoice_itemamount" class="currency">',true,$invoice['currency_id']);?>
                                     </td>
                                     <td nowrap="nowrap" align="center">
                                         <input type="submit" name="ts" class="save_invoice_item small_button" value="<?php _e('Save');?>">
@@ -871,9 +961,10 @@ if($show_task_dates)$colspan++;
                                     <td>
                                     </td>
                                     <?php } ?>
-                                    <td>
-                                    </td>
-                                    <td>
+                                    <td colspan="2">
+                                        <?php $types = module_job::get_task_types();
+                                        $types['-1'] = _l('Default (%s)',$types[$invoice_item_data['manual_task_type']]);
+                                        echo print_select_box($types,'invoice_invoice_item['.$invoice_item_id.'][manual_task_type]',$invoice_item_data['manual_task_type_real'],'',false); ?>
                                     </td>
                                     <td colspan="2">
                                         <input type="hidden" name="invoice_invoice_item[<?php echo $invoice_item_id;?>][taxable_t]" value="1">
@@ -918,13 +1009,18 @@ if($show_task_dates)$colspan++;
                                     </td>
                                     <?php } ?>
                                     <td>
-                                        <?php echo $invoice_item_data['hours']>0 ? $invoice_item_data['hours'] : '-';?>
+                                        <?php
+                                        if($invoice_item_data['manual_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                        echo '-';
+                                        }else{
+                                        echo $invoice_item_data['hours']>0 ? number_out($invoice_item_data['hours']) : '-';
+                                        }
+                                        ?>
                                     </td>
                                     <td>
-
                                         <?php
-                                        if($task_hourly_rate!=0){
-                                            echo dollar($task_hourly_rate,true,$invoice['currency_id']);
+                                        if($invoice_item_data['task_hourly_rate']!=0){
+                                            echo dollar($invoice_item_data['task_hourly_rate'],true,$invoice['currency_id']);
                                         }else{
                                             echo '-';
                                         }
@@ -933,7 +1029,7 @@ if($show_task_dates)$colspan++;
                                     <td>
                                         <span class="currency">
                                         <?php
-                                            echo dollar($invoice_item_amount,true,$invoice['currency_id']);
+                                            echo dollar($invoice_item_data['invoice_item_amount'],true,$invoice['currency_id']);
                                             ?>
                                         </span>
                                     </td>
@@ -942,190 +1038,91 @@ if($show_task_dates)$colspan++;
                                     </td>
                                 </tr>
                             </tbody>
-                        <?php } ?>
-                        <?php if(true){ //(int)$invoice_id>0 ?>
+                        <?php }
+
+                        $rows = array();
+                        if($invoice['discount_type']==_DISCOUNT_TYPE_BEFORE_TAX){
+                            $rows[]=array(
+                                'label'=>_l('Sub:'),
+                                'value'=>'<span class="currency">'.dollar($invoice['total_sub_amount']+$invoice['discount_amount'],true,$invoice['currency_id']).'</span>'
+                            );
+                            if($invoice['discount_amount']>0){
+                                $rows[]=array(
+                                    'label'=> htmlspecialchars($invoice['discount_description']),
+                                    'value'=> '<span class="currency">'.dollar($invoice['discount_amount'],true,$invoice['currency_id']).'</span>'
+                                );
+                                $rows[]=array(
+                                    'label'=>_l('Sub:'),
+                                    'value'=>'<span class="currency">'.dollar($invoice['total_sub_amount'],true,$invoice['currency_id']).'</span>'
+                                );
+                            }
+                            foreach($invoice['taxes'] as $invoice_tax){
+                                $rows[]=array(
+                                    'label'=>_l('Tax:'),
+                                    'value'=>'<span class="currency">'.dollar($invoice_tax['tax'],true,$invoice['currency_id']).'</span>',
+                                    'extra'=>$invoice_tax['name'] . ' = '.$invoice_tax['rate'].'%',
+                                );
+                            }
+
+                        }else if($invoice['discount_type']==_DISCOUNT_TYPE_AFTER_TAX){
+                            $rows[]=array(
+                                'label'=>_l('Sub:'),
+                                'value'=>'<span class="currency">'.dollar($invoice['total_sub_amount'],true,$invoice['currency_id']).'</span>'
+                            );
+                            foreach($invoice['taxes'] as $invoice_tax){
+                                $rows[]=array(
+                                    'label'=>_l('Tax:'),
+                                    'value'=>'<span class="currency">'.dollar($invoice_tax['tax'],true,$invoice['currency_id']).'</span>',
+                                    'extra'=>$invoice_tax['name'] . ' = '.$invoice_tax['rate'].'%',
+                                );
+                            }
+                            $rows[]=array(
+                                'label'=>_l('Sub:'),
+                                'value'=>'<span class="currency">'.dollar($invoice['total_sub_amount']+$invoice['total_tax'],true,$invoice['currency_id']).'</span>',
+                            );
+                            if($invoice['discount_amount']>0){ //if(($discounts_allowed || $invoice['discount_amount']>0) &&  (!($invoice_locked && module_security::is_page_editable()) || $invoice['discount_amount']>0)){
+                                $rows[]=array(
+                                    'label'=> htmlspecialchars($invoice['discount_description']),
+                                    'value'=> '<span class="currency">'.dollar($invoice['discount_amount'],true,$invoice['currency_id']).'</span>'
+                                );
+                            }
+                        }
+
+
+                        $rows[]=array(
+                            'label'=>_l('Total:'),
+                            'value'=>'<span class="currency" style="text-decoration: underline; font-weight: bold;">'.dollar($invoice['total_amount']+($invoice['total_amount_deposits']+$invoice['total_amount_deposits_tax']),true,$invoice['currency_id']).'</span>',
+                        );
+
+                        if($invoice['total_amount_deposits']>0){
+                            $rows[]=array(
+                                'label'=>_l('Deposit:'),
+                                'value'=>'<span class="currency">'.dollar($invoice['total_amount_deposits']+$invoice['total_amount_deposits_tax'],true,$invoice['currency_id']).'</span>'
+                            );
+                            $rows[]=array(
+                                'label'=>_l('Total:'),
+                                'value'=>'<span class="currency" style="text-decoration: underline; font-weight: bold;">'.dollar($invoice['total_amount'],true,$invoice['currency_id']).'</span>',
+                            );
+                        }
+                        ?>
                         <tfoot style="border-top:1px solid #CCC;">
+                        <?php foreach($rows as $row){ ?>
                         <tr>
                             <td colspan="<?php echo $colspan;?>">
                                 &nbsp;
                             </td>
                             <td>
-                                <?php _e('Sub:');?>
+                                <?php echo $row['label'];?>
                             </td>
                             <td>
-                                <span class="currency">
-                                <?php echo dollar($invoice['total_sub_amount'],true,$invoice['currency_id']);?>
-                                </span>
+                                <?php echo $row['value'];?>
                             </td>
-                            <td>
-                                &nbsp;
-                            </td>
-                        </tr>
-
-
-                        <?php if($invoice['discount_type']==1){ // after tax discount ?>
-
-                            <tr>
-                                <td colspan="<?php echo $colspan;?>">
-                                    &nbsp;
-                                </td>
-                                <td>
-                                    <?php _e('Tax:');?>
-                                </td>
-                                <td>
-                                    <span class="currency">
-                                    <?php echo dollar($invoice['total_tax'],true,$invoice['currency_id']);?>
-                                    </span>
-                                </td>
-                                <td>
-                                    <?php echo $invoice['total_tax_name'] ;?> =
-                                    <?php echo $invoice['total_tax_rate'] . '%' ;?>
-                                </td>
-                            </tr>
-                            <tr>
-                                <td colspan="<?php echo $colspan;?>">
-                                    &nbsp;
-                                </td>
-                                <td>
-                                    <?php _e('Sub:');?>
-                                </td>
-                                <td>
-                                    <span class="currency">
-                                    <?php echo dollar($invoice['total_sub_amount']+$invoice['total_tax'],true,$invoice['currency_id']);?>
-                                    </span>
-                                </td>
-                                <td>
-                                    &nbsp;
-                                </td>
-                            </tr>
-                            <?php if(!($invoice_locked && module_security::is_page_editable()) || $invoice['discount_amount']>0){ ?>
-                            <tr>
-                                <td colspan="<?php echo $colspan-1;?>">
-                                    &nbsp;
-                                </td>
-                                <?php if($invoice_locked){ ?>
-                                <td>
-                                    &nbsp;
-                                </td>
-                                <td>
-                                    <?php echo htmlspecialchars($invoice['discount_description']);?>
-                                </td>
-                                <?php }else{ ?>
-                                <td colspan="2" align="right">
-                                    <input type="text" name="discount_description" value="<?php echo htmlspecialchars($invoice['discount_description']);?>" style="width:80px;">
-                                </td>
-                                <?php } ?>
-                                <td>
-                                    <?php if($invoice_locked || !module_security::is_page_editable()){ ?>
-                                    <span class="currency">
-                                            <?php echo dollar($invoice['discount_amount'],true,$invoice['currency_id']);?>
-                                        </span>
-                                    <?php }else{ ?>
-                                    <input type="text" name="discount_amount" value="<?php echo $invoice['discount_amount'];?>" class="currency">
-
-                                    <?php } ?>
-                                </td>
-                                <td>
-                                    <?php if(!$invoice_locked){ ?>
-                                    <input type="submit" name="apply" value="<?php _e('Apply');?>" class="apply_discount small_button">
-                                    <?php } ?>
-                                    <?php _h('Here you can apply a before tax discount to this invoice. You can name this anything, eg: DISCOUNT, CREDIT, REFUND, etc..'); ?>
-                                </td>
-                            </tr>
-                                <?php } ?>
-
-                    <?php }else{
-                    // before tax discount
-                                ?>
-
-
-                            <?php if(!($invoice_locked && module_security::is_page_editable()) || $invoice['discount_amount']>0){ ?>
-                            <tr>
-                                <td colspan="<?php echo $colspan-1;?>">
-                                    &nbsp;
-                                </td>
-                                <?php if($invoice_locked){ ?>
-                                <td>
-                                    &nbsp;
-                                </td>
-                                <td>
-                                    <?php echo htmlspecialchars($invoice['discount_description']);?>
-                                </td>
-                                <?php }else{ ?>
-                                <td colspan="2" align="right">
-                                    <input type="text" name="discount_description" value="<?php echo htmlspecialchars($invoice['discount_description']);?>" style="width:80px;">
-                                </td>
-                                <?php } ?>
-                                <td>
-                                    <?php if($invoice_locked || !module_security::is_page_editable()){ ?>
-                                    <span class="currency">
-                                                                <?php echo dollar($invoice['discount_amount'],true,$invoice['currency_id']);?>
-                                                            </span>
-                                    <?php }else{ ?>
-                                    <input type="text" name="discount_amount" value="<?php echo $invoice['discount_amount'];?>" class="currency">
-
-                                    <?php } ?>
-                                </td>
-                                <td>
-                                    <?php if(!$invoice_locked){ ?>
-                                    <input type="submit" name="apply" value="<?php _e('Apply');?>" class="apply_discount">
-                                    <?php } ?>
-                                    <?php _h('Here you can apply a before tax discount to this invoice. You can name this anything, eg: DISCOUNT, CREDIT, REFUND, etc..'); ?>
-                                </td>
-                            </tr>
-                                <?php } ?>
-                            <?php if($invoice['discount_amount'] != 0){ ?>
-                            <tr>
-                                <td colspan="<?php echo $colspan;?>">
-                                    &nbsp;
-                                </td>
-                                <td>
-                                    <?php _e('Sub:');?>
-                                </td>
-                                <td>
-                                        <span class="currency">
-                                        <?php echo dollar($invoice['total_sub_amount']-$invoice['discount_amount'],true,$invoice['currency_id']);?>
-                                        </span>
-                                </td>
-                                <td>
-                                    &nbsp;
-                                </td>
-                            </tr>
-                                <?php } ?>
-                        <tr>
-                            <td colspan="<?php echo $colspan;?>">
-                                &nbsp;
-                            </td>
-                            <td>
-                                <?php _e('Tax:');?>
-                            </td>
-                            <td>
-                                <span class="currency">
-                                <?php echo dollar($invoice['total_tax'],true,$invoice['currency_id']);?>
-                                </span>
-                            </td>
-                            <td>
-                                <?php echo $invoice['total_tax_name'] ;?> =
-                                <?php echo $invoice['total_tax_rate'] . '%' ;?>
+                            <td colspan="2">
+                                <?php echo isset($row['extra']) ? $row['extra'] : '&nbsp;';?>
                             </td>
                         </tr>
                         <?php } ?>
-                        <tr>
-                            <td colspan="<?php echo $colspan;?>">
-                                &nbsp;
-                            </td>
-                            <td>
-                                <?php _e('Total:');?>
-                            </td>
-                            <td>
-                                <span class="currency" style="text-decoration: underline; font-weight: bold;">
-                                    <?php echo dollar($invoice['total_amount'],true,$invoice['currency_id']);?>
-                                </span>
-                            </td>
-                            <td>
-                                &nbsp;
-                            </td>
-                        </tr>
+
                         <tr>
                             <td colspan="<?php echo $colspan+3;?>">&nbsp;</td>
                         </tr>
@@ -1180,7 +1177,6 @@ if($show_task_dates)$colspan++;
                         </tr>
                         <?php } ?>
                         </tfoot>
-<?php } ?>
 					</table>
                     </div> <!-- content box -->
                     <?php if($invoice_id){ ?>
@@ -1229,7 +1225,7 @@ if($show_task_dates)$colspan++;
                                 <!-- <input type="text" name="invoice_invoice_payment[new][method]" value="<?php echo module_config::s('invoice_payment_default_method','Bank');?>" size="20">-->
                             </td>
                             <td nowrap="">
-                                <?php echo '<input type="text" name="invoice_invoice_payment[new][amount]" value="'.number_format($invoice['total_amount_due'],2,'.','').'" id="newinvoice_paymentamount" class="currency">';?>
+                                <?php echo '<input type="text" name="invoice_invoice_payment[new][amount]" value="'.number_out($invoice['total_amount_due']).'" id="newinvoice_paymentamount" class="currency">';?>
                                 <?php echo print_select_box(get_multiple('currency','','currency_id'),'invoice_invoice_payment[new][currency_id]',$invoice['currency_id'],'',false,'code'); ?>
                             </td>
                             <td>&nbsp;</td>
@@ -1255,7 +1251,7 @@ if($show_task_dates)$colspan++;
                                         <input type="text" name="invoice_invoice_payment[<?php echo $invoice_payment_id;?>][method]" value="<?php echo htmlspecialchars($invoice_payment_data['method']);?>" size="20">
                                     </td>
                                     <td nowrap="">
-                                        <?php echo '<input type="text" name="invoice_invoice_payment['.$invoice_payment_id.'][amount]" value="'.$invoice_payment_data['amount'].'" id="'.$invoice_payment_id.'invoice_paymentamount" class="currency">';?>
+                                        <?php echo '<input type="text" name="invoice_invoice_payment['.$invoice_payment_id.'][amount]" value="'.number_out($invoice_payment_data['amount']).'" id="'.$invoice_payment_id.'invoice_paymentamount" class="currency">';?>
                                         <?php echo print_select_box(get_multiple('currency','','currency_id'),'invoice_invoice_payment['.$invoice_payment_id.'][currency_id]',$invoice_payment_data['currency_id'],'',false,'code'); ?>
                                     </td>
                                     <td>

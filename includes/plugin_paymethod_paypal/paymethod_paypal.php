@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 //306412171 ucm_1306412206_per@gmail.com
@@ -24,10 +24,11 @@ class module_paymethod_paypal extends module_base{
         return __CLASS__;
     }
 	function init(){
-        $this->version = 2.21;
+        $this->version = 2.22;
 		$this->module_name = "paymethod_paypal";
 		$this->module_position = 8882;
 
+        // 2.22 - 2013-04-16 - added paypal page style
         // 2.21 - perm fix
 	}
 
@@ -116,6 +117,7 @@ class module_paymethod_paypal extends module_base{
             'currency_code' => $currency['code'],
             'item_name' => $description,
             'amount' => $amount,
+            'page_style' => module_config::c('paypal_page_style',''),
             'return' => module_invoice::link_open($invoice_id),
             'notify_url' => full_link(_EXTERNAL_TUNNEL.'?m=paymethod_paypal&h=ipn&method=paypal'),
             'custom' => self::paypal_custom($user_id,$payment_id,$invoice_id),

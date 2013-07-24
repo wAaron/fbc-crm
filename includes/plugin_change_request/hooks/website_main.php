@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 $jobs = module_job::get_jobs(array('website_id'=>$website_id));
 // pull out jobs that don't have an invoice.
@@ -20,10 +20,28 @@ $h = array(
     'type'=>'h3',
     'title'=>'Customer Change Requests',
 );
-/*$h['button']=array(
-    'title'=>'New Change',
-    'url' =>'#',
-);*/
+// find out how many changes are incomplete
+$link_toggle = module_website::link_open($website_id);
+$show_completed = isset($_REQUEST['show_completed_change_requests']) ? $_REQUEST['show_completed_change_requests'] : false;
+$num_completed = 0;
+foreach($change_requests as $change_request){
+    if($change_request['status']==_CHANGE_REQUEST_STATUS_COMPLETE){
+        $num_completed++;
+    }
+}
+if($num_completed){
+    if($show_completed){
+        $h['button']=array(
+            'title'=>_l('Hide %s completed changes',$num_completed),
+            'url' =>$link_toggle.='&show_completed_change_requests=0',
+        );
+    }else{
+        $h['button']=array(
+            'title'=>_l('Show %s completed changes',$num_completed),
+            'url' =>$link_toggle.='&show_completed_change_requests=1',
+        );
+    }
+}
 print_heading($h);
 ?>
 
@@ -67,7 +85,9 @@ print_heading($h);
         <tbody>
     <?php
     $c=0;
-    foreach($change_requests as $change_request){ ?>
+    foreach($change_requests as $change_request){
+        if(!$show_completed && $change_request['status']==_CHANGE_REQUEST_STATUS_COMPLETE)continue;
+        ?>
         <tr class="<?php echo $c++%2?'odd':'even';?>">
             <td>
                 <?php echo htmlspecialchars($change_request['url']);?>
@@ -83,8 +103,8 @@ print_heading($h);
             </td>
             <td>
                 <?php switch($change_request['status']){
-                case 1: _e('Incomplete'); break;
-                case 2: _e('Completed'); break;
+                case _CHANGE_REQUEST_STATUS_NEW: _e('Incomplete'); break;
+                case _CHANGE_REQUEST_STATUS_COMPLETE: _e('Completed'); break;
                 } ?>
             </td>
             <td>
@@ -123,6 +143,10 @@ print_heading($h);
                 <a href="<?php echo module_change_request::link_public_change($website_id,$change_request['change_request_id']);?>" target="_blank"><?php _e('View');?></a>
                 |
                 <a href="<?php echo module_change_request::link_open($change_request['change_request_id']);?>"><?php _e('Email');?></a>
+                <?php if(module_change_request::can_i('delete','Change Requests')){ ?>
+                |
+                <a href="<?php echo module_change_request::link_open_delete($change_request['change_request_id']);?>"><?php _e('Delete');?></a>
+                <?php } ?>
 
                 <?php if($change_request['status']==1){ ?>
                 <?php }else if($change_request['status']==2){

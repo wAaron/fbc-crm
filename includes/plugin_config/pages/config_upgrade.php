@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 @set_time_limit(0);
@@ -91,7 +91,7 @@ if(isset($_REQUEST['install_upgrade'])){
             }
         }
         if($this_update){
-            echo "Downloading update: <span style='text-decoration:underline;'>".htmlspecialchars($this_update['description'])."</span>... ";
+            echo "Downloading files: <span style='text-decoration:underline;'>".htmlspecialchars($this_update['description'])."</span>... ";
 
             if($update = module_config::download_update($this_update['key'])){
                 ?>
@@ -160,7 +160,7 @@ if(isset($_REQUEST['install_upgrade'])){
                 <?php
                 //exit;
             }else{
-                echo '<span class="error_text">failed to download update :( </span> ';
+                echo '<span class="error_text">failed to download files :( </span> ';
             }
             echo '<br>';
             //$_REQUEST['run_upgrade'] = true; // so we do the DB update again down the bottom.
@@ -200,7 +200,7 @@ if(isset($_REQUEST['install_upgrade'])){
 
 <form action="#" method="post">
     <input type="hidden" name="run_upgrade" value="true">
-    <input type="submit" name="go" value="<?php _e('Continue Installation');?>" class="submit_button">
+    <input type="submit" name="go" value="<?php _e('Complete Upgrade Process');?>" class="submit_button">
 </form>
     <?php
 
@@ -353,7 +353,8 @@ if(isset($_REQUEST['install_upgrade'])){
             Please make sure you have a backup of your system before doing an upgrade. Especially if you have modified any of the PHP code yourself.
             <br>
 
-            <input type="submit" name="install_upgrade" value="Install Selected Updates Automatically" class="submit_button save_button">
+            <input type="submit" name="install_upgrade" value="Start the Upgrade" class="submit_button save_button">
+            <div style="color:#FF0000; font-style: italic; padding:10px 0 0 0">Please remember to click "Complete Upgrade Process" button on the next page!</div>
             <!-- <input type="submit" name="download_upgrade" value="Download Updates as ZIP file for manual install"> -->
                 </form>
 
@@ -361,7 +362,7 @@ if(isset($_REQUEST['install_upgrade'])){
 
     }else{
         ?>
-        No updates available at this time.
+        No upgrade available at this time.
         <br>
         <?php
         if(isset($setup_upgrade_hack)){
@@ -433,7 +434,7 @@ if(isset($_REQUEST['install_upgrade'])){
         <tr>
             <td valign="top" width="50%">
 
-                <?php _e('Please insert your license code(s) below to receive updates and new features.'); ?>
+                <?php _e('Please insert your license code(s) below to receive upgrades and new features.'); ?>
                 <?php _h('Your licence code can be found from your CodeCanyon downloads page in the licence file.'); ?>
                 <form action="#" method="post">
                     <input type="hidden" name="check_upgrade" value="true">
@@ -469,7 +470,7 @@ if(isset($_REQUEST['install_upgrade'])){
                     <script type="text/javascript">
                         set_add_del('license_codes_holder');
                     </script>
-                    <input type="submit" name="go" value="<?php _e('Check for Updates');?>" class="submit_button">
+                    <input type="submit" name="go" value="<?php _e('Check for Upgrades');?>" class="submit_button">
                     <?php $url = module_config::c('ucm_upgrade_url','http://ultimateclientmanager.com/api/upgrade.php');
                     if(strlen($url)<6){
                         echo 'Warning, "ucm_upgrade_url" setting is incorrect. Please contact <a href="http://ultimateclientmanager.com/support-ticket.html">Support</a>';
@@ -477,7 +478,7 @@ if(isset($_REQUEST['install_upgrade'])){
                     ?>
                 </form>
                 <br><br>
-                <?php _e('To install any manual updates please click button below (ie: if you installed from a zip file).'); ?><br/>
+                <?php _e('To install a manual upgrade or to complete a previously started upgrade please click button below.'); ?><br/>
                 <?php _e('You can also click this button to re-install any missing database tables.'); ?><br/>
                 <form action="#" method="post">
                     <input type="hidden" name="run_upgrade" value="true">

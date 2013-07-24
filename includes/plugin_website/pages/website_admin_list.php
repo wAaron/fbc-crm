@@ -248,10 +248,10 @@ $colspan = 4;
                     echo htmlspecialchars(implode(', ',$g));
                 }
                 ?></td>
+                <?php } ?>
                 <?php if(class_exists('module_extra',false)){
                 module_extra::print_table_data('website',$website['website_id']);
                 } ?>
-            <?php } ?>
 		</tr>
 		<?php } ?>
 	</tbody>

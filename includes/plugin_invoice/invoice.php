@@ -5,14 +5,23 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
+define('_INVOICE_ACCESS_ALL','All invoices in system');
+define('_INVOICE_ACCESS_JOB','Invoices from Jobs I have access to');
+define('_INVOICE_ACCESS_CUSTOMER','Invoices from customers I have access to');
 
 define('_INVOICE_PAYMENT_TYPE_NORMAL',0);
 define('_INVOICE_PAYMENT_TYPE_DEPOSIT',1);
 define('_INVOICE_PAYMENT_TYPE_CREDIT',2);
+
+define('_TAX_CALCULATE_AT_END',0);
+define('_TAX_CALCULATE_INCREMENTAL',1);
+
+define('_DISCOUNT_TYPE_BEFORE_TAX',0);
+define('_DISCOUNT_TYPE_AFTER_TAX',1);
 
 class module_invoice extends module_base{
 	
@@ -32,7 +41,32 @@ class module_invoice extends module_base{
 		$this->module_name = "invoice";
 		$this->module_position = 18;
 
-        $this->version = 2.588;
+        $this->version = 2.636;
+        //2.636 - 2013-07-16 - dashboard link fix
+        //2.635 - 2013-07-15 - dashboard fix
+        //2.634 - 2013-07-15 - bug fix
+        //2.633 - 2013-07-01 - add multiple taxes to invoice
+        //2.632 - 2013-06-21 - permission update - new invoice permissions
+        //2.631 - 2013-06-17 - job improvement when invoice has discount
+        //2.63 - 2013-06-14 - customer color coding
+        //2.629 - 2013-05-28 - email template field improvements
+        //2.628 - 2013-05-28 - email template field improvements
+        //2.627 - 2013-05-27 - dashboard alert improvements.
+        //2.626 - 2013-05-08 - invoice hours fix
+        //2.625 - 2013-04-28 - rounding improvements for different currency formats
+        //2.624 - 2013-04-27 - rounding improvements for different currency formats
+        //2.623 - 2013-04-26 - task type selection +others on invoice creation
+        //2.622 - 2013-04-26 - fix for $0 invoices
+        //2.621 - 2013-04-26 - fix for deposit invoices from jobs
+        //2.619 - 2013-04-21 - number formatting improvements
+        //2.618 - 2013-04-21 - invoice pdf print fix
+        //2.617 - 2013-04-20 - invoice merge improvement
+        //2.616 - 2013-04-18 - fix for pdf downloads
+        //2.615 - 2013-04-16 - PLEASE CHECK YOUR INVOICES AFTER THIS UPDATE TO ENSURE THEY ARE STILL CORRECT!
+        //2.614 - 2013-04-16 - PLEASE CHECK YOUR INVOICES AFTER THIS UPDATE TO ENSURE THEY ARE STILL CORRECT!
+        //2.613 - 2013-04-16 - new advanced field task_taxable_default
+
+        // old version information prior to 2013-04-16:
         //2.421 - fix for invoice currency in printout.
         //2.422 - fix for assigning credit
         //2.423 - assigning contacts to invoices.
@@ -104,6 +138,21 @@ class module_invoice extends module_base{
         //2.586 - item hourly rate/qty improvements
         //2.587 - bug fix for invoice subscription renewals
         //2.588 - date fix on dashboard invoice alerts
+        //2.589 - initial work on a credit note feature
+        //2.59 - extra fields update - show in main listing option
+        //2.591 - job deposit fix
+        //2.592 - customer invoice payment fix
+        //2.593 - tax added/included option
+        //2.594 - big update - manual task percent, task type (hourly/qty/amount)
+        //2.595 - invoice task list improvement
+        //2.596 - total_amount_due made available in email template
+        //2.597 - bug fix in finance
+        //2.598 - 2013-04-04 - fix for 0 invoice amounts.
+        //2.599 - 2013-04-04 - new 'invoice_payment_methods_online_footer' template for pdfs
+        //2.61 - 2013-04-05 - support for products in invoices
+        //2.611 - 2013-04-07 - invoice PDF print fix
+        //2.612 - 2013-04-10 - new customer permissions
+        // new version information starting from top ^^
 
 
         // todo: add completed date as a configurable column
@@ -180,7 +229,7 @@ class module_invoice extends module_base{
         // return results based on an ajax search.
         $ajax_results = array();
         $search_key = trim($search_key);
-        if(strlen($search_key) > 3){
+        if(strlen($search_key) > module_config::c('search_ajax_min_length',2)){
             $results = $this->get_invoices(array('generic'=>$search_key));
             if(count($results)){
                 foreach($results as $result){
@@ -193,7 +242,7 @@ class module_invoice extends module_base{
                 }
             }
         }
-        if(strlen($search_key) >= 2 && is_numeric($search_key)){
+        if(strlen($search_key) > module_config::c('search_ajax_min_length',2) && is_numeric($search_key)){
             $sql = "SELECT * FROM `"._DB_PREFIX."invoice_payment` WHERE `amount` = '".mysql_real_escape_string($search_key)."' ORDER BY date_paid DESC LIMIT 5";
             $results = qa($sql);
             if(count($results)){
@@ -227,21 +276,54 @@ class module_invoice extends module_base{
                     $sql = "SELECT * FROM `"._DB_PREFIX."invoice` p ";
                     $sql .= " WHERE p.date_due != '0000-00-00' AND p.date_due <= '".date('Y-m-d',strtotime('+'.module_config::c('alert_days_in_future',5).' days'))."' AND p.date_paid = '0000-00-00'";
                     $invoice_items = qa($sql);
+
+                    $key = _l('Invoice Payment Due');
+                    if(class_exists('module_dashboard',false)){
+                        module_dashboard::register_group($key,array(
+                            'columns'=>array(
+                                'invoice'=>_l('Invoice #'),
+                                'customer'=>_l('Customer'),
+                                'job'=>_l('Job Title'),
+                                'website'=>module_config::c('project_name_single','Website'),
+                                'last_sent'=>_l('Last Sent'),
+                                'date'=>_l('Due Date'),
+                                'days'=>_l('Day Count'),
+                            )
+                        ));
+                    }
                     
                     foreach($invoice_items as $invoice_item){
                         $invoice = self::get_invoice($invoice_item['invoice_id']);
                         if(!$invoice||$invoice['invoice_id']!=$invoice_item['invoice_id'])continue;
                         if(isset($invoice['date_cancel'])&&$invoice['date_cancel']!='0000-00-00')continue;
-                        $alert_res = process_alert($invoice_item['date_due'], _l('Invoice Payment Due'));
+                        $alert_res = process_alert($invoice_item['date_due'], $key);
                         if($alert_res){
-                            $alert_res['link'] = $this->link_open($invoice_item['invoice_id']);
+                            $alert_res['link'] = $this->link_open($invoice_item['invoice_id'],false,$invoice);
                             $alert_res['name'] = $invoice_item['name'];
+
                             if($invoice['date_sent'] && $invoice['date_sent']!='0000-00-00'){
                                 $secs = date("U") - date("U",strtotime($invoice['date_sent']));
                                 $days = $secs/86400;
                                 $days = floor($days);
-                                $alert_res['name'] .= ' ('._l('last sent %s days ago',$days).')';
+                                $alert_res['last_sent'] = _l('%s days ago',$days);
                             }
+
+
+                            // new dashboard alert layout here:
+                            $alert_res['time'] = strtotime($invoice_item['date_due']);
+                            $alert_res['group'] = $key;
+                            $alert_res['invoice'] = $this->link_open($invoice_item['invoice_id'],true,$invoice);
+                            $alert_res['job'] = '';
+                            $alert_res['website'] = '';
+                            foreach($invoice['job_ids'] as $job_id){
+                                $job = module_job::get_job($job_id);
+                                $alert_res['job'].= module_job::link_open($job_id,true,$job).' ';
+                                $alert_res['website'] .= $job['website_id'] ? module_website::link_open($job['website_id'],true) .' ': '';
+                            }
+                            $alert_res['customer'] = $invoice['customer_id'] ? module_customer::link_open($invoice['customer_id'],true) : _l('N/A');
+                            $alert_res['date'] = print_date($alert_res['time']);
+                            $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+
                             $alerts[] = $alert_res;
                         }
                     }
@@ -252,13 +334,44 @@ class module_invoice extends module_base{
                         $sql = "SELECT * FROM `"._DB_PREFIX."invoice` p ";
                         $sql .= " WHERE p.date_sent = '0000-00-00' AND p.date_paid = '0000-00-00'";
                         $invoice_items = qa($sql);
+
+                        $key = _l('Invoice Not Sent');
+                        if(class_exists('module_dashboard',false)){
+                            module_dashboard::register_group($key,array(
+                                'columns'=>array(
+                                    'invoice'=>_l('Invoice #'),
+                                    'customer'=>_l('Customer'),
+                                    'job'=>_l('Job Title'),
+                                    'website'=>module_config::c('project_name_single','Website'),
+                                    'date'=>_l('Invoice Date'),
+                                    'days'=>_l('Day Count'),
+                                )
+                            ));
+                        }
+
                         foreach($invoice_items as $invoice_item){
                             $invoice = self::get_invoice($invoice_item['invoice_id']);
                             if(!$invoice||$invoice['invoice_id']!=$invoice_item['invoice_id'])continue;
-                            $alert_res = process_alert($invoice['date_create'] != '0000-00-00' ? $invoice['date_create'] : date('Y-m-d'), _l('Invoice Not Sent'));
+                            $alert_res = process_alert($invoice['date_create'] != '0000-00-00' ? $invoice['date_create'] : date('Y-m-d'), $key);
                             if($alert_res){
                                 $alert_res['link'] = $this->link_open($invoice_item['invoice_id']);
                                 $alert_res['name'] = $invoice_item['name'];
+
+                                // new dashboard alert layout here:
+                                $alert_res['time'] = strtotime($invoice_item['date_create']);
+                                $alert_res['group'] = $key;
+                                $alert_res['invoice'] = $this->link_open($invoice_item['invoice_id'],true,$invoice);
+                                $alert_res['job'] = '';
+                                $alert_res['website'] = '';
+                                foreach($invoice['job_ids'] as $job_id){
+                                    $job = module_job::get_job($job_id);
+                                    $alert_res['job'].= module_job::link_open($job_id,true,$job).' ';
+                                    $alert_res['website'] .= $job['website_id'] ? module_website::link_open($job['website_id'],true) .' ': '';
+                                }
+                                $alert_res['customer'] = $invoice['customer_id'] ? module_customer::link_open($invoice['customer_id'],true) : _l('N/A');
+                                $alert_res['date'] = print_date($alert_res['time']);
+                                $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+
                                 $alerts[] = $alert_res;
                             }
                         }
@@ -272,15 +385,33 @@ class module_invoice extends module_base{
                     $sql .= " AND p.date_renew <= '".date('Y-m-d',strtotime('+'.module_config::c('alert_days_in_future',5).' days'))."'";
                     $sql .= " AND (p.renew_invoice_id IS NULL OR p.renew_invoice_id = 0)";
                     $res = qa($sql);
+
+                    $key = _l('Invoice Renewal Pending');
+                    if(class_exists('module_dashboard',false)){
+                        module_dashboard::register_group($key,array(
+                            'columns'=>array(
+                                'invoice'=>_l('Invoice #'),
+                                'customer'=>_l('Customer'),
+                                'job'=>_l('Job Title'),
+                                'website'=>module_config::c('project_name_single','Website'),
+                                'period'=>_l('Period'),
+                                'date_create'=>_l('Created Date'),
+                                'date'=>_l('Renewal Date'),
+                                'days'=>_l('Day Count'),
+                            )
+                        ));
+                    }
+
                     foreach($res as $r){
                         $invoice = self::get_invoice($r['invoice_id']);
                         if(!$invoice||$invoice['invoice_id']!=$r['invoice_id'])continue;
                         if(isset($invoice['date_cancel'])&&$invoice['date_cancel']!='0000-00-00')continue;
-                        $alert_res = process_alert($r['date_renew'], _l('Invoice Renewal Pending'));
+                        $alert_res = process_alert($r['date_renew'], $key);
                         if($alert_res){
                             $alert_res['link'] = $this->link_open($r['invoice_id']);
                             $alert_res['name'] = $r['name'];
                             // work out renewal period
+                            $alert_res['period'] = _l('N/A');
                             if($r['date_create'] && $r['date_create'] != '0000-00-00'){
                                 $time_diff = strtotime($r['date_renew']) - strtotime($r['date_create']);
                                 if($time_diff > 0){
@@ -292,9 +423,25 @@ class module_invoice extends module_base{
                                     }else{
                                         $time_diff = $days;
                                     }
-                                    $alert_res['name'] .= ' '._l('(%s %s renewal)',$time_diff,$diff_type);
+                                    $alert_res['period'] = ' '._l('%s %s renewal',$time_diff,$diff_type);
                                 }
                             }
+                            // new dashboard alert layout here:
+                            $alert_res['time'] = strtotime($invoice['date_renew']);
+                            $alert_res['group'] = $key;
+                            $alert_res['invoice'] = $this->link_open($invoice['invoice_id'],true,$invoice);
+                            $alert_res['job'] = '';
+                            $alert_res['website'] = '';
+                            foreach($invoice['job_ids'] as $job_id){
+                                $job = module_job::get_job($job_id);
+                                $alert_res['job'].= module_job::link_open($job_id,true,$job).' ';
+                                $alert_res['website'] .= $job['website_id'] ? module_website::link_open($job['website_id'],true) .' ': '';
+                            }
+                            $alert_res['customer'] = $invoice['customer_id'] ? module_customer::link_open($invoice['customer_id'],true) : _l('N/A');
+                            $alert_res['date_create'] = print_date($invoice['date_create']);
+                            $alert_res['date'] = print_date($invoice['date_renew']);
+                            $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+
                             $alerts[] = $alert_res;
                         }
                     }
@@ -443,12 +590,11 @@ class module_invoice extends module_base{
                             echo 'Invoice no longer exists';
                             exit;
                         }
-                        ini_set('display_errors',false);
                         $pdf_file = $this->generate_pdf($invoice_id);
 
                         if($pdf_file && is_file($pdf_file)){
-                            ob_end_clean();
-                            ob_end_clean();
+                            @ob_end_clean();
+                            @ob_end_clean();
 
                             // send pdf headers and prompt the user to download the PDF
 
@@ -459,8 +605,15 @@ class module_invoice extends module_base{
                             header("Content-Type: application/pdf");
                             header("Content-Disposition: attachment; filename=\"".basename($pdf_file)."\";");
                             header("Content-Transfer-Encoding: binary");
-                            header("Content-Length: ".filesize($pdf_file));
-                            readfile($pdf_file);
+                            $filesize = filesize($pdf_file);
+                            if($filesize>0){
+                                header("Content-Length: ".$filesize);
+                            }
+                            // some hosting providershave issues with readfile()
+                            $read = readfile($pdf_file);
+                            if(!$read){
+                                echo file_get_contents($pdf_file);
+                            }
 
                         }else{
                             echo _l('Sorry PDF is not currently available.');
@@ -508,20 +661,38 @@ Job: <strong>{JOB_NAME}</strong> <br/>
 {PAYMENT_METHODS}
 {PAYMENT_HISTORY}
 ','Used when displaying the external view of an invoice.','code');
+
+                        module_template::init_template('credit_note_external','<h2>Credit Note</h2>
+Credit Note Number: <strong>{INVOICE_NUMBER}</strong> <br/>
+Original Invoice Number: <strong>{CREDIT_INVOICE_NUMBER}</strong> <br/>
+Create Date: <strong>{DATE_CREATE}</strong> <br/>
+Customer: <strong>{CUSTOMER_NAME}</strong> <br/>
+Address: <strong>{CUSTOMER_ADDRESS}</strong> <br/>
+Contact: <strong>{CONTACT_NAME} {CONTACT_EMAIL}</strong> <br/>
+{PROJECT_TYPE} Name: <strong>{PROJECT_NAME}</strong> <br/>
+Job: <strong>{JOB_NAME}</strong> <br/>
+<a href="{PRINT_LINK}">Print PDF</a> <br/>
+<br/>
+{TASK_LIST}
+','Used when displaying the external view of a credit note.','code');
                         // correct!
                         // load up the receipt template.
-                        $template = module_template::get_template_by_key('external_invoice');
+                        if(isset($invoice['credit_note_id']) && $invoice['credit_note_id']){
+                            $template = module_template::get_template_by_key('credit_note_external');
+                        }else{
+                            $template = module_template::get_template_by_key('external_invoice');
+                        }
 
 
 
                         ob_start();
-                        include('template/invoice_task_list.php');
+                        include(module_theme::include_ucm('includes/plugin_invoice/template/invoice_task_list.php'));
                         $task_list_html = ob_get_clean();
                         ob_start();
-                        include('template/invoice_payment_history.php');
+                        include(module_theme::include_ucm('includes/plugin_invoice/template/invoice_payment_history.php'));
                         $invoice_payment_history = ob_get_clean();
                         ob_start();
-                        include('template/invoice_payment_methods.php');
+                        include(module_theme::include_ucm('includes/plugin_invoice/template/invoice_payment_methods.php'));
                         $invoice_payment_methods = ob_get_clean();
 
                         $data = $this->get_replace_fields($invoice_id,$invoice_data);
@@ -602,25 +773,21 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         }
     }
 
-    public static function get_replace_fields($invoice_id,$invoice_data){
+    /**
+     * @param $invoice_id
+     * @param $invoice_data
+     * @return array
+     *
+     * todo: make this method call the other 'get_replace_fields' available in website/job/etc..
+     */
+    public static function get_replace_fields($invoice_id,$invoice_data=false){
 
-        $customer_data = module_customer::get_customer($invoice_data['customer_id']);
-        $address_combined = array();
-        if(isset($customer_data['customer_address'])){
-            foreach($customer_data['customer_address'] as $key=>$val){
-                if(strlen(trim($val)))$address_combined[$key] = $val;
-            }
-        }
-        // do we use the primary contact or a specified contact on the invoice.
-        if(isset($invoice_data['user_id']) && $invoice_data['user_id']){
-            $contact_data = module_user::get_user($invoice_data['user_id']);
-        }else{
-            $contact_data = module_user::get_user($customer_data['primary_user_id']);
-        }
+        if(!$invoice_data)$invoice_data=self::get_invoice($invoice_id);
+        $customer_data = module_customer::get_replace_fields($invoice_data['customer_id']);
 
+        $data = array_merge($customer_data,$invoice_data); // so we get total_amount_due and stuff.
 
-        // todo - put this out in a "replace" method - so we can use the same replace for PDF and ONLINE view.
-        $data = array(
+        $data = array_merge($data,array(
             'invoice_number' => htmlspecialchars($invoice_data['name']),
             'project_type' => _l(module_config::c('project_name_single','Website')),
             'print_link' => self::link_public_print($invoice_id),
@@ -629,22 +796,25 @@ Job: <strong>{JOB_NAME}</strong> <br/>
             'invoice_paid' => ($invoice_data['total_amount_due'] <= 0) ? '<p> <font style="font-size: 1.6em;"><strong>'._l('INVOICE PAID') .'</strong></font> </p>' : '',
             'date_create' => print_date($invoice_data['date_create']),
             'due_date' => print_date($invoice_data['date_due']),
-            'customer_details' => ' - todo - ',
-            'customer_name' => $customer_data['customer_name'] ? htmlspecialchars($customer_data['customer_name']) : _l('N/A'),
-            'customer_address' => htmlspecialchars(implode(', ',$address_combined)),
-            'contact_name' => ($contact_data['name'] != $contact_data['email']) ? htmlspecialchars($contact_data['name'].' '.$contact_data['last_name']) : '',
-            'contact_first_name' => htmlspecialchars($contact_data['name']),
-            'contact_last_name' => htmlspecialchars($contact_data['last_name']),
-            'contact_email' => htmlspecialchars($contact_data['email']),
-            'contact_phone' => htmlspecialchars($contact_data['phone']),
-            'contact_mobile' => htmlspecialchars($contact_data['mobile']),
 
-            //'project_name' => htmlspecialchars( isset($website_data['name']) && $website_data['name'] ? $website_data['name'] : _l('N/A')),
-            //'job_name' => htmlspecialchars( isset($job_data['name']) && $job_data['name'] ? $job_data['name'] : _l('N/A')),
-        );
+        ));
+
+        $data['total_amount'] = dollar($invoice_data['total_amount'],true,$invoice_data['currency_id']);
+        $data['total_amount_due'] = dollar($invoice_data['total_amount_due'],true,$invoice_data['currency_id']);
+        $data['total_amount_paid'] = dollar($invoice_data['total_amount_paid'],true,$invoice_data['currency_id']);
+        $data['date_paid'] = print_date($invoice_data['date_paid']);
+        $data['date_due'] = print_date($invoice_data['date_due']);
+        $data['invoice_number'] = $invoice_data['name'];
+        $data['invoice_url'] = module_invoice::link_public($invoice_id);
+
         $data['invoice_date_range'] = '';
         if($invoice_data['date_renew']!='0000-00-00'){
             $data['invoice_date_range'] = _l('%s to %s',print_date($invoice_data['date_create']),print_date(strtotime("-1 day",strtotime($invoice_data['date_renew']))));
+        }
+
+        if(isset($invoice_data['credit_note_id']) && $invoice_data['credit_note_id']){
+            $credit_invoice = module_invoice::get_invoice($invoice_data['credit_note_id'],true);
+            $data['credit_invoice_number'] = htmlspecialchars($credit_invoice['name']);
         }
 
         $data['invoice_notes'] = '';
@@ -665,7 +835,7 @@ Job: <strong>{JOB_NAME}</strong> <br/>
             $data['invoice_notes'] .= htmlspecialchars($note['note']);
         }
 
-        $job_names = $website_url = $project_names = array();
+        $job_names = $website_url = $project_names = $project_names_and_url = array();
         foreach($invoice_data['job_ids'] as $job_id){
             $job_data = module_job::get_job($job_id);
             if($job_data && $job_data['job_id']==$job_id){
@@ -681,35 +851,24 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                     if($website_data && $website_data['website_id']==$job_data['website_id']){
                         if(isset($website_data['url']) && $website_data['url']){
                             $website_url[$website_data['website_id']] = module_website::urlify($website_data['url']);
-                            $website_data['name'] .= ' ('.module_website::urlify($website_data['url']).')';
+                            $website_data['name_url'] = $website_data['name'] . ' ('.module_website::urlify($website_data['url']).')';
+                        }else{
+                            $website_data['name_url'] = $website_data['name'];
                         }
                         $project_names[$website_data['website_id']] = $website_data['name'];
+                        $project_names_and_url[$website_data['website_id']] = $website_data['name_url'];
                     }
                 }
             }
         }
         $data['project_name'] = forum_text(count($project_names) ? implode(', ',$project_names) : _l('N/A'));
         $data['website_name'] = $data['project_name'];
+        $data['website_name_url'] = forum_text(count($project_names_and_url) ? implode(', ',$project_names_and_url) : _l('N/A'));
         $data['website_url'] = forum_text(count($website_url) ? implode(', ',$website_url) : _l('N/A'));
         $data['job_name'] = forum_text($job_names ? implode(', ',$job_names) : _l('N/A'));
 
-        foreach($customer_data['customer_address'] as $key=>$val){
-            $data['address_'.$key] = $val;
-        }
-
 
         if(class_exists('module_group',false)){
-            // get the customer groups
-            $g = array();
-            if((int)$invoice_data['customer_id']>0){
-                foreach(module_group::get_groups_search(array(
-                    'owner_table' => 'customer',
-                    'owner_id' => $invoice_data['customer_id'],
-                )) as $group){
-                    $g[] = $group['name'];
-                }
-            }
-            $data['customer_group'] = implode(', ',$g);
             // get the job groups
             $wg = array();
             $g = array();
@@ -746,17 +905,6 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         $extras = module_extra::get_extras(array('owner_table'=>'invoice','owner_id'=>$invoice_id));
         foreach($extras as $e){
             $data[$e['extra_key']] = $e['extra'];
-        }
-        // also do this for customer fields
-        if($invoice_data['customer_id']){
-            $all_extra_fields = module_extra::get_defaults('customer');
-            foreach($all_extra_fields as $e){
-                $data[$e['key']] = _l('N/A');
-            }
-            $extras = module_extra::get_extras(array('owner_table'=>'customer','owner_id'=>$invoice_data['customer_id']));
-            foreach($extras as $e){
-                $data[$e['extra_key']] = $e['extra'];
-            }
         }
 
 
@@ -814,125 +962,135 @@ Job: <strong>{JOB_NAME}</strong> <br/>
 
             }
 
-            if($this->can_i('edit','Invoices')){
-                $data = $_POST;
+            if(!$this->can_i('edit','Invoices')){
+                // bug fix, customer making a payment displays this edit access denied.
+                if(isset($_REQUEST['butt_makepayment']) && $_REQUEST['butt_makepayment'] == 'yes'){
+                    self::handle_payment();
+                    return;
+                }else{
+                    echo 'Edit access denied. Sorry.';
+                    exit;
+                }
+            }
+            $data = $_POST;
 
-                if(isset($data['customer_id']) && $data['customer_id'] && (!isset($data['user_id']) || !$data['user_id'])){
-                    // find the primary contact for this invoice and set that there?
-                    $customer_data = module_customer::get_customer($data['customer_id']);
-                    if($customer_data && $customer_data['customer_id'] == $data['customer_id']){
-                        if($customer_data['primary_user_id']){
-                            $data['user_id'] = $customer_data['primary_user_id'];
+            if(isset($data['customer_id']) && $data['customer_id'] && (!isset($data['user_id']) || !$data['user_id'])){
+                // find the primary contact for this invoice and set that there?
+                $customer_data = module_customer::get_customer($data['customer_id']);
+                if($customer_data && $customer_data['customer_id'] == $data['customer_id']){
+                    if($customer_data['primary_user_id']){
+                        $data['user_id'] = $customer_data['primary_user_id'];
+                    }else{
+                        $customer_contacts = module_user::get_contacts(array('customer_id'=>$data['customer_id']));
+                        foreach($customer_contacts as $contact){
+                            // todo - search roles or something to find the accountant.
+                            $data['user_id'] = $contact['user_id'];
+                            break;
+                        }
+                    }
+                }
+
+            }
+
+
+            // check for credit assessment.
+            if(isset($_POST['apply_credit_from_customer']) && $_POST['apply_credit_from_customer'] == 'do'){
+                $invoice_data = $this->get_invoice($invoice_id);
+                $customer_data = module_customer::get_customer($invoice_data['customer_id']);
+                if($customer_data['credit'] > 0){
+                    $apply_credit = min($invoice_data['total_amount_due'],$customer_data['credit']);
+                    //$invoice_data['discount_amount'] += $customer_data['credit'];
+                    //$this->save_invoice($invoice_id,array('discount_amount'=>$invoice_data['discount_amount'],'discount_description'=>_l('Credit:')));
+                    update_insert('invoice_payment_id',false,'invoice_payment',array(
+                        'invoice_id' => $invoice_id,
+                        'payment_type'=>_INVOICE_PAYMENT_TYPE_CREDIT,
+                        'method' => 'Credit',
+                        'amount' => $apply_credit,
+                        'currency_id' => $invoice_data['currency_id'],
+                        'other_id' => $invoice_data['customer_id'],
+                        'date_paid' => date('Y-m-d'),
+                    ));
+                    $this->add_history($invoice_id,_l('Applying %s customer credit to this invoice.',dollar($apply_credit)));
+                    module_customer::remove_credit($customer_data['customer_id'],$apply_credit);
+                }
+            }
+
+            $invoice_id = $this->save_invoice($invoice_id,$data);
+
+            if(isset($_REQUEST['allowed_payment_method']) && is_array($_REQUEST['allowed_payment_method'])){
+                // todo - ability to disable ALL payment methods. - array wont be set if none are ticked
+                $payment_methods = handle_hook('get_payment_methods');
+                foreach($payment_methods as &$payment_method){
+                    if($payment_method->is_enabled()){
+                        if(isset($_REQUEST['allowed_payment_method'][$payment_method->module_name])){
+                            $payment_method->set_allowed_for_invoice($invoice_id,1);
                         }else{
-                            $customer_contacts = module_user::get_contacts(array('customer_id'=>$data['customer_id']));
-                            foreach($customer_contacts as $contact){
-                                // todo - search roles or something to find the accountant.
-                                $data['user_id'] = $contact['user_id'];
-                                break;
-                            }
-                        }
-                    }
-
-                }
-
-
-                // check for credit assessment.
-                if(isset($_POST['apply_credit_from_customer']) && $_POST['apply_credit_from_customer'] == 'do'){
-                    $invoice_data = $this->get_invoice($invoice_id);
-                    $customer_data = module_customer::get_customer($invoice_data['customer_id']);
-                    if($customer_data['credit'] > 0){
-                        $apply_credit = min($invoice_data['total_amount_due'],$customer_data['credit']);
-                        //$invoice_data['discount_amount'] += $customer_data['credit'];
-                        //$this->save_invoice($invoice_id,array('discount_amount'=>$invoice_data['discount_amount'],'discount_description'=>_l('Credit:')));
-                        update_insert('invoice_payment_id',false,'invoice_payment',array(
-                            'invoice_id' => $invoice_id,
-                            'payment_type'=>_INVOICE_PAYMENT_TYPE_CREDIT,
-                            'method' => 'Credit',
-                            'amount' => $apply_credit,
-                            'currency_id' => $invoice_data['currency_id'],
-                            'other_id' => $invoice_data['customer_id'],
-                            'date_paid' => date('Y-m-d'),
-                        ));
-                        $this->add_history($invoice_id,_l('Applying %s customer credit to this invoice.',dollar($apply_credit)));
-                        module_customer::remove_credit($customer_data['customer_id'],$apply_credit);
-                    }
-                }
-
-                $invoice_id = $this->save_invoice($invoice_id,$data);
-
-                if(isset($_REQUEST['allowed_payment_method']) && is_array($_REQUEST['allowed_payment_method'])){
-                    // todo - ability to disable ALL payment methods. - array wont be set if none are ticked
-                    $payment_methods = handle_hook('get_payment_methods');
-                    foreach($payment_methods as &$payment_method){
-                        if($payment_method->is_enabled()){
-                            if(isset($_REQUEST['allowed_payment_method'][$payment_method->module_name])){
-                                $payment_method->set_allowed_for_invoice($invoice_id,1);
-                            }else{
-                                $payment_method->set_allowed_for_invoice($invoice_id,0);
-                            }
+                            $payment_method->set_allowed_for_invoice($invoice_id,0);
                         }
                     }
                 }
+            }
 
-                // check if we are generating any renewals
-                if(isset($_REQUEST['generate_renewal']) && $_REQUEST['generate_renewal'] > 0){
-                    $invoice = $this->get_invoice($invoice_id);
-                    if(strtotime($invoice['date_renew']) <= strtotime('+'.module_config::c('alert_days_in_future',5).' days')){
-                        // /we are allowed to renew.
-                        unset($invoice['invoice_id']);
-                        // work out the difference in start date and end date and add that new renewl date to the new order.
-                        $time_diff = strtotime($invoice['date_renew']) - strtotime($invoice['date_create']);
-                        if($time_diff > 0){
-                            // our renewal date is something in the future.
-                            if(!$invoice['date_create'] || $invoice['date_create'] == '0000-00-00'){
-                                set_message('Please set a invoice create date before renewing');
-                                redirect_browser($this->link_open($invoice_id));
-                            }
-                            // work out the next renewal date.
-                            $new_renewal_date = date('Y-m-d',strtotime($invoice['date_renew'])+$time_diff);
-
-                            $invoice['name'] = self::new_invoice_number($invoice['customer_id']);
-                            $invoice['date_create'] = $invoice['date_renew'];
-                            $invoice['date_renew'] = $new_renewal_date;
-                            $invoice['date_sent'] = false;
-                            $invoice['date_paid'] = false;
-                            $invoice['discount_amount'] = 0;
-                            $invoice['discount_description'] = _l('Discount:');
-                            $invoice['discount_type'] = module_config::c('invoice_discount_type',1); // 1 = After Tax
-                            $invoice['date_due'] = date('Y-m-d',strtotime('+'.module_config::c('invoice_due_days',30).' days',strtotime($invoice['date_create'])));
-                            $invoice['status'] = module_config::s('invoice_status_default','New');
-                            // todo: copy the "more" listings over to the new invoice
-                            // todo: copy any notes across to the new listing.
-
-                            // hack to copy the 'extra' fields across to the new invoice.
-                            // save_invoice() does the extra handling, and if we don't do this
-                            // then it will move the extra fields from the original invoice to this new invoice.
-                            $owner_table = 'invoice';
-                            if(isset($_REQUEST['extra_'.$owner_table.'_field']) && is_array($_REQUEST['extra_'.$owner_table.'_field'])){
-                                $x=1;
-                                foreach($_REQUEST['extra_'.$owner_table.'_field'] as $extra_id => $extra_data){
-                                    $_REQUEST['extra_'.$owner_table.'_field']['new'.$x] = $extra_data;
-                                    unset($_REQUEST['extra_'.$owner_table.'_field'][$extra_id]);
-                                }
-                            }
-                            $new_invoice_id = $this->save_invoice('new',$invoice);
-                            if($new_invoice_id){
-                                // now we create the tasks
-                                $tasks = $this->get_invoice_items($invoice_id);
-                                foreach($tasks as $task){
-                                    unset($task['invoice_item_id']);
-                                    if($task['custom_description'])$task['description']=$task['custom_description'];
-                                    if($task['custom_long_description'])$task['long_description']=$task['custom_long_description'];
-                                    $task['invoice_id'] = $new_invoice_id;
-                                    $task['date_done'] = $invoice['date_create'];
-                                    update_insert('invoice_item_id','new','invoice_item',$task);
-                                }
-                                // link this up with the old one.
-                                update_insert('invoice_id',$invoice_id,'invoice',array('renew_invoice_id'=>$new_invoice_id));
-                            }
-                            set_message("Invoice renewed successfully");
-                            redirect_browser($this->link_open($new_invoice_id));
+            // check if we are generating any renewals
+            if(isset($_REQUEST['generate_renewal']) && $_REQUEST['generate_renewal'] > 0){
+                $invoice = $this->get_invoice($invoice_id);
+                if(strtotime($invoice['date_renew']) <= strtotime('+'.module_config::c('alert_days_in_future',5).' days')){
+                    // /we are allowed to renew.
+                    unset($invoice['invoice_id']);
+                    // work out the difference in start date and end date and add that new renewl date to the new order.
+                    $time_diff = strtotime($invoice['date_renew']) - strtotime($invoice['date_create']);
+                    if($time_diff > 0){
+                        // our renewal date is something in the future.
+                        if(!$invoice['date_create'] || $invoice['date_create'] == '0000-00-00'){
+                            set_message('Please set a invoice create date before renewing');
+                            redirect_browser($this->link_open($invoice_id));
                         }
+                        // work out the next renewal date.
+                        $new_renewal_date = date('Y-m-d',strtotime($invoice['date_renew'])+$time_diff);
+
+                        $invoice['name'] = self::new_invoice_number($invoice['customer_id']);
+                        $invoice['date_create'] = $invoice['date_renew'];
+                        $invoice['date_renew'] = $new_renewal_date;
+                        $invoice['date_sent'] = false;
+                        $invoice['date_paid'] = false;
+                        $invoice['deposit_job_id'] = 0;
+                        $invoice['discount_amount'] = 0;
+                        $invoice['discount_description'] = _l('Discount:');
+                        $invoice['discount_type'] = !isset($invoice['discount_type']) ? module_config::c('invoice_discount_type',_DISCOUNT_TYPE_BEFORE_TAX) : $invoice['discount_type']; // 1 = After Tax
+                        $invoice['tax_type'] = !isset($invoice['tax_type']) ? module_config::c('invoice_tax_type',0) : $invoice['tax_type'];
+                        $invoice['date_due'] = date('Y-m-d',strtotime('+'.module_config::c('invoice_due_days',30).' days',strtotime($invoice['date_create'])));
+                        $invoice['status'] = module_config::s('invoice_status_default','New');
+                        // todo: copy the "more" listings over to the new invoice
+                        // todo: copy any notes across to the new listing.
+
+                        // hack to copy the 'extra' fields across to the new invoice.
+                        // save_invoice() does the extra handling, and if we don't do this
+                        // then it will move the extra fields from the original invoice to this new invoice.
+                        $owner_table = 'invoice';
+                        if(isset($_REQUEST['extra_'.$owner_table.'_field']) && is_array($_REQUEST['extra_'.$owner_table.'_field'])){
+                            $x=1;
+                            foreach($_REQUEST['extra_'.$owner_table.'_field'] as $extra_id => $extra_data){
+                                $_REQUEST['extra_'.$owner_table.'_field']['new'.$x] = $extra_data;
+                                unset($_REQUEST['extra_'.$owner_table.'_field'][$extra_id]);
+                            }
+                        }
+                        $new_invoice_id = $this->save_invoice('new',$invoice);
+                        if($new_invoice_id){
+                            // now we create the tasks
+                            $tasks = $this->get_invoice_items($invoice_id);
+                            foreach($tasks as $task){
+                                unset($task['invoice_item_id']);
+                                if($task['custom_description'])$task['description']=$task['custom_description'];
+                                if($task['custom_long_description'])$task['long_description']=$task['custom_long_description'];
+                                $task['invoice_id'] = $new_invoice_id;
+                                $task['date_done'] = $invoice['date_create'];
+                                update_insert('invoice_item_id','new','invoice_item',$task);
+                            }
+                            // link this up with the old one.
+                            update_insert('invoice_id',$invoice_id,'invoice',array('renew_invoice_id'=>$new_invoice_id));
+                        }
+                        set_message("Invoice renewed successfully");
+                        redirect_browser($this->link_open($new_invoice_id));
                     }
                 }
             }
@@ -958,6 +1116,46 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                 set_message('Invoices merged successfully');
             }else if(isset($_REQUEST['butt_email']) && $_REQUEST['butt_email']){
                 $_REQUEST['_redirect'] = self::link_generate($invoice_id,array('arguments'=>array('email'=>1)));;
+            }else if(isset($_REQUEST['butt_generate_credit']) && $_REQUEST['butt_generate_credit']){
+                // generate a credit note against this invioce.
+                // to do this we duplicate the invoice, remove the cancel date, remove the sent date,
+                // set a new create date, set the credit_note_id variable, remove the paid date,
+                // (copied from the generate renewal code above)
+                $invoice = $this->get_invoice($invoice_id);
+                unset($invoice['invoice_id']);
+                unset($invoice['date_renew']);
+                unset($invoice['date_sent']);
+                unset($invoice['date_paid']);
+                unset($invoice['date_cancel']);
+                unset($invoice['renew_invoice_id']);
+                unset($invoice['deposit_job_id']);
+                $invoice['name'] = self::new_invoice_number($invoice['customer_id']);
+                $invoice['credit_note_id'] = $invoice_id;
+                $invoice['date_create'] = date('Y-m-d');
+                $invoice['discount_amount'] = 0;
+                $invoice['discount_description'] = _l('Discount:');
+                $invoice['discount_type'] = module_config::c('invoice_discount_type',_DISCOUNT_TYPE_BEFORE_TAX); // 1 = After Tax
+                $invoice['tax_type'] = module_config::c('invoice_tax_type',0);
+                $invoice['date_due'] = false;
+                $invoice['status'] = module_config::s('invoice_status_default','New');
+                $new_invoice_id = $this->save_invoice('new',$invoice);
+                if($new_invoice_id){
+                    // now we create the tasks
+                    $tasks = $this->get_invoice_items($invoice_id,$invoice);
+                    foreach($tasks as $task){
+                        unset($task['invoice_item_id']);
+                        if($task['custom_description'])$task['description']=$task['custom_description'];
+                        if($task['custom_long_description'])$task['long_description']=$task['custom_long_description'];
+                        $task['invoice_id'] = $new_invoice_id;
+                        $task['date_done'] = $invoice['date_create'];
+                        update_insert('invoice_item_id','new','invoice_item',$task);
+                    }
+                    set_message("Credit note generated successfully");
+                    redirect_browser($this->link_open($new_invoice_id));
+                }else{
+                    set_error('Generating credit note failed');
+                    redirect_browser($this->link_open($invoice_id));
+                }
             }else{
                 $_REQUEST['_redirect'] = $this->link_open($invoice_id);
                 set_message("Invoice saved successfully");
@@ -997,7 +1195,7 @@ Job: <strong>{JOB_NAME}</strong> <br/>
 			//$where .= "OR  u.url LIKE '%$str%'  ";
 			$where .= ' ) ';
 		}
-        foreach(array('customer_id','status','name','date_paid','date_due','renew_invoice_id') as $key){
+        foreach(array('customer_id','status','name','date_paid','date_due','renew_invoice_id','credit_note_id') as $key){
             if(isset($search[$key]) && $search[$key] !== ''&& $search[$key] !== false){
                 $str = mysql_real_escape_string($search[$key]);
                 $where .= " AND u.`$key` = '$str'";
@@ -1028,20 +1226,36 @@ Job: <strong>{JOB_NAME}</strong> <br/>
 			$from .= " LEFT JOIN `"._DB_PREFIX."group_member` gm ON (c.customer_id = gm.owner_id)";
 			$where .= " AND (gm.group_id = '".(int)$search['customer_group_id']."' AND gm.owner_table = 'customer')";
         }
-
-        // permissions from job module.
-        switch(module_job::get_job_access_permissions()){
-            case _JOB_ACCESS_ALL:
-
+        
+        
+        switch(self::get_invoice_access_permissions()){
+            case _INVOICE_ACCESS_ALL:
                 break;
-            case _JOB_ACCESS_ASSIGNED:
-                // only assigned jobs!
-                //$from .= " LEFT JOIN `"._DB_PREFIX."task` t ON u.job_id = t.job_id ";
-                //u.user_id = ".(int)module_security::get_loggedin_id()." OR
-                $where .= " AND (t.user_id = ".(int)module_security::get_loggedin_id().")";
+            case _INVOICE_ACCESS_JOB:
+                $valid_job_ids = module_job::get_jobs();
+                $where .= " AND u.job_id IN ( ";
+                if(count($valid_job_ids)){
+                    foreach($valid_job_ids as $valid_job_id){
+                        $where .= (int)$valid_job_id.", ";
+                    }
+                    $where = rtrim($where,', ');
+                }else{
+                    $where .= ' NULL ';
+                }
+                $where .= " )";
                 break;
-            case _JOB_ACCESS_CUSTOMER:
-                break;
+            case _INVOICE_ACCESS_CUSTOMER:
+                $valid_customer_ids = module_security::get_customer_restrictions();
+                $where .= " AND u.customer_id IN ( ";
+                if(count($valid_customer_ids)){
+                    foreach($valid_customer_ids as $valid_customer_id){
+                        $where .= (int)$valid_customer_id.", ";
+                    }
+                    $where = rtrim($where,', ');
+                }else{
+                    $where .= ' NULL ';
+                }
+                $where .= " )";
         }
 
         // permissions from customer module.
@@ -1050,39 +1264,21 @@ Job: <strong>{JOB_NAME}</strong> <br/>
             case _CUSTOMER_ACCESS_ALL:
                 // all customers! so this means all jobs!
                 break;
+            case _CUSTOMER_ACCESS_ALL_COMPANY:
             case _CUSTOMER_ACCESS_CONTACTS:
-                // we only want customers that are directly linked with the currently logged in user contact.
-                $valid_customer_ids = module_security::get_customer_restrictions();
-                if(count($valid_customer_ids)){
-                    $where .= " AND ( ";
-                    foreach($valid_customer_ids as $valid_customer_id){
-                        $where .= " u.customer_id = '".(int)$valid_customer_id."' OR ";
-                    }
-                    $where = rtrim($where,'OR ');
-                    $where .= " )";
-                }
-
-                /*if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                    // this session variable is set upon login, it holds their customer id.
-                    // todo - share a user account between multiple customers!
-                    //$where .= " AND c.customer_id IN (SELECT customer_id FROM )";
-                    $where .= " AND u.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
-                }*/
-                break;
             case _CUSTOMER_ACCESS_TASKS:
-                // only customers who have a job that I have a task under.
-                // this is different to "assigned jobs" Above
-                // this will return all jobs for a customer even if we're only assigned a single job for that customer
-                // tricky!
-                // copied from customer.php
-                $where .= " AND u.customer_id IN ";
-                $where .= " ( SELECT cc.customer_id FROM `"._DB_PREFIX."customer` cc ";
-                $where .= " LEFT JOIN `"._DB_PREFIX."job` jj ON cc.customer_id = jj.customer_id ";
-                $where .= " LEFT JOIN `"._DB_PREFIX."task` tt ON jj.job_id = tt.job_id ";
-                $where .= " WHERE (jj.user_id = ".(int)module_security::get_loggedin_id()." OR tt.user_id = ".(int)module_security::get_loggedin_id().")";
+            case _CUSTOMER_ACCESS_STAFF:
+                $valid_customer_ids = module_security::get_customer_restrictions();
+                $where .= " AND u.customer_id IN ( ";
+                if(count($valid_customer_ids)){
+                    foreach($valid_customer_ids as $valid_customer_id){
+                        $where .= (int)$valid_customer_id.", ";
+                    }
+                    $where = rtrim($where,', ');
+                }else{
+                    $where .= ' NULL ';
+                }
                 $where .= " )";
-
-                break;
         }
 
 
@@ -1094,8 +1290,12 @@ Job: <strong>{JOB_NAME}</strong> <br/>
 //		return get_multiple("invoice",$search,"invoice_id","fuzzy","name");
 
 	}
-    public static function get_invoice_items($invoice_id){
+    private static $_invoice_cache=array();
+    public static function get_invoice_items($invoice_id,$invoice=array()){
         $invoice_id = (int)$invoice_id;
+        $invoice_items= array();
+
+
         if(!$invoice_id && isset($_REQUEST['job_id']) && (int)$_REQUEST['job_id'] > 0){
 
             // hack for half completed invoices
@@ -1104,15 +1304,16 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                 $amount = (float)$_REQUEST['amount_due'];
                 
 
-                $new_tasks = array(
+                $invoice_items = array(
                     'new0' => array(
                         'description' => isset($_REQUEST['description'])?$_REQUEST['description']:_l('Invoice Item'),
                         'custom_description' => '',
                         'long_description' => '',
                         'custom_long_description' => '',
                         'amount' => $amount,
+                        'manual_task_type' => _TASK_TYPE_AMOUNT_ONLY,
                         'hours' => 0,
-                        'taxable' => false,
+                        'taxable' => false, //module_config::c('task_taxable_default',1),
                         'task_id' => 0,
                     ),
                 );
@@ -1125,32 +1326,159 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                     // we return the items from the job rather than the items from the invoice.
                     // for new invoice creation.
                     $tasks = module_job::get_invoicable_tasks($job_id);
-                    $new_tasks = array();
                     $x=0;
                     $job = module_job::get_job($job_id,false);
+                    $invoice['hourly_rate'] = $job['hourly_rate'];
                     foreach($tasks as $task){
                         if(!isset($task['custom_description']))$task['custom_description'] = '';
                         if(!isset($task['custom_long_description']))$task['custom_long_description'] = '';
                         //$task['task_id'] = 'new'.$x;
-                        $task['hourly_rate'] = $job['hourly_rate'];
-                        $new_tasks['new'.$x] = $task;
+                        // the 'hourly_rate' column will hold either
+                        // = for hours/amount the default hourly rate from the job
+                        // = for qty/amount the raw amount that will multiplu hours by
+                        // = for amount only will be the raw amount.
+                        $invoice_task_type = isset($task['manual_task_type']) && $task['manual_task_type'] >= 0 ? $task['manual_task_type'] : $job['default_task_type'];
+                        if($invoice_task_type == _TASK_TYPE_QTY_AMOUNT){
+                            $task['hourly_rate'] = $task['amount'];
+                            $task['amount'] = 0; // this forces our calc below to calculate teh amount for us.
+                        }else{
+                            $task['hourly_rate'] = $job['hourly_rate'];
+                        }
+                        $invoice_items['new'.$x] = $task;
                         $x++;
                     }
+                    //print_r($tasks);exit;
                 }
             }
-            return $new_tasks;
-        }
-        if($invoice_id){
+        }else if($invoice_id){
+
+            if(!$invoice){
+                if(isset(self::$_invoice_cache[$invoice_id])){
+                    $invoice = self::$_invoice_cache[$invoice_id];
+                }else{
+                    $invoice = self::get_invoice($invoice_id,true);
+                    self::$_invoice_cache[$invoice_id] = $invoice;
+                }
+            }
             $sql = "SELECT ii.invoice_item_id AS id, ii.*, t.job_id, t.description AS description, ii.description as custom_description, ii.long_description as custom_long_description, t.task_order, ii.task_order AS custom_task_order "; // , j.hourly_rate
             $sql .= " FROM `"._DB_PREFIX."invoice_item` ii ";
             $sql .= " LEFT JOIN `"._DB_PREFIX."task` t ON ii.task_id = t.task_id ";
             $sql .= " LEFT JOIN `"._DB_PREFIX."job` j ON t.job_id = j.job_id ";
             $sql .= " WHERE ii.invoice_id = $invoice_id";
             $sql .= " ORDER BY t.task_order ";
-            return qa($sql);
+            $invoice_items = qa($sql);
         }
-		//return get_multiple("invoice_item",array('invoice_id'=>$invoice_id),"invoice_item_id","exact","invoice_item_id");
-        return array();
+//        print_r($invoice_items);
+        // DAVE READ THIS: tasks come in with 'hours' and 'amount' and 'manual_task_type'
+        // calculate the 'task_hourly_rate' and 'invoite_item_amount' based on this.
+        // 'amount' is NOT used in invoice items. only 'invoice_item_amount'
+        foreach($invoice_items as $invoice_item_id => $invoice_item_data){
+
+            // new feature, task type.
+            $invoice_item_data['manual_task_type_real'] = $invoice_item_data['manual_task_type'];
+            if($invoice_item_data['manual_task_type']<0 && isset($invoice['default_task_type'])){
+                $invoice_item_data['manual_task_type'] = $invoice['default_task_type'];
+            }
+
+
+            // if there are no hours logged against this task
+            if(!$invoice_item_data['hours']){
+                //$invoice_item_data['task_hourly_rate']=0;
+            }
+            // task_hourly_rate is used for calculations, if the hourly_rate is -1 then we use the default invoice hourly rate
+            $invoice_item_data['task_hourly_rate'] = isset($invoice_item_data['hourly_rate']) && $invoice_item_data['hourly_rate']>0 ? $invoice_item_data['hourly_rate'] : $invoice['hourly_rate'];
+
+            // if we have a custom price for this task
+            if($invoice_item_data['manual_task_type'] == _TASK_TYPE_HOURS_AMOUNT){
+                if($invoice_item_data['amount']>0){
+                    $invoice_item_data['invoice_item_amount'] = $invoice_item_data['amount'];
+                    if($invoice_item_data['hours'] == 0){
+                        // hack to fix $0 invoices
+                        $invoice_item_data['hours'] = 1;
+                        $invoice_item_data['task_hourly_rate'] = $invoice_item_data['amount'];
+                    }
+                    if($invoice_item_data['task_hourly_rate'] * $invoice_item_data['hours'] != $invoice_item_data['amount']){
+                        // hack to fix manual amount with non-matching hours.
+                        $invoice_item_data['task_hourly_rate'] =$invoice_item_data['amount']/$invoice_item_data['hours'];
+                    }
+                }else{
+                    $invoice_item_data['invoice_item_amount'] = $invoice_item_data['task_hourly_rate'] * $invoice_item_data['hours'];
+                }
+            }else if($invoice_item_data['manual_task_type'] == _TASK_TYPE_QTY_AMOUNT){
+                if($invoice_item_data['amount']>0){
+                    $invoice_item_data['invoice_item_amount'] = $invoice_item_data['amount'];
+                }else{
+                    $invoice_item_data['invoice_item_amount'] = $invoice_item_data['task_hourly_rate'] * $invoice_item_data['hours'];
+                }
+                //$invoice_item_data['amount'] = $invoice_item_data['hourly_rate'] * $invoice_item_data['hours'];
+                //$invoice_item_data['invoice_item_amount']  = $invoice_item_data['amount'];
+                //$invoice_item_data['task_hourly_rate'] = $invoice_item_data['hourly_rate'];
+                /*if($invoice_item_data['hours']>0){
+                    $invoice_item_data['task_hourly_rate'] = round($invoice_item_data['invoice_item_amount']/$invoice_item_data['hours'],module_config::c('currency_decimal_places',2));
+                }else{
+                }*/
+            }else{
+
+                // this item is an 'amount only' column.
+                // no calculations based on quantity and hours.
+                if($invoice_item_data['amount']>0){
+                    $invoice_item_data['task_hourly_rate'] = $invoice_item_data['amount'];
+                    $invoice_item_data['invoice_item_amount'] = $invoice_item_data['amount'];
+                }else{
+                    $invoice_item_data['task_hourly_rate'] = 0;
+                    $invoice_item_data['invoice_item_amount'] = 0;
+
+                }
+                /*
+
+                $invoice_item_data['task_hourly_rate'] = isset($invoice_item_data['hourly_rate']) && $invoice_item_data['hourly_rate']>0 ? $invoice_item_data['hourly_rate'] : $invoice['hourly_rate'];
+
+                if($invoice_item_data['amount']!=0 && $invoice_item_data['amount'] != ($invoice_item_data['hours']*$invoice_item_data['task_hourly_rate'])){
+                    $invoice_item_data['invoice_item_amount'] = $invoice_item_data['amount'];
+                    if(module_config::c('invoice_calculate_item_price_auto',1) && $invoice_item_data['hours'] > 0){
+                        $invoice_item_data['task_hourly_rate'] = round($invoice_item_data['invoice_item_amount']/$invoice_item_data['hours'],module_config::c('currency_decimal_places',2));
+                    }else{
+                        $invoice_item_data['task_hourly_rate'] = false;
+                    }
+                }else if($invoice_item_data['hours']>0){
+                    $invoice_item_data['invoice_item_amount'] = $invoice_item_data['hours']*$invoice_item_data['task_hourly_rate'];
+                }else{
+                    $invoice_item_data['invoice_item_amount'] = 0;
+                    $invoice_item_data['task_hourly_rate'] = false;
+                }*/
+            }
+            /*$invoice_item_amount = $invoice_item_data['amount'] > 0 ? $invoice_item_data['amount'] : $invoice_item_data['hours']*$task_hourly_rate;
+            if($invoice_item_data['amount']>0 && !$invoice_item_data['hours']){
+                $invoice_item_amount = $invoice_item_data['amount'];
+                $invoice_item_data['hours'] = 1;
+                $task_hourly_rate = $invoice_item_data['amount']; // not sure if this will be buggy
+            }else{
+                $invoice_item_amount = $invoice_item_data['hours']*$task_hourly_rate;
+            }*/
+
+            // new feature, date done.
+            if(isset($invoice_item_data['date_done']) && $invoice_item_data['date_done'] != '0000-00-00'){
+                // $invoice_item_data['date_done'] is ok to print!
+            }else{
+                $invoice_item_data['date_done'] = '0000-00-00';
+                // check if this is linked to a task.
+                if($invoice_item_data['task_id']){
+                    $task = get_single('task','task_id',$invoice_item_data['task_id']);
+                    if($task && isset($task['date_done']) && $task['date_done'] != '0000-00-00'){
+                        $invoice_item_data['date_done'] = $task['date_done']; // move it over ready for printing below
+                    }else{
+                        if(isset($invoice['date_create']) && $invoice['date_create'] != '0000-00-00'){
+                            $invoice_item_data['date_done'] = $invoice['date_create'];
+                        }
+                    }
+                }
+            }
+            
+            $invoice_items[$invoice_item_id] = $invoice_item_data;
+
+        }
+        //print_r($invoice_items);exit;
+        return $invoice_items;
 	}
     public static function get_invoice_payments($invoice_id){
         $invoice_id = (int)$invoice_id;
@@ -1232,37 +1560,105 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         return $invoice_number;
 
     }
-	public static function get_invoice($invoice_id,$basic=false){
+    
+    public static function get_invoice_access_permissions() {
+        if (class_exists('module_security',false)){
+            return module_security::can_user_with_options(module_security::get_loggedin_id(),'Invoice Data Access',array(
+                _INVOICE_ACCESS_ALL,
+                _INVOICE_ACCESS_JOB,
+                _INVOICE_ACCESS_CUSTOMER,
+            ));
+        }else{
+            return _INVOICE_ACCESS_ALL; // default to all permissions.
+        }
+    }
+    
+    
+	public static function get_invoice($invoice_id,$basic=false,$skip_permissions=false){
         $invoice = array();
         if((int)$invoice_id>0){
 
             if($basic===2){ // used in links. just want the invoice name really.
                 // todo - cache. meh
-                return get_single('invoice','invoice_id',$invoice_id);
+                $invoice = get_single('invoice','invoice_id',$invoice_id);
+            }else{
+                $sql = "SELECT i.*";
+                $sql .= ", c.primary_user_id  "; // AS user_id // DONE - change this to the invoice table. drop down to select invoice contact. auto select based on contacts role?
+                $sql .= ", c.customer_name AS customer_name ";
+                $sql .= ", GROUP_CONCAT(DISTINCT j.`website_id` SEPARATOR ',') AS website_ids"; // the website id(s)
+                $sql .= ", GROUP_CONCAT(DISTINCT j.`job_id` SEPARATOR ',') AS job_ids"; // the website id(s)
+                $sql .= ", j.customer_id AS new_customer_id ";
+                $sql .= " FROM `"._DB_PREFIX."invoice` i ";
+                $sql .= " LEFT JOIN `"._DB_PREFIX."invoice_item` ii USING (invoice_id) ";
+                $sql .= " LEFT JOIN `"._DB_PREFIX."task` t ON ii.task_id = t.task_id";
+                $sql .= " LEFT JOIN `"._DB_PREFIX."job` j ON t.job_id = j.job_id";
+                $sql .= " LEFT JOIN `"._DB_PREFIX."customer` c ON i.customer_id = c.customer_id ";
+                //$sql .= " LEFT JOIN `"._DB_PREFIX."user` u ON c.primary_user_id = u.user_id ";
+                $sql .= " WHERE i.invoice_id = ".(int)$invoice_id;
+                $sql .= " GROUP BY i.invoice_id";
+                $invoice = qa1($sql);
             }
-            $sql = "SELECT i.*";
-            $sql .= ", c.primary_user_id  "; // AS user_id // DONE - change this to the invoice table. drop down to select invoice contact. auto select based on contacts role?
-            $sql .= ", c.customer_name AS customer_name ";
-            $sql .= ", GROUP_CONCAT(DISTINCT j.`website_id` SEPARATOR ',') AS website_ids"; // the website id(s)
-            $sql .= ", GROUP_CONCAT(DISTINCT j.`job_id` SEPARATOR ',') AS job_ids"; // the website id(s)
-            $sql .= ", j.customer_id AS new_customer_id ";
-            $sql .= " FROM `"._DB_PREFIX."invoice` i ";
-            $sql .= " LEFT JOIN `"._DB_PREFIX."invoice_item` ii USING (invoice_id) ";
-            $sql .= " LEFT JOIN `"._DB_PREFIX."task` t ON ii.task_id = t.task_id";
-            $sql .= " LEFT JOIN `"._DB_PREFIX."job` j ON t.job_id = j.job_id";
-            $sql .= " LEFT JOIN `"._DB_PREFIX."customer` c ON i.customer_id = c.customer_id ";
-            //$sql .= " LEFT JOIN `"._DB_PREFIX."user` u ON c.primary_user_id = u.user_id ";
-            $sql .= " WHERE i.invoice_id = ".(int)$invoice_id;
-            $sql .= " GROUP BY i.invoice_id";
-            $invoice = qa1($sql,false);
-//            print_r($invoice);exit;
-            if(!$invoice)return array();
-            // set the job id of the first job just for kicks
-            if(strlen(trim($invoice['job_ids']))>0){
+
+
+            if(isset($invoice['job_ids']) && strlen(trim($invoice['job_ids']))>0){
                 $invoice['job_ids'] = explode(',',$invoice['job_ids']);
             }else{
                 $invoice['job_ids'] = array();
             }
+            
+            // check permissions
+            if($invoice && isset($invoice['invoice_id']) && $invoice['invoice_id']==$invoice_id){
+                switch(self::get_invoice_access_permissions()){
+                    case _INVOICE_ACCESS_ALL:
+    
+                        break;
+                    case _INVOICE_ACCESS_JOB:
+                        // only invoices from jobs!
+                        $has_invoice_access = false;
+                        $jobs = module_job::get_jobs();
+                        foreach($invoice['job_ids'] as $invoice_job_id){
+                            if(isset($jobs[$invoice_job_id])){
+                                $has_invoice_access=true;
+                            }
+                        }
+                        unset($jobs);
+                        if(!$has_invoice_access){
+                            if($skip_permissions){
+                                $invoice['_no_access'] = true; // set a flag for custom processing. we check for this when calling get_customer with the skip permissions argument. (eg: in the ticket file listing link)
+                            }else{
+                                $invoice = false;
+                            }
+                        }
+                        break;
+                    case _INVOICE_ACCESS_CUSTOMER:
+                        // tie in with customer permissions to only get invoices from customers we can access.
+                        $customers = module_customer::get_customers();
+                        $has_invoice_access = false;
+                        if(isset($customers[$invoice['customer_id']])){
+                            $has_invoice_access=true;
+                        }
+                        unset($customers);
+                        /*foreach($customers as $customer){
+                            // todo, if($invoice['customer_id'] == 0) // ignore this permission
+                            if($customer['customer_id']==$invoice['customer_id']){
+                                $has_invoice_access = true;
+                                break;
+                            }
+                        }*/
+                        if(!$has_invoice_access){
+                            if($skip_permissions){
+                                $invoice['_no_access'] = true; // set a flag for custom processing. we check for this when calling get_customer with the skip permissions argument. (eg: in the ticket file listing link)
+                            }else{
+                                $invoice = false;
+                            }
+                        }
+                        break;
+                }
+            }
+//            print_r($invoice);exit;
+            if(!$invoice)return array();
+            // set the job id of the first job just for kicks
+
             if(isset($invoice['deposit_job_id']) && (int)$invoice['deposit_job_id']>0){
                 $invoice['job_ids'][] = $invoice['deposit_job_id'];
             }
@@ -1310,7 +1706,8 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                 'cached_total' => 0,
                 'discount_description' => _l('Discount:'),
                 'discount_amount' => 0,
-                'discount_type' => module_config::c('invoice_discount_type',1), // 1 = After Tax
+                'discount_type' => module_config::c('invoice_discount_type',_DISCOUNT_TYPE_BEFORE_TAX), // 1 = After Tax
+                'tax_type' => module_config::c('invoice_tax_type',0), // 0 = added, 1 = included
                 'date_create' => date('Y-m-d'),
                 'date_sent' => '',
                 'date_due' => date('Y-m-d',strtotime('+'.module_config::c('invoice_due_days',30).' days')),
@@ -1320,182 +1717,255 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                 'user_id' => '',
                 'date_renew' => '',
                 'renew_invoice_id' => '',
-                'total_tax' => 0,
                 'deposit_job_id' => 0,
                 'date_cancel' => '0000-00-00',
+                'total_amount_deposits' => 0,
+                'total_amount_deposits_tax' => 0,
+                'default_task_type' => module_config::c('default_task_type',_TASK_TYPE_HOURS_AMOUNT), //
             );
             $invoice['total_tax_rate'] = module_config::c('tax_percent',10);
             $invoice['total_tax_name'] = module_config::c('tax_name','TAX');
-
             $customer_data = false;
             if($customer_id>0){
                 $customer_data = module_customer::get_customer($customer_id);
             }
-
             if($customer_data && isset($customer_data['default_tax']) && $customer_data['default_tax'] >= 0){
                 $invoice['total_tax_rate'] = $customer_data['default_tax'];
                 $invoice['total_tax_name'] = $customer_data['default_tax_name'];
             }
-
         }
-        if($invoice){
 
-
-            // drag some details from the related job
-            if(!(int)$invoice_id){
-                if(isset($invoice['job_ids']) && $invoice['job_ids']){
-                    $first_job_id = current($invoice['job_ids']);
-                }else if(isset($invoice['job_id']) && $invoice['job_id']){
-                    $first_job_id = $invoice['job_id']; // abckwards compatibility
-                }else{
-                    $first_job_id = 0;
-                }
-                if($first_job_id>0){
-                    $job_data = module_job::get_job($first_job_id,false);
-                    $invoice['hourly_rate'] = $job_data['hourly_rate'];
-                    $invoice['total_tax_rate'] = $job_data['total_tax_rate'];
-                    $invoice['total_tax_name'] = $job_data['total_tax_name'];
-                }
-            }
-            // work out total hours etc..
-            //$invoice['total_hours'] = 0;
-            //$invoice['total_hours_completed'] = 0;
-            //$invoice['total_hours_overworked'] = 0;
-            $invoice['total_tax'] = 0;
-            $invoice['total_sub_amount'] = 0;
-            $invoice['total_sub_amount_taxable'] = 0;
-            $invoice_items = self::get_invoice_items((int)$invoice['invoice_id']);
-            foreach($invoice_items as $invoice_item){
-                if($invoice_item['amount'] != 0){
-                    // we have a custom amount for this invoice_item
-                    $invoice['total_sub_amount'] += $invoice_item['amount'];
-                    if($invoice_item['taxable']){
-                        $invoice['total_sub_amount_taxable'] += $invoice_item['amount'];
-                        if(module_config::c('tax_calculate_mode',0)==1){
-                            // tax calculated along the way.
-                            $invoice['total_tax'] += round(($invoice_item['amount'] * ($invoice['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
-                        }
-                    }
-                }
-                if($invoice_item['hours'] > 0){
-                    /*$invoice['total_hours'] += $invoice_item['hours'];
-                    $invoice['total_hours_completed'] += min($invoice_item['hours'],$invoice_item['completed']);
-                    if($invoice_item['completed'] > $invoice_item['hours']){
-                        $invoice['total_hours_overworked'] = $invoice_item['completed'] - $invoice_item['hours'];
-                    }*/
-                    if($invoice_item['amount'] == 0){
-                        $task_hourly = isset($invoice_item['hourly_rate']) && $invoice_item['hourly_rate']!=0 ? $invoice_item['hourly_rate'] : $invoice['hourly_rate'];
-                        $item_amount = $invoice_item['hours'] * $task_hourly;
-                        $invoice['total_sub_amount'] += $item_amount;
-                        if($invoice_item['taxable']){
-                            $invoice['total_sub_amount_taxable'] += $item_amount;
-                            if(module_config::c('tax_calculate_mode',0)==1){
-                                // tax calculated along the way.
-                                $invoice['total_tax'] += round(($item_amount * ($invoice['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
-                            }
-                        }
-                    }
-                }
-            }
-
-            $invoice['final_modification'] = 0; // hack for discount modes
-
-            // add any discounts.
-            if($invoice['discount_amount'] != 0){
-                if($invoice['discount_type']==1){ // after tax discount
-                    $invoice['final_modification'] = -$invoice['discount_amount'];
-                    if(module_config::c('tax_calculate_mode',0)==1){
-                        // tax calculated along the way.
-                        //$invoice['total_tax'] -= round(($invoice['discount_amount'] * ($invoice['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
-                    }
-                }else{
-                    $invoice['final_modification'] = -$invoice['discount_amount'];
-                    //$invoice['total_sub_amount']-=$invoice['discount_amount'];
-                    // before tax discount.
-                    $invoice['total_sub_amount_taxable']-=$invoice['discount_amount'];
-                    if(module_config::c('tax_calculate_mode',0)==1){
-                        // tax calculated along the way.
-                        $invoice['total_tax'] -= round(($invoice['discount_amount'] * ($invoice['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
-                    }
-                }
-            }
-
-            //$invoice['total_hours_remain'] = $invoice['total_hours'] - $invoice['total_hours_completed'];
-            //$invoice['total_percent_complete'] = $invoice['total_hours'] > 0 ? round($invoice['total_hours_remain'] / $invoice['total_hours'],2) : 0;
-            //if(isset($invoice['total_tax_rate'])){
-            if(module_config::c('tax_calculate_mode',0)==1 && isset($invoice['total_tax']) && $invoice['total_tax'] > 0){
-                // tax calculated along the way. don't calclate now.
-                //$invoice['total_tax'] = ($invoice['total_sub_amount_taxable'] * ($invoice['total_tax_rate'] / 100));
-                //$invoice['total_amount'] = round($invoice['total_sub_amount'] + $invoice['total_tax'],2);
-            }else if(module_config::c('tax_calculate_mode',0)==0){
-                $invoice['total_tax'] = round(($invoice['total_sub_amount_taxable'] * ($invoice['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
-                //$invoice['total_amount'] = $invoice['total_sub_amount'];
+        // drag some details from the related job
+        if(!(int)$invoice_id){
+            if(isset($invoice['job_ids']) && $invoice['job_ids']){
+                $first_job_id = current($invoice['job_ids']);
+            }else if(isset($invoice['job_id']) && $invoice['job_id']){
+                $first_job_id = $invoice['job_id']; // abckwards compatibility
             }else{
-                $invoice['total_tax'] = 0;
-                //$invoice['total_amount'] = $invoice['total_sub_amount'];
+                $first_job_id = 0;
             }
-            $invoice['total_amount'] = round($invoice['total_sub_amount'] + $invoice['total_tax'] + $invoice['final_modification'],module_config::c('currency_decimal_places',2));
-
-            if($basic===1){
-                // so we don't go clearning cache and working out how much has been paid.
-                // used in the finance module while displaying dashboard summary.
-                return $invoice;
+            if($first_job_id>0){
+                $job_data = module_job::get_job($first_job_id,false);
+                $invoice['hourly_rate'] = $job_data['hourly_rate'];
+                $invoice['total_tax_rate'] = $job_data['total_tax_rate'];
+                $invoice['total_tax_name'] = $job_data['total_tax_name'];
             }
+        }
 
-            // find the user id if none exists.
-            if($invoice['customer_id'] && !$invoice['user_id']){
-                $customer_data = module_customer::get_customer($invoice['customer_id']);
-                if($customer_data && $customer_data['customer_id'] == $invoice['customer_id']){
-                    if($customer_data['primary_user_id']){
-                        $invoice['user_id'] = $customer_data['primary_user_id'];
-                    }else{
-                        $customer_contacts = module_user::get_contacts(array('customer_id'=>$invoice['customer_id']));
-                        foreach($customer_contacts as $contact){
-                            // todo - search roles or something to find the accountant.
-                            $invoice['user_id'] = $contact['user_id'];
-                            break;
+        // new support for multiple taxes
+        if(!isset($invoice['taxes'])){
+            $invoice['taxes'] = array(
+                0 => array(
+                    'rate' => $invoice['total_tax_rate'],
+                    'name' => $invoice['total_tax_name'],
+                    'total' => 0, // original value that tax was calculated againt
+                    'tax' => 0, // final amount of calculated tax
+                    'discount' => 0, // if any discounts are applied to taxes, add them here. this is used in a complicated hack back in job.php to work out new job prices.
+                    'increment' => module_config::c('tax_multiple_increment',0), //todo: db this option
+                ),
+            );
+        }
+
+        // work out total hours etc..
+        //$invoice['total_hours'] = 0;
+        //$invoice['total_hours_completed'] = 0;
+        //$invoice['total_hours_overworked'] = 0;
+        $invoice['discount_amount_on_tax'] = 0; // used in job.php
+        $invoice['total_sub_amount'] = 0;
+        $invoice['total_sub_amount_taxable'] = 0;
+        $invoice_items = self::get_invoice_items((int)$invoice['invoice_id'],$invoice);
+        foreach($invoice_items as $invoice_item){
+            if($invoice_item['invoice_item_amount'] != 0){
+                // we have a custom amount for this invoice_item
+                $invoice['total_sub_amount'] += $invoice_item['invoice_item_amount'];
+                if($invoice_item['taxable']){
+                    $invoice['total_sub_amount_taxable'] += $invoice_item['invoice_item_amount'];
+                    if(module_config::c('tax_calculate_mode',_TAX_CALCULATE_AT_END)==_TAX_CALCULATE_INCREMENTAL){
+                        // tax calculated along the way (this isn't the recommended way, but was included as a feature request)
+                        // we add tax to each of the tax array items
+                        //$invoice['total_tax'] += round(($invoice_item['invoice_item_amount'] * ($invoice['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
+                        foreach($invoice['taxes'] as $invoice_tax_id => $invoice_tax){
+                            $invoice['taxes'][$invoice_tax_id]['total'] += $invoice_item['invoice_item_amount'];
+                            $invoice['taxes'][$invoice_tax_id]['tax'] += round(($invoice_item['invoice_item_amount'] * ($invoice_tax['rate'] / 100)),module_config::c('currency_decimal_places',2));
                         }
                     }
                 }
             }
+        }
 
-            $paid = 0;
-            //module_cache::clear_cache(); // no longer clearnig cache, it does it in get_invoice_payments.
-            foreach(self::get_invoice_payments($invoice_id) as $payment){
-                if($payment['date_paid'] && $payment['date_paid']!='0000-00-00'){
+        //$invoice['final_modification'] = 0; // hack for discount modes - change this to just 'discount_amount' cos that is all that uses this variable. HERE
+
+        // add any discounts.
+        if($invoice['discount_amount'] != 0){
+            if($invoice['discount_type']==_DISCOUNT_TYPE_AFTER_TAX){
+                // after tax discount ::::::::::
+                // handled below.
+                //$invoice['final_modification'] = -$invoice['discount_amount'];
+            }else if($invoice['discount_type']==_DISCOUNT_TYPE_BEFORE_TAX){
+                // before tax discount:::::
+                //$invoice['final_modification'] = -$invoice['discount_amount'];
+                // problem : this 'discount_amount_on_tax' calculation may not match the correct final discount calculation as per below
+                if(module_config::c('tax_calculate_mode',_TAX_CALCULATE_AT_END)==_TAX_CALCULATE_INCREMENTAL){
+                    // tax calculated along the way.
+                    // we have discounted the 'total amount taxable' so that means we need to reduce the tax amount by that much as well.
+                    foreach($invoice['taxes'] as $invoice_tax_id => $invoice_tax){
+                        $this_tax_discount = round(($invoice['discount_amount'] * ($invoice['taxes'][$invoice_tax_id]['rate'] / 100)),module_config::c('currency_decimal_places',2));
+                        $invoice['discount_amount_on_tax'] += $this_tax_discount;
+                        $invoice['taxes'][$invoice_tax_id]['total'] -= $invoice['discount_amount'];
+                        $invoice['taxes'][$invoice_tax_id]['tax'] -= $this_tax_discount;
+                        $invoice['taxes'][$invoice_tax_id]['discount'] = $this_tax_discount;
+                    }
+                }else{
+
+                    // we work out what the tax would have been if there was no applied discount
+                    // this is used in job.php
+                    $invoice['taxes_backup'] = $invoice['taxes'];
+                    $invoice['total_sub_amount_taxable_backup'] = $invoice['total_sub_amount_taxable'];
+                    $total_tax_before_discount = 0;
+                    foreach($invoice['taxes'] as $invoice_tax_id => $invoice_tax){
+                        $invoice['taxes'][$invoice_tax_id]['total'] = $invoice['total_sub_amount_taxable'];
+                        $invoice['taxes'][$invoice_tax_id]['tax'] = round(($invoice['total_sub_amount_taxable'] * ($invoice_tax['rate'] / 100)),module_config::c('currency_decimal_places',2));
+                        // here we adjust the 'total_sub_amount_taxable' to include the value from the previous calculation.
+                        // this is for multiple taxes that addup as they go (eg: Canada)
+                        if($invoice_tax['increment']){
+                            $invoice['total_sub_amount_taxable'] += $invoice['taxes'][$invoice_tax_id]['tax'];
+                        }
+                        $total_tax_before_discount += $invoice['taxes'][$invoice_tax_id]['tax'];
+                    }
+                    $invoice['taxes'] = $invoice['taxes_backup'];
+                    $invoice['total_sub_amount_taxable'] = $invoice['total_sub_amount_taxable_backup'];
+                }
+                $invoice['total_sub_amount']-=$invoice['discount_amount'];
+                $invoice['total_sub_amount_taxable']-=$invoice['discount_amount'];
+            }
+        }
+
+        //$invoice['total_hours_remain'] = $invoice['total_hours'] - $invoice['total_hours_completed'];
+        //$invoice['total_percent_complete'] = $invoice['total_hours'] > 0 ? round($invoice['total_hours_remain'] / $invoice['total_hours'],2) : 0;
+        //if(isset($invoice['total_tax_rate'])){
+        if(module_config::c('tax_calculate_mode',_TAX_CALCULATE_AT_END)==_TAX_CALCULATE_INCREMENTAL && isset($invoice['total_tax']) && $invoice['total_tax'] > 0){
+            // tax already calculated above.
+
+        }else if(module_config::c('tax_calculate_mode',_TAX_CALCULATE_AT_END)==_TAX_CALCULATE_AT_END){
+            // tax needs to be calculated based on the total_sub_amount_taxable
+            foreach($invoice['taxes'] as $invoice_tax_id => $invoice_tax){
+                $invoice['taxes'][$invoice_tax_id]['total'] = $invoice['total_sub_amount_taxable'];
+                $invoice['taxes'][$invoice_tax_id]['tax'] = round(($invoice['total_sub_amount_taxable'] * ($invoice_tax['rate'] / 100)),module_config::c('currency_decimal_places',2));
+                // here we adjust the 'total_sub_amount_taxable' to include the value from the previous calculation.
+                // this is for multiple taxes that addup as they go (eg: Canada)
+                if($invoice_tax['increment']){
+                    $invoice['total_sub_amount_taxable'] += $invoice['taxes'][$invoice_tax_id]['tax'];
+                }
+            }
+            //$invoice['total_tax'] = round(($invoice['total_sub_amount_taxable'] * ($invoice['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
+        }else{
+            //$invoice['total_tax'] = 0;
+        }
+        if(isset($invoice['tax_type']) && $invoice['tax_type']==1){
+            // hack! not completely correct, oh well.
+            // $amount / 1.05  ( this is 1 + tax %)
+            // this will only work if a single tax has been included.
+            if(count($invoice['taxes'])>1){
+                set_error('Included tax calculation only works with 1 tax rate');
+            }
+            $taxible_amount = $invoice['total_sub_amount_taxable'] / (1 + ($invoice['taxes'][0]['rate'] / 100));
+            $invoice['taxes'][0]['tax'] = $invoice['total_sub_amount_taxable'] - $taxible_amount;
+            $invoice['total_sub_amount'] = $invoice['total_sub_amount'] - $invoice['taxes'][0]['tax'];
+        }
+        $invoice['total_tax'] = 0;
+        foreach($invoice['taxes'] as $invoice_tax_id => $invoice_tax){
+            $invoice['total_tax'] += $invoice_tax['tax'];
+        }
+        if(isset($total_tax_before_discount)){
+            $invoice['discount_amount_on_tax'] += ($total_tax_before_discount-$invoice['total_tax']);
+        }
+        $invoice['total_amount'] = $invoice['total_sub_amount'] + $invoice['total_tax'];
+        if($invoice['discount_type']==_DISCOUNT_TYPE_AFTER_TAX){
+            $invoice['total_amount'] -= $invoice['discount_amount'];
+        }
+        $invoice['total_amount'] = round($invoice['total_amount'],module_config::c('currency_decimal_places',2));
+
+        if($basic===1){
+            // so we don't go clearning cache and working out how much has been paid.
+            // used in the finance module while displaying dashboard summary.
+            return $invoice;
+        }
+
+        // find the user id if none exists.
+        if($invoice['customer_id'] && !$invoice['user_id']){
+            $customer_data = module_customer::get_customer($invoice['customer_id']);
+            if($customer_data && $customer_data['customer_id'] == $invoice['customer_id']){
+                if($customer_data['primary_user_id']){
+                    $invoice['user_id'] = $customer_data['primary_user_id'];
+                }else{
+                    $customer_contacts = module_user::get_contacts(array('customer_id'=>$invoice['customer_id']));
+                    foreach($customer_contacts as $contact){
+                        // todo - search roles or something to find the accountant.
+                        $invoice['user_id'] = $contact['user_id'];
+                        break;
+                    }
+                }
+            }
+        }
+
+        $paid = 0;
+
+        /* START DEPOSITS */
+        $invoice['total_amount_deposits'] = 0; // calculate deposits separately.
+        $invoice['total_amount_deposits_tax'] = 0; // calculate deposits separately.
+        //module_cache::clear_cache(); // no longer clearnig cache, it does it in get_invoice_payments.
+        foreach(self::get_invoice_payments($invoice_id) as $payment){
+            if($payment['date_paid'] && $payment['date_paid']!='0000-00-00'){
+                if($payment['payment_type'] == _INVOICE_PAYMENT_TYPE_DEPOSIT){
+                    // what invoice did this payment come from?
+                    $deposit_invoice = module_invoice::get_invoice($payment['other_id']);
+                    $invoice['total_amount_deposits'] += min($deposit_invoice['total_amount']-$deposit_invoice['total_tax'],$payment['amount']-$deposit_invoice['total_tax']);
+                    $invoice['total_amount_deposits_tax'] += $deposit_invoice['total_tax'];
+                }else{
                     $paid += $payment['amount'];
                 }
             }
-            // dont go negative on payments:
-            $invoice['total_amount_paid'] = max(0,min($invoice['total_amount'],$paid));
-            $invoice['total_amount_credit'] = 0;
-            if($invoice['total_amount'] > 0 && $paid > $invoice['total_amount']){
-                // raise a credit against this customer for the difference.
-                $invoice['total_amount_credit'] = round($paid - $invoice['total_amount'],2);
-                //echo $invoice['total_amount_overpaid'];exit;
-            }
-            if($invoice['total_amount'] != $invoice['cached_total']){
-                if((int)$invoice_id>0){
-                    update_insert('invoice_id',$invoice_id,'invoice',array('cached_total'=>$invoice['total_amount']));
-                }
-                $invoice['cached_total'] = $invoice['total_amount'];
-            }
-            $invoice['total_amount_due'] = round($invoice['total_amount'] - $invoice['total_amount_paid'],module_config::c('currency_decimal_places',2));
+        }
+        if($invoice['total_amount_deposits']>0){
+            // we need to reduce the 'total_amount' of this invoice so it doesn't double up with the other paid deposit invoice
+            $invoice['total_amount'] -= $invoice['total_amount_deposits'];
+        }
+        if($invoice['total_amount_deposits_tax']>0){
+            //$invoice['total_tax'] -= $invoice['total_amount_deposits_tax'];
+            // we need to reduce the 'total_amount' of this invoice so it doesn't double up with the other paid deposit invoice
+            $invoice['total_amount'] -= $invoice['total_amount_deposits_tax'];
+        }
+        /* END DEPOSITS */
 
-            // a special addition for deposit invoices.
-            if(isset($invoice['deposit_job_id']) && $invoice['deposit_job_id']){
-                // we find out how much deposit has actually been paid
-                // and how much is remaining that hasn't been allocated to any other invoices
-                $invoice['deposit_remaining'] = 0;
-                if($invoice['total_amount_paid']>0){
-                    $invoice['deposit_remaining'] = $invoice['total_amount_paid'];
-                    $payments = get_multiple('invoice_payment',array(
-                        'payment_type' => _INVOICE_PAYMENT_TYPE_DEPOSIT,
-                        'other_id' => $invoice['invoice_id'],
-                    ));
-                    foreach($payments as $payment){
-                        $invoice['deposit_remaining'] = $invoice['deposit_remaining'] - $payment['amount'];
-                    }
+        // dont go negative on payments:
+        $invoice['total_amount_paid'] = max(0,min($invoice['total_amount'],$paid));
+        $invoice['total_amount_credit'] = 0;
+        if($invoice['total_amount'] > 0 && $paid > $invoice['total_amount']){
+            // raise a credit against this customer for the difference.
+            $invoice['total_amount_credit'] = round($paid - $invoice['total_amount'],2);
+            //echo $invoice['total_amount_overpaid'];exit;
+        }
+        if($invoice['total_amount'] != $invoice['cached_total']){
+            if((int)$invoice_id>0){
+                update_insert('invoice_id',$invoice_id,'invoice',array('cached_total'=>$invoice['total_amount']));
+            }
+            $invoice['cached_total'] = $invoice['total_amount'];
+        }
+        $invoice['total_amount_due'] = round($invoice['total_amount'] - $invoice['total_amount_paid'],module_config::c('currency_decimal_places',2));
+
+        // a special addition for deposit invoices.
+        if(isset($invoice['deposit_job_id']) && $invoice['deposit_job_id']){
+            // we find out how much deposit has actually been paid
+            // and how much is remaining that hasn't been allocated to any other invoices
+            $invoice['deposit_remaining'] = 0;
+            if($invoice['total_amount_paid']>0){
+                $invoice['deposit_remaining'] = $invoice['total_amount_paid'];
+                $payments = get_multiple('invoice_payment',array(
+                    'payment_type' => _INVOICE_PAYMENT_TYPE_DEPOSIT,
+                    'other_id' => $invoice['invoice_id'],
+                ));
+                foreach($payments as $payment){
+                    $invoice['deposit_remaining'] = $invoice['deposit_remaining'] - $payment['amount'];
                 }
             }
         }
@@ -1507,11 +1977,17 @@ Job: <strong>{JOB_NAME}</strong> <br/>
             $data['currency_id'] = $linkedjob['currency_id'];
             $data['customer_id'] = $linkedjob['customer_id'];
         }
+        if($invoice_id){
+            // used when working out the hourly rate fix below
+            $original_invoice_data = self::get_invoice($invoice_id);
+        }else{
+            $original_invoice_data = 0;
+        }
 		$invoice_id = update_insert("invoice_id",$invoice_id,"invoice",$data);
         if($invoice_id){
             $invoice_data = self::get_invoice($invoice_id);
             // check for new invoice_items or changed invoice_items.
-            $invoice_items = self::get_invoice_items($invoice_id);
+            $invoice_items = self::get_invoice_items($invoice_id,$invoice_data);
             if(isset($data['invoice_invoice_item']) && is_array($data['invoice_invoice_item'])){
                 foreach($data['invoice_invoice_item'] as $invoice_item_id => $invoice_item_data){
                     $invoice_item_id = (int)$invoice_item_id;
@@ -1527,20 +2003,73 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                     }
                     // add / save this invoice_item.
                     $invoice_item_data['invoice_id'] = $invoice_id;
+                    // what type of task is this?
+                    $invoice_task_type = isset($invoice_item_data['manual_task_type']) && $invoice_item_data['manual_task_type'] >= 0 ? $invoice_item_data['manual_task_type'] : $invoice_data['default_task_type'];
+
+                    // number formatting
+                    //print_r($invoice_item_data);
+                    if(isset($invoice_item_data['hourly_rate'])&&strlen($invoice_item_data['hourly_rate'])){
+                        $invoice_item_data['hourly_rate'] = number_in($invoice_item_data['hourly_rate']);
+                    }
+                    if(isset($invoice_item_data['hours'])&&strlen($invoice_item_data['hours'])){
+                        $invoice_item_data['hours'] = number_in($invoice_item_data['hours']);
+                    }else{
+                        $invoice_item_data['hours'] = 0;
+                    }
+                    //print_r($invoice_item_data);exit;
+
+                    // somenew hacks here to support out new method of creating an item.
+                    // the 'amount' column is never edited any more
+                    // this column is now always automatically calculated based on
+                    // 'hours' and 'hourly_rate'
+                    if(!isset($invoice_item_data['amount'])){
+
+                        if($invoice_task_type==_TASK_TYPE_AMOUNT_ONLY){
+
+                            // ignore the quantity field all together.
+                            $invoice_item_data['amount'] = $invoice_item_data['hourly_rate'];
+                            $invoice_item_data['hourly_rate'] = 0;
+
+                        }else{
+
+                            if(isset($invoice_item_data['hourly_rate']) && strlen($invoice_item_data['hourly_rate']) > 0){
+                                // if we have inputted an hourly rate (ie: not left empty)
+
+                                if(isset($invoice_item_data['hours']) && strlen($invoice_item_data['hours']) == 0){
+                                    // no hours entered (eg: empty) so we treat whatever was in 'hourly_rate' as the amount
+                                    $invoice_item_data['amount'] = $invoice_item_data['hourly_rate'];
+                                }else if(isset($invoice_item_data['hours']) && strlen($invoice_item_data['hours']) > 0){
+                                    // hours inputted, along with hourly rate. work out the new amount.
+
+                                    $invoice_item_data['amount'] = round($invoice_item_data['hours'] * $invoice_item_data['hourly_rate'],module_config::c('currency_decimal_places',2));
+                                }
+                            }
+                        }
+
+                    }
+                    if($invoice_item_data['hourly_rate'] == $invoice_data['hourly_rate'] || (isset($original_invoice_data['hourly_rate'])&& $invoice_item_data['hourly_rate'] == $original_invoice_data['hourly_rate'])){
+                        $invoice_item_data['hourly_rate'] = -1;
+                    }
                     // remove the amount of it equals the hourly rate.
-                    if(isset($invoice_item_data['amount']) && isset($invoice_item_data['hours']) && $invoice_item_data['amount'] > 0 && $invoice_item_data['hours'] > 0){
+                    /*if(isset($invoice_item_data['amount']) && isset($invoice_item_data['hours']) && $invoice_item_data['amount'] > 0 && $invoice_item_data['hours'] > 0){
                         if($invoice_item_data['amount'] - ($invoice_item_data['hours'] * $data['hourly_rate']) == 0){
                             unset($invoice_item_data['amount']);
                         }
-                    }
+                    }*/
                     // check if we haven't unticked a non-hourly invoice_item
-                    if(isset($invoice_item_data['completed_t']) && $invoice_item_data['completed_t'] && !isset($invoice_item_data['completed'])){
+                    /*if(isset($invoice_item_data['completed_t']) && $invoice_item_data['completed_t'] && !isset($invoice_item_data['completed'])){
                         $invoice_item_data['completed'] = 0;
-                    }
-                    if(isset($invoice_item_data['taxable_t']) && $invoice_item_data['taxable_t'] && !isset($invoice_item_data['taxable'])){
+                    }*/
+                    if(!isset($invoice_item_data['taxable_t'])){
+                        $invoice_item_data['taxable'] = module_config::c('task_taxable_default',1);
+                    }else if(isset($invoice_item_data['taxable_t']) && $invoice_item_data['taxable_t'] && !isset($invoice_item_data['taxable'])){
                         $invoice_item_data['taxable'] = 0;
                     }
-                    update_insert('invoice_item_id',$invoice_item_id,'invoice_item',$invoice_item_data); 
+                    //print_r($invoice_item_data);
+                    $invoice_item_data['hourly_rate'] = number_out($invoice_item_data['hourly_rate']);
+                    $invoice_item_data['hours'] = number_out($invoice_item_data['hours']);
+                    $invoice_item_data['amount'] = number_out($invoice_item_data['amount']);
+                    update_insert('invoice_item_id',$invoice_item_id,'invoice_item',$invoice_item_data);
                 }
             }
             $last_payment_date = date('Y-m-d');
@@ -1548,6 +2077,9 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                 foreach($data['invoice_invoice_payment'] as $invoice_payment_id => $invoice_payment_data){
                     $invoice_payment_id = (int)$invoice_payment_id;
                     if(!is_array($invoice_payment_data))continue;
+                    if(isset($invoice_payment_data['amount'])){
+                        $invoice_payment_data['amount'] = number_in($invoice_payment_data['amount']);
+                    }
                     // check this invoice payment actually matches this invoice.
                     $invoice_payment_data_existing=false;
                     if($invoice_payment_id>0){
@@ -1582,6 +2114,8 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                         $details['custom_notes'] = $invoice_payment_data['custom_notes'];
                         $invoice_payment_data['data'] = serialize($details);
                     }
+
+                    $invoice_payment_data['amount'] = number_out($invoice_payment_data['amount']);
                     update_insert('invoice_payment_id',$invoice_payment_id,'invoice_payment',$invoice_payment_data);
                 }
             }
@@ -1613,6 +2147,11 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                  ));
             }
             module_extra::save_extras('invoice','invoice_id',$invoice_id);
+            if($invoice_data['customer_id']){
+                module_cache::clear_cache();
+                module_customer::update_customer_status($invoice_data['customer_id']);
+            }
+
         }
 		return $invoice_id;
 	}
@@ -1665,7 +2204,7 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         if(isset($_REQUEST['payment_method']) && isset($_REQUEST['invoice_id']) && isset($_REQUEST['payment_amount'])){
             $invoice_id = (int)$_REQUEST['invoice_id'];
             $payment_method = $_REQUEST['payment_method'];
-            $payment_amount = (float)$_REQUEST['payment_amount'];
+            $payment_amount =  number_in($_REQUEST['payment_amount']);
             $invoice_data = $this->get_invoice($invoice_id);
 
              //&& module_security::can_access_data('invoice',$invoice_data,$invoice_id)
@@ -1711,8 +2250,13 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         if($invoice_html){
             //echo $invoice_html;exit;
 
-            $html_file_name = _UCM_FOLDER . "/temp/".'Invoice_'.$invoice_data['name'].'.html';
-            $pdf_file_name = _UCM_FOLDER . "/temp/".'Invoice_'.$invoice_data['name'].'.pdf';
+            $base_name = 'Invoice_';
+            if(isset($invoice_data['credit_note_id']) && $invoice_data['credit_note_id']){
+                $base_name = 'Credit_Note_';
+            }
+            $file_name = preg_replace('#[^a-zA-Z0-9]#','',$invoice_data['name']);
+            $html_file_name = _UCM_FOLDER . 'temp/'.$base_name.$file_name.'.html';
+            $pdf_file_name = _UCM_FOLDER . 'temp/'.$base_name.$file_name.'.pdf';
 
             file_put_contents($html_file_name,$invoice_html);
 
@@ -1820,19 +2364,106 @@ Job: <strong>{JOB_NAME}</strong> <br/>
 </html>','Used for printing out an invoice for the customer.','html');
 
 
+            module_template::init_template('credit_note_pdf','<html>
+    <head>
+        <title>Credit Note Print Out</title>
+        <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+        <style type="text/css">
+        body{
+			font-family:arial;
+			font-size:17px;
+		}
+        .table,
+        .table2{
+            border-collapse:collapse;
+        }
+        .table td,
+        .table2 td.border{
+            border:1px solid #EFEFEF;
+            border-collapse:collapse;
+            padding:4px;
+        }
+        .task_header{
+            background-color: #000000;
+            color:#FFFFFF;
+        }
+    </style>
+    </head>
+    <body>
+
+<table width="100%" cellpadding="0" cellspacing="0">
+    <tbody>
+    <tr>
+        <td width="10%">&nbsp;</td>
+        <td width="80%">
+
+
+    <table cellpadding="4" cellspacing="0" width="100%">
+        <tbody>
+            <tr>
+                <td width="450" align="left" valign="top">
+                    <p>
+                        <font style="font-size: 1.6em;">
+                            <strong>Credit Note #:</strong> {INVOICE_NUMBER}<br/>
+                        </font> <br/>
+                        <font style="font-size: 1.6em;">
+                            <strong>Invoice #:</strong> {CREDIT_INVOICE_NUMBER}<br/>
+                        </font> <br/>
+                    </p>
+                </td>
+                <td align="right" valign="top">
+                    <p>
+                        <font style="font-size: 1.6em;"><strong>{TITLE}</strong></font>
+                        <br/>
+                        <font style="color: #333333;">
+                        [our company details]
+                        </font>
+                    </p>
+                </td>
+            </tr>
+            <tr>
+                <td align="left" valign="top">
+                    <strong>INVOICE TO:</strong><br/>
+                    {CUSTOMER_NAME} <br/>
+                    {CUSTOMER_ADDRESS} <br/>
+                    {CONTACT_NAME} {CONTACT_EMAIL} <br/>
+                </td>
+                <td align="right" valign="top">
+                    &nbsp;<br/>
+                    {PROJECT_TYPE}: <strong>{PROJECT_NAME}</strong> <br/>
+                    Job: <strong>{JOB_NAME}</strong>
+                </td>
+            </tr>
+        </tbody>
+    </table>
+    <br/>
+    {TASK_LIST}
+    <br/>
+
+        </td>
+        <td width="10%">&nbsp;</td>
+    </tr>
+    </tbody>
+</table>
+
+
+</body>
+</html>','Used for printing out a a credit note for the customer.','html');
+
+
             $invoice = $invoice_data;
 
             $job_data = module_job::get_job(current($invoice_data['job_ids']));
             $website_data = module_website::get_website($job_data['website_id']);
 
             ob_start();
-            include('template/invoice_task_list.php');
+            include(module_theme::include_ucm('includes/plugin_invoice/template/invoice_task_list.php'));
             $task_list_html = ob_get_clean();
             ob_start();
-            include('template/invoice_payment_history.php');
+            include(module_theme::include_ucm('includes/plugin_invoice/template/invoice_payment_history.php'));
             $payment_history = ob_get_clean();
             ob_start();
-            include('template/invoice_payment_methods.php');
+            include(module_theme::include_ucm('includes/plugin_invoice/template/invoice_payment_methods.php'));
             $payment_methods = ob_get_clean();
 
 
@@ -1848,8 +2479,14 @@ Job: <strong>{JOB_NAME}</strong> <br/>
                 $external_invoice_template->assign_values($replace);
             $replace['external_invoice_template_html'] = $external_invoice_template->replace_content();
 
+            if(isset($invoice_data['credit_note_id']) && $invoice_data['credit_note_id']){
+                if($invoice_data['invoice_template_print']){
+                    $invoice_data['invoice_template_print'] = 'credit_note_pdf';
+                }
+            }
 
             $invoice_template = isset($invoice_data['invoice_template_print']) && strlen($invoice_data['invoice_template_print']) ? $invoice_data['invoice_template_print'] : module_config::c('invoice_template_print_default','invoice_print');
+
             ob_start();
             $template = module_template::get_template_by_key($invoice_template);
             $template->assign_values($replace);
@@ -1939,19 +2576,21 @@ Job: <strong>{JOB_NAME}</strong> <br/>
             if(isset($invoice['date_cancel']) && $invoice['date_cancel'] !='0000-00-00')continue;
             // check if this invoice is part of a subscription, put in some additional info for this subscriptions
             // 'recurring_text'
-            $recurring_text = '';
+            if($invoice['member_id']){
+                $member_name = module_member::link_open($invoice['member_id'],true);
+            }else if($invoice['customer_id']){
+                $member_name = module_customer::link_open($invoice['customer_id'],true);
+            }else{
+                $member_name = '';
+            }
+            $recurring_text = _l('Payment from %s',$member_name);
             if(class_exists('module_subscription',false)){
                 $sql = "SELECT * FROM `"._DB_PREFIX."subscription_history` sh WHERE invoice_id = ".(int)$invoice['invoice_id']."";
                 $res = qa1($sql);
-                $subscription_name = module_subscription::link_open($res['subscription_id'],true);
-                if($invoice['member_id']){
-                    $member_name = module_member::link_open($invoice['member_id'],true);
-                }else if($invoice['customer_id']){
-                    $member_name = module_customer::link_open($invoice['customer_id'],true);
-                }else{
-                    $member_name = '';
+                if($res){
+                    $subscription_name = module_subscription::link_open($res['subscription_id'],true);
+                    $recurring_text = _l('Payment from %s on subscription %s',$member_name,$subscription_name);
                 }
-                $recurring_text = _l('Payment from %s on subscription %s',$member_name,$subscription_name);
             }
 
             $return[] = array(
@@ -2005,6 +2644,9 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         if(!isset($fields['discount_type'])){
             $sql .= 'ALTER TABLE `'._DB_PREFIX.'invoice` ADD `discount_type` INT NOT NULL DEFAULT \'0\' AFTER `discount_description`;';
         }
+        if(!isset($fields['tax_type'])){
+            $sql .= 'ALTER TABLE `'._DB_PREFIX.'invoice` ADD `tax_type` INT NOT NULL DEFAULT \'0\' AFTER `discount_type`;';
+        }
         if(!isset($fields['deposit_job_id'])){
             $sql .= 'ALTER TABLE `'._DB_PREFIX.'invoice` ADD `deposit_job_id` INT NOT NULL DEFAULT \'0\' AFTER `member_id`;';
         }
@@ -2016,6 +2658,12 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         }
         if(!isset($fields['invoice_template_email'])){
             $sql .= 'ALTER TABLE `'._DB_PREFIX.'invoice` ADD `invoice_template_email` varchar(50) NOT NULL DEFAULT \'\' AFTER `invoice_template_print`;';
+        }
+        if(!isset($fields['credit_note_id'])){
+            $sql .= 'ALTER TABLE `'._DB_PREFIX.'invoice` ADD `credit_note_id` int(11) NOT NULL DEFAULT \'0\' AFTER `invoice_template_email`;';
+        }
+        if(!isset($fields['default_task_type'])){
+            $sql .= 'ALTER TABLE  `'._DB_PREFIX.'invoice` ADD  `default_task_type` int(3) NOT NULL DEFAULT  \'0\' AFTER  `invoice_template_email`;';
         }
 
         $fields = get_fields('invoice_payment');
@@ -2031,8 +2679,7 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         if(!isset($fields['payment_type'])){
             $sql .= 'ALTER TABLE `'._DB_PREFIX.'invoice_payment` ADD  `payment_type` TINYINT( 2 ) NOT NULL DEFAULT  \'0\' AFTER  `other_id`;';
         }
-        $res = qa1("SHOW TABLES LIKE '"._DB_PREFIX."currency'");
-        if(!$res || !count($res)){
+        if(!self::db_table_exists('currency')){
             $sql .= 'CREATE TABLE `'._DB_PREFIX.'currency` (
   `currency_id` int(11) NOT NULL AUTO_INCREMENT,
   `code` varchar(4) NOT NULL,
@@ -2047,6 +2694,22 @@ Job: <strong>{JOB_NAME}</strong> <br/>
             $sql .= "INSERT INTO `"._DB_PREFIX ."currency` (`currency_id`, `code`, `symbol`, `location`, `create_user_id`, `update_user_id`, `date_created`, `date_updated`) VALUES
 (1, 'USD', '$', 1, 0, 1, '2011-11-10', '2011-11-10'),
 (2, 'AUD', '$', 1, 1, NULL, '2011-11-10', '2011-11-10');";
+        }
+        if(!self::db_table_exists('invoice_tax')){
+            $sql .= 'CREATE TABLE `'._DB_PREFIX.'invoice_tax` (
+    `invoice_tax_id` int(11) NOT NULL AUTO_INCREMENT,
+    `invoice_id` int(11) NOT NULL,
+    `percent` decimal(10,2) NOT NULL DEFAULT  \'0\',
+    `amount` decimal(10,2) NOT NULL DEFAULT  \'0\',
+    `name` varchar(50) NOT NULL DEFAULT  \'\',
+    `order` INT( 4 ) NOT NULL DEFAULT  \'0\',
+    `create_user_id` int(11) NOT NULL,
+    `update_user_id` int(11) NULL,
+    `date_created` date NOT NULL,
+    `date_updated` date NULL,
+    PRIMARY KEY (`invoice_tax_id`),
+    KEY (`invoice_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;';
         }
 
         $fields = get_fields('invoice_item');
@@ -2065,10 +2728,17 @@ Job: <strong>{JOB_NAME}</strong> <br/>
         if(!isset($fields['long_description'])){
             $sql .= 'ALTER TABLE  `'._DB_PREFIX.'invoice_item` ADD `long_description` LONGTEXT NULL AFTER `description`;';
         }
+        if(!isset($fields['manual_task_type'])){ // if -1 then we use job default_task_type
+            $sql .= 'ALTER TABLE  `'._DB_PREFIX.'invoice_item` ADD  `manual_task_type` tinyint(2) NOT NULL DEFAULT \'-1\' AFTER `date_due`;';
+        }
+        if(!isset($fields['product_id'])){
+            $sql .= 'ALTER TABLE  `'._DB_PREFIX.'invoice_item` ADD  `product_id` int(11) NOT NULL DEFAULT \'0\' AFTER `description`;';
+        }
 
         // check for indexes
         self::add_table_index('invoice','customer_id');
         self::add_table_index('invoice','deposit_job_id');
+        self::add_table_index('invoice','credit_note_id');
         self::add_table_index('invoice_item','task_id');
         self::add_table_index('invoice_item','invoice_id');
         /*$sql_check = 'SHOW INDEX FROM `'._DB_PREFIX.'invoice_item';
@@ -2119,6 +2789,8 @@ Job: <strong>{JOB_NAME}</strong> <br/>
     `renew_invoice_id` INT(11) NULL,
     `discount_amount` DECIMAL(10,2) NULL,
     `discount_description` varchar(255) NULL,
+    `discount_type` INT NOT NULL DEFAULT '0',
+    `tax_type` INT NOT NULL DEFAULT '0',
     `currency_id` int(11) NOT NULL DEFAULT '1',
     `cached_total` DECIMAL(10,2) NOT NULL DEFAULT '0',
     `user_id` int(11) NOT NULL DEFAULT '0',
@@ -2126,6 +2798,8 @@ Job: <strong>{JOB_NAME}</strong> <br/>
     `deposit_job_id` int(11) NOT NULL DEFAULT '0',
     `invoice_template_print` varchar(50) NOT NULL DEFAULT '',
     `invoice_template_email` varchar(50) NOT NULL DEFAULT '',
+    `default_task_type` int(3) NOT NULL DEFAULT  '0',
+    `credit_note_id` int(11) NOT NULL DEFAULT '0',
     `create_user_id` int(11) NOT NULL,
     `update_user_id` int(11) NULL,
     `date_created` date NOT NULL,
@@ -2149,6 +2823,8 @@ Job: <strong>{JOB_NAME}</strong> <br/>
     `task_order` INT NOT NULL DEFAULT  '0',
     `date_done` date NOT NULL,
     `date_due` date NOT NULL,
+    `manual_task_type` tinyint(2) NOT NULL DEFAULT '-1',
+    `product_id` int(11) NOT NULL DEFAULT '0',
     `create_user_id` int(11) NOT NULL,
     `update_user_id` int(11) NULL,
     `date_created` date NOT NULL,
@@ -2174,6 +2850,21 @@ Job: <strong>{JOB_NAME}</strong> <br/>
     `date_created` date NOT NULL,
     `date_updated` date NULL,
     PRIMARY KEY (`invoice_payment_id`)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
+
+    CREATE TABLE `<?php echo _DB_PREFIX; ?>invoice_tax` (
+    `invoice_tax_id` int(11) NOT NULL AUTO_INCREMENT,
+    `invoice_id` int(11) NOT NULL,
+    `percent` decimal(10,2) NOT NULL DEFAULT  '0',
+    `amount` decimal(10,2) NOT NULL DEFAULT  '0',
+    `name` varchar(50) NOT NULL DEFAULT  '',
+    `order` INT( 4 ) NOT NULL DEFAULT  '0',
+    `create_user_id` int(11) NOT NULL,
+    `update_user_id` int(11) NULL,
+    `date_created` date NOT NULL,
+    `date_updated` date NULL,
+    PRIMARY KEY (`invoice_tax_id`),
+    KEY (`invoice_id`)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8;
 
     CREATE TABLE `<?php echo _DB_PREFIX; ?>currency` (

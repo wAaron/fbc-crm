@@ -5,12 +5,12 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
-//header('Content-type: text/calendar; charset=utf-8');
-//header('Content-Disposition: inline; filename="cal.ics"');
+header('Content-type: text/calendar; charset=utf-8');
+header('Content-Disposition: inline; filename="cal.ics"');
 
 $alerts = array();
 $foo = 'calendar';
@@ -57,7 +57,7 @@ DTEND;VALUE=DATE:'.date('Ymd',strtotime('+1 day',$time)).'*/
 DTSTART:'.date('Ymd',$time).'T090000Z
 DTEND:'.date('Ymd',strtotime('+1 day',$time)).'T010000Z
 SUMMARY: '.$alert['item'].(isset($alert['name']) ? ' - '.$alert['name'] : '').'
-DESCRIPTION:'._l('Alert Item: %s',$alert['name']).'<br><a href="'.$alert['link'].'">'._('Link').'</a> 
+DESCRIPTION:'._l('Alert Item: %s',$alert['name']).'<br><a href="'.$alert['link'].'">'._l('Link').'</a>
 END:VEVENT
 ';
     }

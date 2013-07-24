@@ -5,17 +5,18 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
-//header('Content-type: text/calendar; charset=utf-8');
-//header('Content-Disposition: inline; filename="cal.ics"');
+header('Content-type: text/calendar; charset=utf-8');
+header('Content-Disposition: inline; filename="cal.ics"');
 
 $show_previous_weeks = module_config::c('dashboard_income_previous_weeks',7);
 $date_start = date('Y-m-d', mktime(1, 0, 0, date('m'), date('d')-date('w')-(($show_previous_weeks+2)*7)+1, date('Y')));
 $date_end = date('Y-m-d', strtotime('-1 day',mktime(1, 0, 0, date('m'), date('d')+(6-date('w'))-(2*7)+2, date('Y'))));
 $result = module_finance::get_finance_summary($date_start,$date_end,7,$show_previous_weeks);
+/*
 print_r($result);
 
 echo 'BEGIN:VCALENDAR
@@ -52,3 +53,4 @@ END:VEVENT
 
 echo 'END:VCALENDAR';
 
+*/

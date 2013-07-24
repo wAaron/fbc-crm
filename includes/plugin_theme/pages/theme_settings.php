@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!module_config::can_i('view','Settings')){
@@ -151,6 +151,13 @@ $settings = array(
              'type'=>'text',
              'description'=>'URL for favicon',
              'help' => 'Please google for "How to make a favicon". It should be a small PNG or ICO image.'
+         ),
+         array(
+            'key'=>_THEME_CONFIG_PREFIX.'theme_custom_css',
+            'default'=>'',
+             'type'=>'textarea',
+             'description'=>'Custom CSS Code',
+             'help' => 'Add your own custom CSS code here and it will be included in all pages of the website. You may have to clear your browser cache in order to see these changes. This code is added to the "ext.php?m=theme&amp;h=css" file if you are looking at the page source code.'
          ),
 );
 

@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if($invoice_data['total_amount_due']>0){
@@ -16,7 +16,14 @@ module_template::init_template('invoice_payment_methods_online','<strong>Option 
 <br/>
 We support the following secure payment methods:
 <br/>
-','Displayed on the external invoice.','code');
+','Displayed on the invoice.','code');
+module_template::init_template('invoice_payment_methods_online_footer','{PAYMENT_METHODS}
+<br/>
+Please <a href="{LINK}">click here</a> to pay online.
+','Displayed on the invoice.','code', array(
+    'LINK' => 'URL link to invoice page',
+    'PAYMENT_METHODS' => 'List of supported payment methods',
+));
 
 module_template::init_template('invoice_payment_methods_offline','<strong>Option #2: Pay Offline</strong>
 <br/>
@@ -113,7 +120,7 @@ if(strlen($template_print->content)){
                                 <?php _e('Payment Amount'); ?>
                             </th>
                             <td>
-                                <?php echo currency('<input type="text" name="payment_amount" value="'.number_format($invoice['total_amount_due'],2,'.','').'" class="currency">',true,$invoice['currency_id']);?>
+                                <?php echo currency('<input type="text" name="payment_amount" value="'.number_out($invoice['total_amount_due']).'" class="currency">',true,$invoice['currency_id']);?>
                             </td>
                         </tr>
                         <tr>
@@ -129,7 +136,9 @@ if(strlen($template_print->content)){
 
                 
 
-            <?php }else{ ?>
+            <?php }else{
+                    ob_start();
+                    ?>
 
                 <ul>
                 <?php
@@ -143,9 +152,15 @@ if(strlen($template_print->content)){
                 }
                 ?>
                 </ul>
-                <br/>
-                <?php _e('Please <a href="%s">click here</a> to pay online.',module_invoice::link_public($invoice_id));?>
-            <?php } ?>
+                    <?php
+                $template_print = module_template::get_template_by_key('invoice_payment_methods_online_footer');
+                    $template_print->assign_values(array(
+                        'payment_methods'=>ob_get_clean(),
+                        'link'=>module_invoice::link_public($invoice_id),
+                    ));
+                echo $template_print->replace_content();
+
+                     } ?>
         <?php } ?>
 
         </td>

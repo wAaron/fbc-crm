@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 if(!$invoice_safe)die('failed');
 
@@ -152,6 +152,9 @@ $colspan = 4;
         <?php } ?>
 		<th id="invoice_total"><?php echo _l('Invoice Total'); ?></th>
 		<th id="invoice_total_due"><?php echo _l('Amount Due'); ?></th>
+        <?php if(class_exists('module_extra',false)){
+        module_extra::print_table_header('invoice');
+        } ?>
     </tr>
     </thead>
     <tbody>
@@ -246,6 +249,9 @@ $colspan = 4;
                         <?php
                     } ?>
                 </td>
+                <?php if(class_exists('module_extra',false)){
+                module_extra::print_table_data('invoice',$invoice['invoice_id']);
+                } ?>
             </tr>
 		<?php } ?>
 	</tbody>
@@ -254,7 +260,7 @@ $colspan = 4;
 </form>
 
 <?php if(function_exists('convert_html2pdf') && get_display_mode() != 'mobile'){ ?>
-    <form action="<?php echo module_invoice::link_generate($invoice_id,array('arguments'=>array('print'=>1)));?>" method="post">
+    <form action="<?php echo module_invoice::link_generate(false,array('arguments'=>array('print'=>1)));?>" method="post">
         <input type="hidden" name="invoice_ids" value="<?php echo implode(",",$all_invoice_ids);?>">
         <input type="submit" name="butt_print" value="<?php echo _l('Export all results as PDF'); ?>" class="submit_button" />
     </form>

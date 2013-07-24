@@ -5,19 +5,27 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 define('_JOB_TASK_CREATION_NOT_ALLOWED','Unable to create new tasks');
 define('_JOB_TASK_CREATION_REQUIRES_APPROVAL','Created tasks require admin approval');
 define('_JOB_TASK_CREATION_WITHOUT_APPROVAL','Created tasks do not require approval');
 
+define('_JOB_TASK_ACCESS_ALL','All tasks within a job');
+define('_JOB_TASK_ACCESS_ASSIGNED_ONLY','Only assigned tasks within a job');
+
 define('_JOB_ACCESS_ALL','All jobs in system');
 define('_JOB_ACCESS_ASSIGNED','Only jobs I am assigned to');
 define('_JOB_ACCESS_CUSTOMER','Jobs from customers I have access to');
 
 define('_TASK_DELETE_KEY','-DELETE-');
+
+
+define('_TASK_TYPE_AMOUNT_ONLY',2);
+define('_TASK_TYPE_QTY_AMOUNT',1);
+define('_TASK_TYPE_HOURS_AMOUNT',0);
 
 //define('_TASK_TYPE_NORMAL',0);
 //define('_TASK_TYPE_DEPOSIT',1);
@@ -28,7 +36,23 @@ class module_job extends module_base{
 	public $links;
 	public $job_types;
 
-    public $version = 2.474;
+    public $version = 2.497;
+    //2.497 - 2013-07-15 - dashboard fixes
+    //2.496 - 2013-06-21 - permission update
+    //2.495 - 2013-06-17 - job improvement when invoice has discount
+    //2.494 - 2013-06-14 - job improvement when invoice has discount
+    //2.493 - 2013-05-28 - template tag improvements
+    //2.492 - 2013-05-27 - dashboard alert improvements
+    //2.491 - 2013-05-23 - dashboard alert fixes
+    //2.49 - 2013-04-26 - job_public.php custom fix
+    //2.489 - 2013-04-26 - deposit based on percent
+    //2.488 - 2013-04-26 - deposit based on percent
+    //2.487 - 2013-04-21 - number format improvements
+    //2.486 - 2013-04-20 - new permissions: Access only assigned job tasks
+    //2.485 - 2013-04-16 - fix for invoice tax generation
+    //2.484 - 2013-04-16 - new advanced field task_taxable_default
+
+    // old version information prior to 2013-04-16:
     //2.422 - create job with single customer auto select in drop down fix.
     //2.423 - fix for saving extra fields against renewed jobs.
     //2.424 - delete job from group
@@ -79,6 +103,15 @@ class module_job extends module_base{
     //2.472 - bug fix: assigning job to a new customer when already assigned to a website
     //2.473 - delete task defaults by saving an empty task list.
     //2.474 - js improvement on editing tasks
+    //2.475 - job deposit fix
+    //2.476 - permission improments for unasigned customer jobs
+    //2.477 - big update - manual task percent, task type (hourly/qty/amount)
+    //2.478 - invoice prefix added to template fields
+    //2.479 - 2013-04-04 - fix for manual task percent
+    //2.48 - 2013-04-10 - new customer permissions
+    //2.481 - 2013-04-12 - translation fix
+    //2.482 - 2013-04-12 - dashboard alert fix
+    //2.483 - 2013-04-12 - start of new dashboard alerts layout
 
 
     public static function can_i($actions,$name=false,$category=false,$module=false){
@@ -89,7 +122,16 @@ class module_job extends module_base{
         return __CLASS__;
     }
 
-	public function init(){
+    public static function get_task_types()
+    {
+        return array(
+                   _TASK_TYPE_HOURS_AMOUNT => _l('Hourly Rate & Amount'),
+                   _TASK_TYPE_QTY_AMOUNT => _l('Quantity & Amount'),
+                   _TASK_TYPE_AMOUNT_ONLY => _l('Amount Only'),
+               );
+    }
+
+    public function init(){
 		$this->links = array();
 		$this->job_types = array();
 		$this->module_name = "job";
@@ -133,7 +175,7 @@ class module_job extends module_base{
         // return results based on an ajax search.
         $ajax_results = array();
         $search_key = trim($search_key);
-        if(strlen($search_key) > 3){
+        if(strlen($search_key) > module_config::c('search_ajax_min_length',2)){
             $results = $this->get_jobs(array('generic'=>$search_key));
             if(count($results)){
                 foreach($results as $result){
@@ -175,31 +217,66 @@ class module_job extends module_base{
                     $sql = "SELECT * FROM `"._DB_PREFIX."job` p ";
                     $sql .= " WHERE p.date_due != '0000-00-00' AND p.date_due <= '".date('Y-m-d',strtotime('+'.module_config::c('alert_days_in_future',5).' days'))."' AND p.date_completed = '0000-00-00'";
                     $tasks = qa($sql);
+
+                    $key = _l('Incomplete Job');
+                    if(class_exists('module_dashboard',false)){
+                        module_dashboard::register_group($key,array(
+                            'columns'=>array(
+                                'job'=>_l('Job Title'),
+                                'customer'=>_l('Customer'),
+                                'website'=>module_config::c('project_name_single','Website'),
+                                'progress'=>_l('Job Progress'),
+                                'assigned_staff'=>_l('Staff'),
+                                'date'=>_l('Due Date'),
+                                'days'=>_l('Day Count'),
+                            ),
+                            'sort'=>array(
+                                'time'=>'DESC',
+                            )
+                        ));
+                    }
+
                     foreach($tasks as $task){
-                        $job_permission_check = self::get_job($task['job_id']);
-                        if(!$job_permission_check || $job_permission_check['job_id']!=$task['job_id'])continue;
-                        $alert_res = process_alert($task['date_due'], _l('Incomplete Job'));
+                        // permission check:
+                        $job_data = self::get_job($task['job_id']);
+                        if(!$job_data || $job_data['job_id']!=$task['job_id'])continue;
+                        $alert_res = process_alert($task['date_due'], 'temp');
                         if($alert_res){
-                            $alert_res['link'] = $this->link_open($task['job_id'],false,$task);
+                            $alert_res['link'] = $this->link_open($job_data['job_id'],false,$job_data);
                             $alert_res['name'] = $task['name'];
-                            $alerts['jobincomplete'.$task['job_id']] = $alert_res;
+
+                            // new dashboard alert layout here:
+                            $alert_res['time'] = strtotime($alert_res['date']);
+                            $alert_res['group'] = $key;
+                            $alert_res['job'] = $this->link_open($task['job_id'],true,$job_data);
+                            $alert_res['customer'] = $job_data['customer_id'] ? module_customer::link_open($job_data['customer_id'],true) : _l('N/A');
+                            $alert_res['website'] = $job_data['website_id'] ? module_website::link_open($job_data['website_id'],true) : _l('N/A');
+                            $alert_res['assigned_staff'] = $job_data['user_id'] ? module_user::link_open($job_data['user_id'],true) : _l('N/A');
+                            $alert_res['progress'] = ($job_data['total_percent_complete'] * 100).'%';
+                            $alert_res['date'] = print_date($alert_res['date']);
+                            $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+
+                            $alerts['jobincomplete'.$job_data['job_id']] = $alert_res;
                         }
                     }
-				}
-                if($show_all || module_config::c('job_start_alerts',1)){
+				/*}
+                if($show_all || module_config::c('job_start_alerts',1) || module_config::c('job_incomplete_alerts',1)){*/
                     // find any jobs that haven't started yet (ie: have a start date, but no completed tasks)
                     $sql = "SELECT * FROM `"._DB_PREFIX."job` p ";
-                    $sql .= " WHERE p.date_completed = '0000-00-00' AND p.date_start <= '".date('Y-m-d',strtotime('+'.module_config::c('alert_days_in_future',5).' days'))."'";
+                    $sql .= " WHERE p.date_completed = '0000-00-00' AND p.date_start != '0000-00-00' AND p.date_start <= '".date('Y-m-d',strtotime('+'.module_config::c('alert_days_in_future',5).' days'))."'";
                     $jobs = qa($sql);
                     foreach($jobs as $job){
-                        $job_permission_check = self::get_job($job['job_id']);
-                        if(!$job_permission_check || $job_permission_check['job_id']!=$job['job_id'])continue;
-                        $tasks = self::get_tasks($job['job_id']);
-                        $job_started = false;
-                        foreach($tasks as $task){
-                            if($task['fully_completed']){
-                                $job_started = true;
-                                break;
+                        $job_data = self::get_job($job['job_id']);
+                        if(!$job_data || $job_data['job_id']!=$job['job_id'])continue;
+                        /*$job_started=true;
+                        if(module_config::c('job_start_alerts_old',0)){
+                            $tasks = self::get_tasks($job['job_id']);
+                            $job_started = false;
+                            foreach($tasks as $task){
+                                if($task['fully_completed']){
+                                    $job_started = true;
+                                    break;
+                                }
                             }
                         }
                         if(!$job_started){
@@ -210,17 +287,29 @@ class module_job extends module_base{
                                 $alert_res['name'] = $job['name'];
                                 $alerts[] = $alert_res;
                             }
-                        }else{
+                        }else{*/
                             // do the same alert as above.
                             if(!isset($alerts['jobincomplete'.$job['job_id']])){
-                                $alert_res = process_alert($job['date_start'], _l('Incomplete Job'));
+                                $alert_res = process_alert($job['date_start'], $key);
                                 if($alert_res){
                                     $alert_res['link'] = $this->link_open($job['job_id'],false,$job);
                                     $alert_res['name'] = $job['name'];
+
+                                    // new dashboard alert layout here:
+                                    $alert_res['time'] = strtotime($alert_res['date']);
+                                    $alert_res['group'] = $key;
+                                    $alert_res['job'] = $this->link_open($job['job_id'],true,$job_data);
+                                    $alert_res['customer'] = $job_data['customer_id'] ? module_customer::link_open($job_data['customer_id'],true) : _l('N/A');
+                                    $alert_res['website'] = $job_data['website_id'] ? module_website::link_open($job_data['website_id'],true) : _l('N/A');
+                                    $alert_res['assigned_staff'] = $job_data['user_id'] ? module_user::link_open($job_data['user_id'],true) : _l('N/A');
+                                    $alert_res['progress'] = ($job_data['total_percent_complete'] * 100).'%';
+                                    $alert_res['date'] = print_date($alert_res['date']);
+                                    $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+
                                     $alerts['jobincomplete'.$job['job_id']] = $alert_res;
                                 }
                             }
-                        }
+                       /* }*/
                     }
 				}
                 if(module_config::c('job_allow_quotes',1) && ($show_all || module_config::c('job_quote_alerts',1))){
@@ -228,13 +317,41 @@ class module_job extends module_base{
                     $sql = "SELECT * FROM `"._DB_PREFIX."job` p ";
                     $sql .= " WHERE p.date_quote != '0000-00-00' AND p.date_start = '0000-00-00'";
                     $tasks = qa($sql);
+
+                    $key = _l('Pending Job Quote');
+                    if(class_exists('module_dashboard',false)){
+                        module_dashboard::register_group($key,array(
+                            'columns'=>array(
+                                'job'=>_l('Job Title'),
+                                'customer'=>_l('Customer'),
+                                'website'=>module_config::c('project_name_single','Website'),
+                                //'progress'=>_l('Job Progress'),
+                                'assigned_staff'=>_l('Staff'),
+                                'date'=>_l('Quoted Date'),
+                                'days'=>_l('Day Count'),
+                            )
+                        ));
+                    }
+
                     foreach($tasks as $task){
-                        $job_permission_check = self::get_job($task['job_id']);
-                        if(!$job_permission_check || $job_permission_check['job_id']!=$task['job_id'])continue;
-                        $alert_res = process_alert($task['date_quote'], _l('Pending Job Quote'));
+                        $job_data = self::get_job($task['job_id']);
+                        if(!$job_data || $job_data['job_id']!=$task['job_id'])continue;
+                        $alert_res = process_alert($task['date_quote'], $key);
                         if($alert_res){
                             $alert_res['link'] = $this->link_open($task['job_id'],false,$task);
                             $alert_res['name'] = $task['name'];
+
+                            // new dashboard alert layout here:
+                            $alert_res['time'] = strtotime($task['date_quote']);
+                            $alert_res['group'] = $key;
+                            $alert_res['job'] = $this->link_open($job_data['job_id'],true,$job_data);
+                            $alert_res['customer'] = $job_data['customer_id'] ? module_customer::link_open($job_data['customer_id'],true) : _l('N/A');
+                            $alert_res['website'] = $job_data['website_id'] ? module_website::link_open($job_data['website_id'],true) : _l('N/A');
+                            $alert_res['assigned_staff'] = $job_data['user_id'] ? module_user::link_open($job_data['user_id'],true) : _l('N/A');
+                            //$alert_res['progress'] = ($job_data['total_percent_complete'] * 100).'%';
+                            $alert_res['date'] = print_date($alert_res['date']);
+                            $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+
                             $alerts[] = $alert_res;
                         }
                     }
@@ -248,13 +365,39 @@ class module_job extends module_base{
                     $sql .= " WHERE i.invoice_id IS NULL AND (j.date_completed != '0000-00-00')";
                     $sql .= " GROUP BY j.job_id";
                     $res = qa($sql);
+
+                    $key = _l('Please Generate Invoice');
+                    if(class_exists('module_dashboard',false)){
+                        module_dashboard::register_group($key,array(
+                            'columns'=>array(
+                                'job'=>_l('Job Title'),
+                                'customer'=>_l('Customer'),
+                                'website'=>module_config::c('project_name_single','Website'),
+                                'assigned_staff'=>_l('Staff'),
+                                'date'=>_l('Completed Date'),
+                                'days'=>_l('Day Count'),
+                            )
+                        ));
+                    }
+
                     foreach($res as $r){
                         $job = $this->get_job($r['job_id']);
                         if($job && $job['job_id'] == $r['job_id'] && $job['total_amount_invoicable'] > 0 && module_invoice::can_i('create','Invoices')){
-                            $alert_res = process_alert($r['date_completed'], _l('Please Generate Invoice'));
+                            $alert_res = process_alert($r['date_completed'], $key);
                             if($alert_res){
                                 $alert_res['link'] = $this->link_open($r['job_id'],false,$r);
                                 $alert_res['name'] = $r['name'];
+
+                                // new dashboard alert layout here:
+                                $alert_res['time'] = strtotime($r['date_completed']);
+                                $alert_res['group'] = $key;
+                                $alert_res['job'] = $this->link_open($job['job_id'],true,$job);
+                                $alert_res['customer'] = $job['customer_id'] ? module_customer::link_open($job['customer_id'],true) : _l('N/A');
+                                $alert_res['website'] = $job['website_id'] ? module_website::link_open($job['website_id'],true) : _l('N/A');
+                                $alert_res['assigned_staff'] = $job['user_id'] ? module_user::link_open($job['user_id'],true) : _l('N/A');
+                                //$alert_res['progress'] = ($job['total_percent_complete'] * 100).'%';
+                                $alert_res['date'] = print_date($alert_res['date']);
+                                $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
                                 $alerts[] = $alert_res;
                             }
                         }
@@ -267,13 +410,31 @@ class module_job extends module_base{
                     $sql .= " AND p.date_renew <= '".date('Y-m-d',strtotime('+'.module_config::c('alert_days_in_future',5).' days'))."'";
                     $sql .= " AND (p.renew_job_id IS NULL OR p.renew_job_id = 0)";
                     $res = qa($sql);
+
+                    $key = _l('Job Renewal Pending');
+                    if(class_exists('module_dashboard',false)){
+                        module_dashboard::register_group($key,array(
+                            'columns'=>array(
+                                'job'=>_l('Job Title'),
+                                'customer'=>_l('Customer'),
+                                'website'=>module_config::c('project_name_single','Website'),
+                                'assigned_staff'=>_l('Staff'),
+                                'renewal_period'=>_l('Period'),
+                                'date_create'=>_l('Created Date'),
+                                'date'=>_l('Renewal Date'),
+                                'days'=>_l('Day Count'),
+                            )
+                        ));
+                    }
+
                     foreach($res as $r){
-                        $job_permission_check = self::get_job($r['job_id']);
-                        if(!$job_permission_check || $job_permission_check['job_id']!=$r['job_id'])continue;
-                        $alert_res = process_alert($r['date_renew'], _l('Job Renewal Pending'));
+                        $job = self::get_job($r['job_id']);
+                        if(!$job || $job['job_id']!=$r['job_id'])continue;
+                        $alert_res = process_alert($r['date_renew'], $key);
                         if($alert_res){
                             $alert_res['link'] = $this->link_open($r['job_id'],false,$r);
                             $alert_res['name'] = $r['name'];
+                            $alert_res['renewal_period'] = _l('N/A');
                             // work out renewal period
                             if($r['date_start'] && $r['date_start'] != '0000-00-00'){
                                 $time_diff = strtotime($r['date_renew']) - strtotime($r['date_start']);
@@ -286,9 +447,22 @@ class module_job extends module_base{
                                     }else{
                                         $time_diff = $days;
                                     }
-                                    $alert_res['name'] .= ' '._l('(%s %s renewal)',$time_diff,$diff_type);
+                                    $alert_res['renewal_period'] = $time_diff .' '.$diff_type;
                                 }
                             }
+                            
+                            // new dashboard alert layout here:
+                            $alert_res['time'] = strtotime($r['date_renew']);
+                            $alert_res['group'] = $key;
+                            $alert_res['job'] = $this->link_open($job['job_id'],true,$job);
+                            $alert_res['customer'] = $job['customer_id'] ? module_customer::link_open($job['customer_id'],true) : _l('N/A');
+                            $alert_res['website'] = $job['website_id'] ? module_website::link_open($job['website_id'],true) : _l('N/A');
+                            $alert_res['assigned_staff'] = $job['user_id'] ? module_user::link_open($job['user_id'],true) : _l('N/A');
+                            //$alert_res['progress'] = ($job['total_percent_complete'] * 100).'%';
+                            $alert_res['date_create'] = print_date($job['date_start']);
+                            $alert_res['date'] = print_date($r['date_renew']);
+                            $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+                        
                             $alerts[] = $alert_res;
                         }
                     }
@@ -298,20 +472,99 @@ class module_job extends module_base{
                     if($job_task_creation_permissions == _JOB_TASK_CREATION_WITHOUT_APPROVAL){
 
                         // find any jobs that have tasks requiring approval
-                        $sql = "SELECT p.job_id,p.name, t.date_updated, COUNT(t.task_id) AS approval_count FROM `"._DB_PREFIX."job` p ";
+                        $sql = "SELECT p.job_id,p.name, t.date_updated, t.date_created, COUNT(t.task_id) AS approval_count FROM `"._DB_PREFIX."job` p ";
                         $sql .= " LEFT JOIN `"._DB_PREFIX."task` t ON p.job_id = t.job_id";
                         $sql .= " WHERE t.approval_required = 1";
                         $sql .= " GROUP BY p.job_id ";
                         $res = qa($sql);
+
+                        $key = _l('Tasks Require Approval');
+                        if(class_exists('module_dashboard',false)){
+                            module_dashboard::register_group($key,array(
+                                'columns'=>array(
+                                    'job'=>_l('Job Title'),
+                                    'customer'=>_l('Customer'),
+                                    'website'=>module_config::c('project_name_single','Website'),
+                                    'assigned_staff'=>_l('Staff'),
+                                    'task_count'=>_l('Tasks to Approve'),
+                                    'date'=>_l('Task Date'),
+                                    'days'=>_l('Day Count'),
+                                )
+                            ));
+                        }
                         foreach($res as $r){
-                            $job_permission_check = self::get_job($r['job_id']);
-                            if(!$job_permission_check || $job_permission_check['job_id']!=$r['job_id'])continue;
-                            $alert_res = process_alert($r['date_updated'], _l('Tasks Require Approval'));
+                            $job = self::get_job($r['job_id']);
+                            if(!$job || $job['job_id']!=$r['job_id'])continue;
+                            $alert_res = process_alert($r['date_updated']&&$r['date_updated']!='0000-00-00'?$r['date_updated']:$r['date_created'], $key);
                             if($alert_res){
                                 $alert_res['link'] = $this->link_open($r['job_id'],false,$r);
-                                $alert_res['name'] = _l('%s tasks in %s',$r['approval_count'],$r['name']);
+                                $alert_res['name'] = $r['name'];
+
+
+                                // new dashboard alert layout here:
+                                $alert_res['time'] = strtotime($r['date_updated']&&$r['date_updated']!='0000-00-00'?$r['date_updated']:$r['date_created']);
+                                $alert_res['group'] = $key;
+                                $alert_res['job'] = $this->link_open($job['job_id'],true,$job);
+                                $alert_res['customer'] = $job['customer_id'] ? module_customer::link_open($job['customer_id'],true) : _l('N/A');
+                                $alert_res['website'] = $job['website_id'] ? module_website::link_open($job['website_id'],true) : _l('N/A');
+                                $alert_res['assigned_staff'] = $job['user_id'] ? module_user::link_open($job['user_id'],true) : _l('N/A');
+                                //$alert_res['progress'] = ($job['total_percent_complete'] * 100).'%';
+                                $alert_res['task_count'] = $r['approval_count'];
+                                $alert_res['date'] = print_date($alert_res['time']);
+                                $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+
                                 $alerts[] = $alert_res;
                             }
+                        }
+                    }
+                }
+                if(class_exists('module_job',false) && module_security::can_user(module_security::get_loggedin_id(),'Show Dashboard Todo List')){
+                    $todo_list = self::get_tasks_todo();
+                    $x=0;
+                    //print_r($todo_list);
+                    $key = _l('Job Todo');
+                    if(class_exists('module_dashboard',false)){
+                        module_dashboard::register_group($key,array(
+                            'columns'=>array(
+                                'job'=>_l('Job Title'),
+                                'customer'=>_l('Customer Name'),
+                                'progress'=>_l('Task Progress'),
+                                'task'=>_l('Task Description'),
+                                'assigned_staff'=>_l('Staff'),
+                                'date'=>_l('Due Date'),
+                                'days'=>_l('Day Count'),
+                            )
+                        ));
+                    }
+                    foreach ($todo_list as $todo_item) {
+                        if($todo_item['hours_completed'] > 0){
+                            if($todo_item['hours'] > 0){
+                                $percentage = round($todo_item['hours_completed'] / $todo_item['hours'],2);
+                                $percentage = min(1,$percentage);
+                            }else{
+                                $percentage = 1;
+                            }
+                        }else{
+                            $percentage = 0;
+                        }
+                        $job_data = module_job::get_job($todo_item['job_id'],false);
+                        $alert_res = process_alert($todo_item['date_due'],'temp');
+                        if($alert_res){
+                            $alert_res['link'] = $this->link_open($todo_item['job_id'],false,$job_data);
+                            $alert_res['name'] = ($percentage * 100).'% '.$todo_item['description'];
+                            $alert_res['item'] = $job_data['name'];
+                            // new dashboard alert layout here:
+                            $alert_res['time'] = strtotime($alert_res['date']);
+                            $alert_res['group'] = $key;
+                            $alert_res['job'] = $this->link_open($todo_item['job_id'],true,$job_data);
+                            $alert_res['customer'] = $job_data['customer_id'] ? module_customer::link_open($job_data['customer_id'],true) : _l('N/A');
+                            $alert_res['assigned_staff'] = $todo_item['user_id'] ? module_user::link_open($todo_item['user_id'],true) : _l('N/A');
+                            $alert_res['progress'] = ($percentage * 100).'%';
+                            $alert_res['task'] = htmlspecialchars($todo_item['description']);
+                            $alert_res['date'] = ($alert_res['warning']) ? '<span class="important">'.print_date($alert_res['date']).'</span>' : print_date($alert_res['date']);
+                            $alert_res['days'] = ($alert_res['warning']) ? '<span class="important">'.$alert_res['days'].'</span>' : $alert_res['days'];
+
+                            $alerts[]=$alert_res;
                         }
                     }
                 }
@@ -426,22 +679,9 @@ class module_job extends module_base{
         return full_link(_EXTERNAL_TUNNEL_REWRITE.'m.job/h.public/i.'.$job_id.'/hash.'.self::link_public($job_id,true));
     }
 
-    public static function get_replace_fields($job_id,$job_data){
+    public static function get_replace_fields($job_id,$job_data=false){
 
-        $customer_data = module_customer::get_customer($job_data['customer_id']);
-        $address_combined = array();
-        if(isset($customer_data['customer_address'])){
-            foreach($customer_data['customer_address'] as $key=>$val){
-                if(strlen(trim($val)))$address_combined[$key] = $val;
-            }
-        }
-        // do we use the primary contact or a specified contact on the job.
-        if(isset($job_data['user_id']) && $job_data['user_id']){
-            $contact_data = module_user::get_user($job_data['user_id']);
-        }else{
-            $contact_data = module_user::get_user($customer_data['primary_user_id']);
-        }
-
+        if(!$job_data)$job_data = self::get_job($job_id);
 
         $data = array(
             'job_number' => htmlspecialchars($job_data['name']),
@@ -450,35 +690,14 @@ class module_job extends module_base{
 
             'title' => module_config::s('admin_system_name'),
             'due_date' => print_date($job_data['date_due']),
-            'customer_details' => ' - todo - ',
-            'customer_name' => $customer_data['customer_name'] ? htmlspecialchars($customer_data['customer_name']) : _l('N/A'),
-            'customer_address' => htmlspecialchars(implode(', ',$address_combined)),
-            'contact_name' => ($contact_data['name'] != $contact_data['email']) ? htmlspecialchars($contact_data['name'].' '.$contact_data['last_name']) : '',
-            'contact_email' => htmlspecialchars($contact_data['email']),
-            'contact_phone' => htmlspecialchars($contact_data['phone']),
-            'contact_mobile' => htmlspecialchars($contact_data['mobile']),
         );
 
+//        $customer_data = $job_data['customer_id'] ? module_customer::get_replace_fields($job_data['customer_id']) : array();
+//        $website_data = $job_data['website_id'] ? module_website::get_replace_fields($job_data['website_id']) : array();
+//        $data = array_merge($data,$customer_data,$website_data,$job_data);
         $data = array_merge($data,$job_data);
-        
-
-        foreach($customer_data['customer_address'] as $key=>$val){
-            $data['address_'.$key] = $val;
-        }
-
 
         if(class_exists('module_group',false)){
-            // get the customer groups
-            $g = array();
-            if((int)$job_data['customer_id']>0){
-                foreach(module_group::get_groups_search(array(
-                    'owner_table' => 'customer',
-                    'owner_id' => $job_data['customer_id'],
-                )) as $group){
-                    $g[] = $group['name'];
-                }
-            }
-            $data['customer_group'] = implode(', ',$g);
             // get the job groups
             $wg = array();
             $g = array();
@@ -490,16 +709,16 @@ class module_job extends module_base{
                 )) as $group){
                     $g[$group['group_id']] = $group['name'];
                 }
-                // get the website groups
+                /*// get the website groups
                 foreach(module_group::get_groups_search(array(
                     'owner_table' => 'website',
                     'owner_id' => $job_data['website_id'],
                 )) as $group){
                     $wg[$group['group_id']] = $group['name'];
-                }
+                }*/
             }
             $data['job_group'] = implode(', ',$g);
-            $data['website_group'] = implode(', ',$wg);
+            /*$data['website_group'] = implode(', ',$wg);*/
         }
 
         // addition. find all extra keys for this job and add them in.
@@ -514,7 +733,7 @@ class module_job extends module_base{
             $data[$e['extra_key']] = $e['extra'];
         }
         // also do this for customer fields
-        if($job_data['customer_id']){
+        /*if($job_data['customer_id']){
             $all_extra_fields = module_extra::get_defaults('customer');
             foreach($all_extra_fields as $e){
                 $data[$e['key']] = _l('N/A');
@@ -523,7 +742,7 @@ class module_job extends module_base{
             foreach($extras as $e){
                 $data[$e['extra_key']] = $e['extra'];
             }
-        }
+        }*/
 
 
         return $data;
@@ -543,6 +762,8 @@ class module_job extends module_base{
 
                         if($job_data){
                             $job_data = self::get_replace_fields($job_id,$job_data);
+                            $customer_data = $job_data['customer_id'] ? module_customer::get_replace_fields($job_data['customer_id']) : array();
+                            $website_data = $job_data['website_id'] ? module_website::get_replace_fields($job_data['website_id']) : array();
                             module_template::init_template('external_job','{HEADER}<h2>Job Overview</h2>
 Job Name: <strong>{JOB_NAME}</strong> <br/>
 {PROJECT_TYPE} Name: <strong>{PROJECT_NAME}</strong> <br/>
@@ -558,7 +779,7 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                             $template = module_template::get_template_by_key('external_job');
                             // generate the html for the task output
                             ob_start();
-                            include('pages/job_public.php');
+                            include(module_theme::include_ucm('includes/plugin_job/pages/job_public.php'));
                             $public_html = ob_get_clean();
                             $job_data['task_list'] = $public_html;
                             // do we link the job name?
@@ -587,7 +808,7 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                             $job_data['job_invoices'] = '';
                             $invoices = module_invoice::get_invoices(array('job_id'=>$job_id));
                             $job_data['project_type'] = _l(module_config::c('project_name_single','Website'));
-                            $website_data = $job_data['website_id'] ? module_website::get_website($job_data['website_id']) : array();
+                            //$website_data = $job_data['website_id'] ? module_website::get_website($job_data['website_id']) : array();
                             $job_data['project_name'] = isset($website_data['name']) && strlen($website_data['name']) ? $website_data['name'] : _l('N/A');
                             if(count($invoices)){
                                 $job_data['job_invoices'] .= '<h3>'._l('Job Invoices:').'</h3>';
@@ -629,6 +850,8 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                                 }
                                 $job_data['job_invoices'] .= '</ul>';
                             }
+                            $template->assign_values($customer_data);
+                            $template->assign_values($website_data);
                             $template->assign_values($job_data);
                             $template->page_title = $job_data['name'];
                             echo $template->render('pretty_html');
@@ -706,6 +929,16 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                 foreach($staff_members as $staff_member){
                     $staff_member_rel[$staff_member['user_id']] = $staff_member['name'];
                 }
+
+                // new different formats for job data.
+                $task_data['manual_task_type_real'] = $task_data['manual_task_type'];
+                if((!isset($task_data['manual_task_type']) || $task_data['manual_task_type'] < 0 ) && isset($job['default_task_type'])){
+                    // use the job task type
+                    $task_data['manual_task_type'] = $job['default_task_type'];
+                }
+
+
+                $percentage = self::get_percentage($task_data);
 
                 if(isset($_REQUEST['get_preview'])){
                     $after_task_id = $task_id; // this will put it right back where it started.
@@ -966,12 +1199,19 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
             }
 
             if(isset($_REQUEST['butt_create_deposit']) && isset($_REQUEST['job_deposit']) && $_REQUEST['job_deposit'] > 0){
+
+
+                if(strpos($_REQUEST['job_deposit'],'%')!==false){
+                    $job_data = module_job::get_job($job_id);
+                    $percent = (int)str_replace('%','',$_REQUEST['job_deposit']);
+                    $_REQUEST['job_deposit'] = number_out($job_data['total_amount'] * ($percent/100));
+                }
                 // create an invoice for this job.
                 $url = module_invoice::link_generate('new',array('arguments'=>array(
                     'job_id' => $job_id,
                     'as_deposit' => 1,
-                    'amount_due' => $_REQUEST['job_deposit'],
-                    'description' => _l('Deposit for job: %s',$_POST['name']), // bad
+                    'amount_due' => number_in($_REQUEST['job_deposit']),
+                    'description' => str_replace('{JOB_NAME}',$_POST['name'],module_config::c('job_deposit_text','Deposit for job: {JOB_NAME}')),
                 )));
                 redirect_browser($url);
             }
@@ -1054,6 +1294,16 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                 $where .= " AND (u.user_id = ".(int)module_security::get_loggedin_id()." OR t.user_id = ".(int)module_security::get_loggedin_id().")";
                 break;
             case _JOB_ACCESS_CUSTOMER:
+                // tie in with customer permissions to only get jobs from customers we can access.
+                $customers = module_customer::get_customers();
+                if(count($customers)){
+                    $where .= " AND u.customer_id IN ( ";
+                    foreach($customers as $customer){
+                        $where .= $customer['customer_id'] .', ';
+                    }
+                    $where = rtrim($where,', ');
+                    $where .= " ) ";
+                }
                 break;
         }
 
@@ -1062,40 +1312,20 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
             case _CUSTOMER_ACCESS_ALL:
                 // all customers! so this means all jobs!
                 break;
+            case _CUSTOMER_ACCESS_ALL_COMPANY:
             case _CUSTOMER_ACCESS_CONTACTS:
-                // we only want customers that are directly linked with the currently logged in user contact.
-
+            case _CUSTOMER_ACCESS_TASKS:
+            case _CUSTOMER_ACCESS_STAFF:
                 $valid_customer_ids = module_security::get_customer_restrictions();
-                if(is_array($valid_customer_ids) && count($valid_customer_ids)){
-                    $where .= " AND ( ";
+                if(count($valid_customer_ids)){
+                    $where .= " AND u.customer_id IN ( ";
                     foreach($valid_customer_ids as $valid_customer_id){
-                        $where .= " u.customer_id = '".(int)$valid_customer_id."' OR ";
+                        $where .= (int)$valid_customer_id.", ";
                     }
-                    $where = rtrim($where,'OR ');
+                    $where = rtrim($where,', ');
                     $where .= " )";
                 }
 
-                /*if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                    // this session variable is set upon login, it holds their customer id.
-                    // todo - share a user account between multiple customers!
-                    //$where .= " AND c.customer_id IN (SELECT customer_id FROM )";
-                    $where .= " AND u.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
-                }*/
-                break;
-            case _CUSTOMER_ACCESS_TASKS:
-                // only customers who have a job that I have a task under.
-                // this is different to "assigned jobs" Above
-                // this will return all jobs for a customer even if we're only assigned a single job for that customer
-                // tricky!
-                // copied from customer.php
-                $where .= " AND u.customer_id IN ";
-                $where .= " ( SELECT cc.customer_id FROM `"._DB_PREFIX."customer` cc ";
-                $where .= " LEFT JOIN `"._DB_PREFIX."job` jj ON cc.customer_id = jj.customer_id ";
-                $where .= " LEFT JOIN `"._DB_PREFIX."task` tt ON jj.job_id = tt.job_id ";
-                $where .= " WHERE (jj.user_id = ".(int)module_security::get_loggedin_id()." OR tt.user_id = ".(int)module_security::get_loggedin_id().")";
-                $where .= " )";
-
-                break;
         }
 
 		$sql = $sql . $from . $where . $group_order;
@@ -1123,6 +1353,13 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
         $sql .= " LEFT JOIN `"._DB_PREFIX."user` u ON t.user_id = u.user_id ";
         $sql .= " LEFT JOIN `"._DB_PREFIX."job` j ON t.job_id = j.job_id";
         $sql .= " WHERE t.`job_id` = ".(int)$job_id;
+        // permissions
+        $job_task_permissions = self::get_job_task_access_permissions();
+        switch($job_task_permissions){
+            case _JOB_TASK_ACCESS_ASSIGNED_ONLY:
+                $sql .= " AND t.`user_id` = ".(int)module_security::get_loggedin_id();
+                break;
+        }
         $sql .= " GROUP BY t.task_id ";
         switch($order_by){
             case 'task':
@@ -1159,6 +1396,9 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
         foreach($res as $rid=>$r){
             // todo: are we billing the hours worked, or the hours quoted.
 
+            if($r['manual_task_type']<0){
+                $res[$rid]['manual_task_type'] = $job['default_task_type'];
+            }
             if(module_config::c('job_task_log_all_hours',1)){
                 // we have to have a "fully_completed" flag before invoicing.
                 if(!$r['billable']){
@@ -1198,6 +1438,7 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                 }
             }
         }
+        //print_r($res);exit;
         return $res;
 		//return get_multiple("task",array('job_id'=>$job_id),"task_id","exact","task_id");
 
@@ -1229,8 +1470,8 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
         foreach($tasks_search as $task_id => $task){
 
 
-            $job_permission_check = self::get_job($task['job_id']);
-            if(!$job_permission_check || $job_permission_check['job_id']!=$task['job_id'])continue;
+            $job = self::get_job($task['job_id']);
+            if(!$job || $job['job_id']!=$task['job_id'])continue;
 
             if(module_config::c('job_task_log_all_hours',1)){
                 // tasks have to have a 'fully_completed' before they are done.
@@ -1283,6 +1524,7 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                             break;
                         }
                     }
+                    unset($tasks);
                     if(!$has_job_access){
                         if($skip_permissions){
                             $job['_no_access'] = true; // set a flag for custom processing. we check for this when calling get_customer with the skip permissions argument. (eg: in the ticket file listing link)
@@ -1295,12 +1537,17 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                     // tie in with customer permissions to only get jobs from customers we can access.
                     $customers = module_customer::get_customers();
                     $has_job_access = false;
-                    foreach($customers as $customer){
+                    if(isset($customers[$job['customer_id']])){
+                        $has_job_access = true;
+                    }
+                    /*foreach($customers as $customer){
+                        // todo, if($job['customer_id'] == 0) // ignore this permission
                         if($customer['customer_id']==$job['customer_id']){
                             $has_job_access = true;
                             break;
                         }
-                    }
+                    }*/
+                    unset($customers);
                     if(!$has_job_access){
                         if($skip_permissions){
                             $job['_no_access'] = true; // set a flag for custom processing. we check for this when calling get_customer with the skip permissions argument. (eg: in the ticket file listing link)
@@ -1358,6 +1605,7 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                 'type'  => module_config::s('job_type_default','Website Design'),
                 'currency_id' => module_config::c('default_currency_id',1),
                 'auto_task_numbers' => '0',
+                'default_task_type' => module_config::c('default_task_type',_TASK_TYPE_HOURS_AMOUNT), //
             );
             // some defaults from the db.
             $job['total_tax_rate'] = module_config::c('tax_percent',10);
@@ -1379,9 +1627,11 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
             $job['total_sub_amount_taxable'] = 0;
             $job['total_sub_amount_unbillable'] = 0;
             $job['total_sub_amount_invoicable'] = 0;
+            $job['total_sub_amount_invoicable_taxable'] = 0;
             $job['total_amount_invoicable'] = 0;
             $job['total_tasks_remain'] = 0;
 
+            $job['total_amount'] = 0;
             $job['total_amount_paid'] = 0;
             $job['total_amount_invoiced'] = 0;
             $job['total_amount_invoiced_deposit'] = 0;
@@ -1394,12 +1644,23 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
             $job['total_tax'] = 0;
             $job['total_tax_invoicable'] = 0;
 
-            $job['invoice_discounts'] = 0;
+            $job['invoice_discount_amount'] = 0;
+            $job['invoice_discount_amount_on_tax'] = 0;
+            $job['total_amount_discounted'] = 0;
 
             if($job_id>0){
                 $non_hourly_job_count = $non_hourly_job_completed = 0;
                 $tasks = self::get_tasks($job['job_id']);
+
+                $job_percentage_complete_averages = array();
+
                 foreach($tasks as $task_id => $task){
+
+                    // new support for different task types
+                    if(!isset($task['manual_task_type'])||$task['manual_task_type']<0){
+                        $task['manual_task_type'] = $job['default_task_type'];
+                    }
+
                     if(module_config::c('job_task_log_all_hours',1)){
                         // jobs have to be marked fully_completd.
                         if(!$task['fully_completed']){
@@ -1414,10 +1675,15 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                     }
                     $tasks[$task_id]['sum_amount'] = 0;
                     if($task['amount'] != 0){
-                        // we have a custom amount for this task
-                        $tasks[$task_id]['sum_amount'] = $task['amount'];
+                        // we have a custom amount for this task.
+                        // do we multiply it by qty (stored in hours?)
+                        if($task['manual_task_type'] == _TASK_TYPE_QTY_AMOUNT){
+                            $tasks[$task_id]['sum_amount'] = $task['amount'] * $task['hours'];
+                        }else{
+                            $tasks[$task_id]['sum_amount'] = $task['amount'];
+                        }
                     }
-                    if($task['hours'] > 0){
+                    if($task['manual_task_type'] == _TASK_TYPE_HOURS_AMOUNT && $task['hours'] > 0){
                         $job['total_hours'] += $task['hours'];
                         $task_completed_hours = min($task['hours'],$task['completed']);
                         if($task['fully_completed']){
@@ -1455,14 +1721,22 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                             // a task has to be marked "fully_completeD" before it will be invoiced.
                             if($task['fully_completed']){
                                 $job['total_sub_amount_invoicable'] += $tasks[$task_id]['sum_amount'];
-                                if(module_config::c('tax_calculate_mode',0)==1){
-                                    $job['total_tax_invoicable'] += round(($tasks[$task_id]['sum_amount'] * ($job['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
+                                if($task['taxable']){
+                                    if(module_config::c('tax_calculate_mode',0)==1){
+                                        $job['total_tax_invoicable'] += round(($tasks[$task_id]['sum_amount'] * ($job['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
+                                    }else{
+                                        $job['total_sub_amount_invoicable_taxable'] += $tasks[$task_id]['sum_amount'];
+                                    }
                                 }
                             }
                         }else{
                             $job['total_sub_amount_invoicable'] += $tasks[$task_id]['sum_amount'];
-                            if(module_config::c('tax_calculate_mode',0)==1){
-                                $job['total_tax_invoicable'] += round(($tasks[$task_id]['sum_amount'] * ($job['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
+                            if($task['taxable']){
+                                if(module_config::c('tax_calculate_mode',0)==1){
+                                    $job['total_tax_invoicable'] += round(($tasks[$task_id]['sum_amount'] * ($job['total_tax_rate'] / 100)),module_config::c('currency_decimal_places',2));
+                                }else{
+                                    $job['total_sub_amount_invoicable_taxable'] += $tasks[$task_id]['sum_amount'];
+                                }
                             }
                             //(min($task['hours'],$task['completed']) * $job['hourly_rate']);
                         }
@@ -1479,21 +1753,30 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                     }else{
                         $job['total_sub_amount_unbillable'] += $tasks[$task_id]['sum_amount'];
                     }
-                }
+
+                    $job_percentage_complete_averages[] = self::get_percentage($tasks[$task_id]);
+                } // end task loop
+
                 $job['total_hours_remain'] = $job['total_hours'] - $job['total_hours_completed'];
-                if($job['total_hours'] > 0){
+
+
+                if(count($job_percentage_complete_averages)>0){
+                    $job['total_percent_complete'] = round(array_sum($job_percentage_complete_averages) / count($job_percentage_complete_averages),2);
+                }
+                /*if($job['total_hours'] > 0){
                     // total hours completed. work out job task based on hours completed.
                     $job['total_percent_complete'] = round($job['total_hours_completed'] / $job['total_hours'],2);
                 }else if($non_hourly_job_count>0){
                     // work out job completed rate based on $non_hourly_job_completed and $non_hourly_job_count
                     $job['total_percent_complete'] = round($non_hourly_job_completed/$non_hourly_job_count,2);
-                }
+                }*/
 
 
                 // find any invoices
                 $invoices = module_invoice::get_invoices(array('job_id'=>$job_id));
                 foreach($invoices as $invoice){
                     $invoice = module_invoice::get_invoice($invoice['invoice_id']);
+                    //print_r($invoice);
                     // we only ad up the invoiced tasks that are from this job
                     // an invoice could have added manually more items to it, so this would throw the price out.
                     $this_invoice = 0;
@@ -1524,11 +1807,9 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                         }
                     }
                     // any discounts ?
-                    if($invoice['discount_amount']){
-                        $this_invoice -= $invoice['discount_amount'];
-                        $job['total_sub_amount'] -= $invoice['discount_amount'];
-                        $job['invoice_discounts'] += $invoice['discount_amount'];
-                    }
+                    $job['invoice_discount_amount'] += $invoice['discount_amount'];
+                    $job['invoice_discount_amount_on_tax'] += $invoice['discount_amount_on_tax'];
+
                     if(module_config::c('tax_calculate_mode',0)==0 && $this_invoice_taxable>0){
                         $this_invoice = ($this_invoice + ($this_invoice_taxable * ($invoice['total_tax_rate'] / 100)));
                     }
@@ -1537,26 +1818,28 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                     if($invoice['deposit_job_id'] == $job_id){
                         $job['total_amount_invoiced_deposit'] += $this_invoice;
                     }else{
-                        $job['total_amount_invoiced'] += $this_invoice;
-                        $job['total_amount_paid'] += min($invoice['total_amount_paid'],$this_invoice);
                     }
+                    $job['total_amount_invoiced'] += $this_invoice;
+                    $job['total_amount_paid'] += min($invoice['total_amount_paid'],$this_invoice);
 
+                    $job['total_amount_outstanding'] += min($invoice['total_amount_due'],$this_invoice);
 
                 }
 
                 // todo: save these two values in the database so that future changes do not affect them.
                 if(module_config::c('tax_calculate_mode',0)==0){
-                    $job['total_tax'] = ($job['total_sub_amount_taxable'] * ($job['total_tax_rate'] / 100));
-                    $job['total_tax_invoicable'] = $job['total_sub_amount_invoicable'] > 0 ? ($job['total_sub_amount_invoicable'] * ($job['total_tax_rate'] / 100)) : 0;
+                    $job['total_tax'] = ( ($job['total_sub_amount_taxable']) * ($job['total_tax_rate'] / 100));
+                    $job['total_tax_invoicable'] = $job['total_sub_amount_invoicable_taxable'] > 0 ? ($job['total_sub_amount_invoicable_taxable'] * ($job['total_tax_rate'] / 100)) : 0;
                 }
                 $job['total_amount'] = round($job['total_sub_amount'] + $job['total_tax'],module_config::c('currency_decimal_places',2));
                 $job['total_amount_invoicable'] = $job['total_sub_amount_invoicable'] + $job['total_tax_invoicable']; // + ($job['total_sub_amount_invoicable'] * ($job['total_tax_rate'] / 100));
 
                 $job['total_amount_due'] = $job['total_amount'] - $job['total_amount_paid']; //todo: chekc if this is wrong with non-invoicable tasks.
-                $job['total_amount_outstanding'] = $job['total_amount_invoiced'] - $job['total_amount_paid'];
+                //$job['total_amount_outstanding'] = $job['total_amount_invoiced'] - $job['total_amount_paid'];
+                $job['total_amount_discounted'] = $job['total_amount'] - $job['invoice_discount_amount'] - $job['invoice_discount_amount_on_tax'];
+                //$job['total_amount_invoicable'] = $job['total_amount_invoicable'] - $job['invoice_discounts']-$job['invoice_discounts_tax'];
 
-
-                $job['total_amount_todo'] = $job['total_amount'] -  $job['total_amount_invoiced'] - $job['total_amount_invoicable'];//$job['total_amount_paid'] -
+                $job['total_amount_todo'] = $job['total_amount_discounted'] - $job['total_amount_invoiced'] - $job['total_amount_invoicable'];//$job['total_amount_paid'] -
 
             }
 
@@ -1715,11 +1998,18 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
             'status' => false,
         );
 
+        $job_data = false;
+
         $job_task_creation_permissions = self::get_job_task_creation_permissions();
         // check for new tasks or changed tasks.
         $tasks = self::get_tasks($job_id);
         if(isset($data['job_task']) && is_array($data['job_task'])){
             foreach($data['job_task'] as $task_id => $task_data){
+
+                if(isset($task_data['manual_percent']) && strlen($task_data['manual_percent']) == 0){
+                    unset($task_data['manual_percent']);
+                }
+
                 $original_task_id = $task_id;
                 $task_id = (int)$task_id;
                 if(!is_array($task_data))continue;
@@ -1761,6 +2051,12 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                         $task_data['fully_completed'] = 0;
                     }else if(isset($tasks[$task_id]) && !$tasks[$task_id]['fully_completed']){
                         // we completed a preveiously incomplete task.
+
+                        // chekc if this task has a custom percentage filled in, we remove this custom percentage.
+                        if(isset($task_data['manual_percent']) && $task_data['manual_percent']>=0){
+                            $task_data['manual_percent'] = -1;
+                        }
+
                         // hack: if we haven't logged any hours for this, we log the number of hours.
                         // if we have logged some hours already then we don't log anything extra.
                         // this is so they can log 0.5hours for a 1 hour completed task etc..
@@ -1779,6 +2075,11 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                 // check if we haven't unticked a billable task
                 if(isset($task_data['billable_t']) && $task_data['billable_t'] && !isset($task_data['billable'])){
                     $task_data['billable'] = 0;
+                }
+                // set default taxable status
+                if(!isset($task_data['taxable_t'])){
+                    // we're creating a new task.
+                    $task_data['taxable'] = module_config::c('task_taxable_default',1);
                 }
                 if(isset($task_data['taxable_t']) && $task_data['taxable_t'] && !isset($task_data['taxable'])){
                     $task_data['taxable'] = 0;
@@ -1827,13 +2128,25 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
                     // log a new task record, and incrase the "completed" column.
                     //$original_task_data = $tasks[$task_id];
                     //$task_data['completed'] = $task_data['completed'] + $task_data['log_hours'];
-                    update_insert('task_log_id','new','task_log',array(
-                                                   'task_id' => $task_id,
-                                                   'job_id' => $job_id,
-                                                   'hours' => (float)$task_data['log_hours'],
-                                                   'log_time' => time(),
-                                                                 ));
-                    $result['log_hours'] = $task_data['log_hours'];
+                    // only log hours if it's an hourly task.
+
+
+                    if(!isset($task_data['manual_task_type']) || $task_data['manual_task_type'] < 0){
+                        if(!$job_data){
+                            $job_data = self::get_job($job_id);
+                        }
+                        $task_data['manual_task_type'] = $job_data['default_task_type'];
+                    }
+                    if($task_data['manual_task_type'] == _TASK_TYPE_HOURS_AMOUNT){
+
+                        update_insert('task_log_id','new','task_log',array(
+                                                       'task_id' => $task_id,
+                                                       'job_id' => $job_id,
+                                                       'hours' => (float)$task_data['log_hours'],
+                                                       'log_time' => time(),
+                                                                     ));
+                        $result['log_hours'] = $task_data['log_hours'];
+                    }
                 }
             }
         }
@@ -1866,6 +2179,10 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
 		$res = query($sql);
 		$sql = "UPDATE "._DB_PREFIX."job SET renew_job_id = NULL WHERE renew_job_id = '".$job_id."'";
 		$res = query($sql);
+        if(class_exists('module_file',false)){
+            $sql = "UPDATE "._DB_PREFIX."file SET job_id = 0 WHERE job_id = '".$job_id."'";
+            query($sql);
+        }
 
         if(class_exists('module_group',false)){
             module_group::delete_member($job_id,'job');
@@ -1943,6 +2260,17 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
             ));
         }else{
             return _JOB_ACCESS_ALL; // default to all permissions.
+        }
+    }
+
+    public static function get_job_task_access_permissions() {
+        if (class_exists('module_security',false)){
+            return module_security::can_user_with_options(module_security::get_loggedin_id(),'Job Task Data Access',array(
+                _JOB_TASK_ACCESS_ALL,
+                _JOB_TASK_ACCESS_ASSIGNED_ONLY,
+            ));
+        }else{
+            return _JOB_TASK_ACCESS_ALL; // default to all permissions.
         }
     }
 
@@ -2237,6 +2565,17 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
             }
         }
 
+        // new different formats for job data.
+        if((!isset($task_data['manual_task_type']) || $task_data['manual_task_type'] < 0 ) && isset($job['default_task_type'])){
+            // use the job task type
+            $task_data['manual_task_type'] = $job['default_task_type'];
+            // if this task has been invoiced then we lock the manual_task_type to wahtever the job default currently is
+            // this helps with the upgrade.
+            if($task_data['invoiced'] && $task_data['invoice_id']){
+                update_insert('task_id',$task_data['task_id'],'task',array('manual_task_type'=>$job['default_task_type']));
+            }
+        }
+
         include('pages/ajax_task_preview.php');
         return ob_get_clean();
     }
@@ -2282,6 +2621,9 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
 
         if(!$task_data['task_id'])return 0;
         $percentage = 0;
+        if(isset($task_data['manual_percent']) && $task_data['manual_percent']>=0){
+            return $task_data['manual_percent']/100; // manual percent is stored like 40, instead of 0.4
+        }
         if(module_config::c('job_task_log_all_hours',1)){
             if($task_data['fully_completed']){
                 $percentage = 1;
@@ -2413,6 +2755,9 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
         if(!isset($fields['currency_id'])){
             $sql .= 'ALTER TABLE  `'._DB_PREFIX.'job` ADD  `currency_id` int(11) NOT NULL DEFAULT  \'1\' AFTER  `user_id`;';
         }
+        if(!isset($fields['default_task_type'])){
+            $sql .= 'ALTER TABLE  `'._DB_PREFIX.'job` ADD  `default_task_type` int(3) NOT NULL DEFAULT  \'0\' AFTER  `user_id`;';
+        }
         if(!isset($fields['date_quote'])){
             $sql .= 'ALTER TABLE  `'._DB_PREFIX.'job` ADD  `date_quote` date NOT NULL AFTER `total_tax_rate`;';
             $sql .= 'UPDATE `'._DB_PREFIX.'job` SET `date_quote` = `date_created`;';
@@ -2430,6 +2775,12 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
         }
         if(!isset($fields['taxable'])){
             $sql .= 'ALTER TABLE  `'._DB_PREFIX.'task` ADD  `taxable` tinyint(1) NOT NULL DEFAULT \'1\' AFTER `amount`;';
+        }
+        if(!isset($fields['manual_percent'])){
+            $sql .= 'ALTER TABLE  `'._DB_PREFIX.'task` ADD  `manual_percent` int(4) NOT NULL DEFAULT \'-1\' AFTER `taxable`;';
+        }
+        if(!isset($fields['manual_task_type'])){ // if -1 then we use job default_task_type
+            $sql .= 'ALTER TABLE  `'._DB_PREFIX.'task` ADD  `manual_task_type` tinyint(2) NOT NULL DEFAULT \'-1\' AFTER `manual_percent`;';
         }
         /*if(!isset($fields['task_type'])){
             $sql .= 'ALTER TABLE  `'._DB_PREFIX.'task` ADD  `task_type` tinyint(2) NOT NULL DEFAULT \'0\' AFTER `task_order`;';
@@ -2469,6 +2820,7 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
     `date_renew` date NOT NULL,
     `renew_job_id` INT(11) NULL,
     `user_id` INT NOT NULL DEFAULT  '0',
+    `default_task_type` int(3) NOT NULL DEFAULT  '0',
     `auto_task_numbers` TINYINT( 1 ) NOT NULL DEFAULT  '0',
     `job_discussion` TINYINT( 1 ) NOT NULL DEFAULT  '0',
     `currency_id` INT NOT NULL DEFAULT  '1',
@@ -2495,6 +2847,8 @@ Job Name: <strong>{JOB_NAME}</strong> <br/>
     `long_description` LONGTEXT NULL,
     `date_due` date NOT NULL,
     `date_done` date NOT NULL,
+    `manual_percent` int(4) NOT NULL DEFAULT '-1',
+    `manual_task_type` tinyint(2) NOT NULL DEFAULT '-1',
     `invoice_id` int(11) NULL,
     `user_id` INT NOT NULL DEFAULT  '0',
     `approval_required` TINYINT( 1 ) NOT NULL DEFAULT  '0',

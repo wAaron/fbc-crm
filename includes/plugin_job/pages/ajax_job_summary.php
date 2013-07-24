@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */ if(module_invoice::can_i('view','Invoices')){ ?>
 
 <table border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_full">
@@ -64,7 +64,7 @@
     <?php } ?>
     <tr>
         <?php if($show_task_numbers){ ?>
-        <td rowspan="7">&nbsp;</td>
+        <td rowspan="10">&nbsp;</td>
         <?php } ?>
         <td>
             <?php echo _l('%s Hours Total',$job['total_hours']);?>
@@ -79,9 +79,6 @@
             <span class="currency">
             <?php echo dollar($job['total_sub_amount'],true,$job['currency_id']);?>
             </span>
-            <?php if($job['invoice_discounts']>0){ ?>
-            <br/><?php _e('(%s discount)',dollar($job['invoice_discounts'],true,$job['currency_id']));?>
-            <?php } ?>
         </td>
         <td>
             &nbsp;
@@ -128,7 +125,7 @@
             <?php } ?>
         </td>
         <td>
-            <?php _e('Total:');?>
+            <?php echo ($job['invoice_discount_amount']>0) ? _l('Sub Total:') : _l('Total:');?>
         </td>
         <td>
             <span class="currency" style="text-decoration: underline; font-weight: bold;">
@@ -139,6 +136,38 @@
             &nbsp;
         </td>
     </tr>
+    <?php if($job['invoice_discount_amount']>0){ ?>
+    <tr>
+        <td>
+        </td>
+        <td>
+            <?php _e('Invoice Discounts:');?>
+        </td>
+        <td>
+            <span class="currency">
+                <?php echo dollar($job['invoice_discount_amount']+$job['invoice_discount_amount_on_tax'],true,$job['currency_id']);?>
+            </span>
+        </td>
+        <td colspan="2">
+            <?php if($job['invoice_discount_amount_on_tax']>0){ _h(_l('This value includes %s of discounted invoice tax.',dollar($job['invoice_discount_amount_on_tax'],true,$job['currency_id']))); } ?>
+        </td>
+    </tr>
+    <tr>
+        <td>
+        </td>
+        <td>
+            <?php _e('Discounted Total:');?>
+        </td>
+        <td>
+            <span class="currency" style="text-decoration: underline; font-weight: bold;">
+                <?php echo dollar($job['total_amount_discounted'],true,$job['currency_id']);?>
+            </span>
+        </td>
+        <td colspan="2">
+            &nbsp;
+        </td>
+    </tr>
+    <?php } ?>
     <tr>
         <td colspan="5">&nbsp;</td>
     </tr>
@@ -151,7 +180,7 @@
         </td>
         <td>
             <span class="currency">
-                <?php echo dollar($job['total_amount_invoiced'],true,$job['currency_id']);?>
+                <?php echo dollar($job['total_amount_invoiced'],true,$job['currency_id']); // $job['total_amount_invoiced_deposit'] ?>
             </span>
             <?php if(isset($job['total_amount_invoiced_deposit']) && $job['total_amount_invoiced_deposit'] > 0){ ?>
                 <br/>
@@ -202,57 +231,6 @@
             &nbsp;
         </td>
     </tr>
-    <!-- <tr>
-        <td align="right">
-
-        </td>
-        <td>
-            <?php _e('Invoicable:');?>
-        </td>
-        <td>
-            <span class="currency error_text">
-                <?php echo dollar($job['total_amount_invoicable'],true,$job['currency_id']);?>
-            </span>
-        </td>
-        <td colspan="2">
-            <?php
-
-        $real_due = $due = $job['total_amount_invoicable'];// - $job['total_amount_invoiced'];
-        if( $due > 0){
-            if($due == $job['total_amount_invoicable']){
-                $real_due = 0; // don't create a custom invoice
-            }else{
-                // create a custom invoice for this remainder amount
-                // but take the tax off (if it exists) because the invoice will add that again ontop
-                if($job['total_tax_rate'] > 0){
-                    // reverse enginner the amount of tax on it:
-                    $real_due = ($real_due / (1+$job['total_tax_rate']/100));
-                }
-            }
-            ?>
-                <a href="<?php echo module_invoice::link_generate('new',array('arguments'=>array(
-                'job_id' => $job_id,
-                'amount_due' => $real_due,
-            ))); ?>"><?php echo _l('Create invoice for %s',dollar($due,true,$job['currency_id']));?></a>
-        <?php } ?>
-            </td>
-        </tr>
-        <tr>
-            <td align="right">
-
-            </td>
-            <td>
-                <?php _e('Todo:');?>
-            </td>
-            <td>
-                <span class="currency error_text">
-                    <?php echo dollar($job['total_amount_todo'],true,$job['currency_id']);?>
-                </span>
-            </td>
-            <td colspan="2">
-
-            </td>
-        </tr> -->
     </tbody>
 </table>
 <?php }else{ ?>

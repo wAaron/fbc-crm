@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 function sort_groups($a,$b){
@@ -16,7 +16,7 @@ function sort_groups($a,$b){
 class module_group extends module_base{
 	
 	var $links;
-    public $version = 2.184;
+    public $version = 2.186;
     // 2.15 - group id as get_groups() index for easier drop down searching.
     // 2.16 - better fine tuning of group permissions
     // 2.17 - deleting members from groups when they have been deleted (eg: delete customer)
@@ -25,6 +25,8 @@ class module_group extends module_base{
     // 2.182 - bulk actions addition
     // 2.183 - customer contact last name correctly flows through to newsletter system now.
     // 2.184 - mobile fix
+    // 2.185 - 2013-06-14 - newsletter send to all contacts under grouped customer
+    // 2.186 - 2013-07-01 - deleted member fix
 
     public static function can_i($actions,$name=false,$category=false,$module=false){
         if(!$module)$module=__CLASS__;
@@ -252,7 +254,7 @@ class module_group extends module_base{
                         </th>
                         <td>
                             <label for="groupchk<?php echo $owner_table.$group_id;?>"></label>
-                            <input type="text" name="group_module_name[<?php echo $owner_table;?>][<?php echo $group_id;?>]">
+                            <input type="text" name="group_module_name[<?php echo $owner_table;?>][<?php echo $group_id;?>]" autocomplete="off">
                         </td>
                     </tr>
                     <?php } ?>
@@ -358,20 +360,23 @@ class module_group extends module_base{
         switch($args['owner_table']){
             case 'user':
                 if((int)$args['owner_id']>0){
-                    $sql = "SELECT c.customer_name AS company_name";
+                    $sql = "SELECT c.customer_name AS company_name, c.customer_name AS customer_name";
                     $sql .= " , pu.user_id ";
                     $sql .= " , c.customer_id ";
                     $sql .= " ,c.credit ";
-                    $sql .= " , pu.name AS user_name, pu.phone AS phone, pu.`email` AS `email`, pu.`mobile` AS `mobile`";
+                    $sql .= " , pu.name AS user_name, pu.name AS first_name, pu.last_name AS last_name, pu.phone AS phone, pu.`email` AS `email`, pu.`mobile` AS `mobile`";
                     $sql .= " , a.line_1, a.line_2, a.suburb, a.state, a.region, a.country, a.post_code ";
                     $sql .= ' FROM `'._DB_PREFIX."user` pu";
                     $sql .= " LEFT JOIN `"._DB_PREFIX."customer` c ON pu.customer_id = c.customer_id";
                     $sql .= ' LEFT JOIN `'._DB_PREFIX."address` a ON c.customer_id = a.owner_id AND a.owner_table = 'customer' AND a.address_type = 'physical'";
                     $sql .= " WHERE pu.user_id = ".(int)$args['owner_id'];
                     $user = qa1($sql);
-                    $name_parts = explode(" ",preg_replace('/\s+/',' ',$user['user_name']));
-                    $user['first_name'] = array_shift($name_parts);
-                    $user['last_name'] = implode(' ',$name_parts);
+                    if(!is_array($user) || !isset($user['user_id']) || !$user['user_id']){
+                        return false;
+                    }
+//                    $name_parts = explode(" ",preg_replace('/\s+/',' ',$user['user_name']));
+//                    $user['first_name'] = array_shift($name_parts);
+//                    $user['last_name'] = implode(' ',$name_parts);
                     // get extras for the user.
                     $extras = module_extra::get_extras(array('owner_table'=>'user','owner_id'=>$user['user_id']));
                     foreach($extras as $extra){
@@ -399,41 +404,53 @@ class module_group extends module_base{
                             $user[$key] = trim($extra['extra']);
                         }
                     }
-                    $user['_edit_link'] = module_user::link_open($user['user_id'],false,$user);
+                    if($user['customer_id']){
+                        $user['_edit_link'] = module_user::link_open_contact($user['user_id'],false,$user);
+                    }else{
+                        $user['_edit_link'] = module_user::link_open($user['user_id'],false,$user);
+                    }
                     return $user;
                 }
                 break;
             case 'customer':
-                $sql = "SELECT c.customer_name AS company_name";
-                $sql .= " ,c.credit ";
-                $sql .= " , pu.user_id ";
-                $sql .= " , c.customer_id ";
-                $sql .= " , pu.name AS user_name, pu.name AS first_name, pu.last_name AS last_name, pu.phone AS phone, pu.`email` AS `email`, pu.`mobile` AS `mobile`";
-                $sql .= " , a.line_1, a.line_2, a.suburb, a.state, a.region, a.country, a.post_code ";
-                $sql .= " FROM `"._DB_PREFIX."customer` c ";
-                $sql .= ' LEFT JOIN `'._DB_PREFIX."address` a ON c.customer_id = a.owner_id AND a.owner_table = 'customer' AND a.address_type = 'physical'";
-                $sql .= ' LEFT JOIN `'._DB_PREFIX."user` pu ON c.primary_user_id = pu.user_id";
-                $sql .= " WHERE c.customer_id = ".(int)$args['owner_id'];
-                $user = qa1($sql);
-                if(!$user || !isset($user['customer_id']))return array();
-                //$name_parts = explode(" ",preg_replace('/\s+/',' ',$user['user_name']));
-                //$user['first_name'] = array_shift($name_parts);
-                //$user['last_name'] = implode(' ',$name_parts);
-                    // get extras for the customer.
-                $extras = module_extra::get_extras(array('owner_table'=>'customer','owner_id'=>$user['customer_id']));
-                foreach($extras as $extra){
-                    if(!strlen(trim($extra['extra'])))continue;
-                    $key = $extra['extra_key'];
-                    $x=1;
-                    while(isset($user[$key])){
-                        $key = $extra['extra_key'].$x;
-                        $x++;
+                if(module_config::c('newsletter_send_all_customer_contacts',1)){
+                    // update - we use the above 'user' callback and return a listing for each contact in the array.
+                    // using the special _multi flag hack to tell our newsletter plugin that this result contains multiple entries.
+                    $users = array(
+                        '_multi' => true,
+                    );
+                    $sql = "SELECT u.user_id FROM `"._DB_PREFIX."user` u WHERE u.customer_id = ".(int)$args['owner_id'];
+                    $contacts = qa($sql);
+                    foreach($contacts as $contact){
+                        $data_args = array(
+                             'owner_id'=>$contact['user_id'],
+                             'owner_table'=>'user',
+                         );
+                        $users[$contact['user_id']] = self::newsletter_callback($data_args);
+                        if($users[$contact['user_id']]){
+                            $users[$contact['user_id']]['data_args'] = json_encode($data_args);
+                        }
                     }
-                    $user[$key] = trim($extra['extra']);
-                }
-                if(isset($user['user_id']) && $user['user_id']>0){
-                    // get extras for the user.
-                    $extras = module_extra::get_extras(array('owner_table'=>'user','owner_id'=>$user['user_id']));
+                    return $users;
+                }else{
+
+                    $sql = "SELECT c.customer_name AS company_name, c.customer_name AS customer_name";
+                    $sql .= " ,c.credit ";
+                    $sql .= " , pu.user_id ";
+                    $sql .= " , c.customer_id ";
+                    $sql .= " , pu.name AS user_name, pu.name AS first_name, pu.last_name AS last_name, pu.phone AS phone, pu.`email` AS `email`, pu.`mobile` AS `mobile`";
+                    $sql .= " , a.line_1, a.line_2, a.suburb, a.state, a.region, a.country, a.post_code ";
+                    $sql .= " FROM `"._DB_PREFIX."customer` c ";
+                    $sql .= ' LEFT JOIN `'._DB_PREFIX."address` a ON c.customer_id = a.owner_id AND a.owner_table = 'customer' AND a.address_type = 'physical'";
+                    $sql .= ' LEFT JOIN `'._DB_PREFIX."user` pu ON c.primary_user_id = pu.user_id";
+                    $sql .= " WHERE c.customer_id = ".(int)$args['owner_id'];
+                    $user = qa1($sql);
+                    if(!$user || !isset($user['customer_id']))return array();
+                    //$name_parts = explode(" ",preg_replace('/\s+/',' ',$user['user_name']));
+                    //$user['first_name'] = array_shift($name_parts);
+                    //$user['last_name'] = implode(' ',$name_parts);
+                        // get extras for the customer.
+                    $extras = module_extra::get_extras(array('owner_table'=>'customer','owner_id'=>$user['customer_id']));
                     foreach($extras as $extra){
                         if(!strlen(trim($extra['extra'])))continue;
                         $key = $extra['extra_key'];
@@ -444,9 +461,23 @@ class module_group extends module_base{
                         }
                         $user[$key] = trim($extra['extra']);
                     }
+                    if(isset($user['user_id']) && $user['user_id']>0){
+                        // get extras for the user.
+                        $extras = module_extra::get_extras(array('owner_table'=>'user','owner_id'=>$user['user_id']));
+                        foreach($extras as $extra){
+                            if(!strlen(trim($extra['extra'])))continue;
+                            $key = $extra['extra_key'];
+                            $x=1;
+                            while(isset($user[$key])){
+                                $key = $extra['extra_key'].$x;
+                                $x++;
+                            }
+                            $user[$key] = trim($extra['extra']);
+                        }
+                    }
+                    $user['_edit_link'] = module_customer::link_open($user['customer_id'],false,$user);
+                    return $user;
                 }
-                $user['_edit_link'] = module_customer::link_open($user['customer_id'],false,$user);
-                return $user;
             case 'website':
                 $sql = "SELECT c.customer_name AS company_name";
                 $sql .= " ,c.credit ";

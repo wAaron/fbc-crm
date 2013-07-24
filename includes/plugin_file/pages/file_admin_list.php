@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */ 
 
 $search = (isset($_REQUEST['search']) && is_array($_REQUEST['search'])) ? $_REQUEST['search'] : array();
@@ -77,6 +77,9 @@ $colspan = 4;
         <th><?php echo _l('Job'); ?></th>
         <?php } ?>
         <th><?php echo _l('Date Added'); ?></th>
+        <?php if(class_exists('module_extra',false)){
+        module_extra::print_table_header('file');
+        } ?>
     </tr>
     </thead>
     <tbody>
@@ -115,6 +118,9 @@ $colspan = 4;
             <td>
                 <?php echo _l('%s by %s',print_date($file['date_created']),module_user::link_open($file['create_user_id'],true));?>
             </td>
+            <?php if(class_exists('module_extra',false)){
+            module_extra::print_table_data('file',$file['file_id']);
+            } ?>
 		</tr>
 		<?php } ?>
 	</tbody>

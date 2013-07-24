@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -107,6 +107,50 @@ function sort_recurring_finance($a,$b){
 }
 uasort($upcoming_finances,'sort_recurring_finance');
 
+// we have to search in PHP because our filters return results from all over the place
+if(isset($search)&&is_array($search)){
+    foreach($upcoming_finances as $recurring_id => $recurring){
+        if($recurring['next_due_date']&&$recurring['next_due_date']!='0000-00-00'){
+            $recurring_date = strtotime($recurring['next_due_date']);
+            if(isset($search['date_from'])&&strlen($search['date_from'])){
+                $search_from = strtotime(input_date($search['date_from']));
+                if($recurring_date < $search_from){
+                    unset($upcoming_finances[$recurring_id]);
+                    continue;
+                }
+            }
+            if(isset($search['date_to'])&&strlen($search['date_to'])){
+                $search_to = strtotime(input_date($search['date_to']));
+                if($recurring_date > $search_to){
+                    unset($upcoming_finances[$recurring_id]);
+                    continue;
+                }
+            }
+        }
+        if(isset($search['generic'])&&strlen($search['generic'])>0){
+            $name = strip_tags(isset($recurring['url'])&&$recurring['url'] ? $recurring['url'] : module_finance::link_open_recurring($recurring['finance_recurring_id'],true,$recurring));
+            if(stripos($name,$search['generic'])===false){
+                unset($upcoming_finances[$recurring_id]);
+                continue;
+            }
+        }
+        if(isset($search['amount_from'])&&strlen($search['amount_from'])){
+            $amount = number_in($search['amount_from']);
+            if($amount>0 && $recurring['amount'] < $amount){
+                unset($upcoming_finances[$recurring_id]);
+                continue;
+            }
+        }
+        if(isset($search['amount_to'])&&strlen($search['amount_to'])){
+            $amount = number_in($search['amount_to']);
+            if($amount>0 && $recurring['amount'] > $amount){
+                unset($upcoming_finances[$recurring_id]);
+                continue;
+            }
+        }
+    }
+}
+
 ?>
 
 <script type="text/javascript">
@@ -125,8 +169,48 @@ uasort($upcoming_finances,'sort_recurring_finance');
     <span class="button">
         <?php _h('This page shows a list of your recurring and upcoming transactions (eg: phone bill / server hosting / monthly income). This will help you plan a budget by reminding you when upcoming bills are due. ');?>
     </span>
-    <?php echo _l('Upcoming Transactions for next %s months',(int)module_config::c('finance_recurring_months',6)); ?>
+    <?php
+    if(isset($_REQUEST['search'])&&is_array($_REQUEST['search'])){
+        _e('Upcoming Transactions Search Results for next %s months',(int)module_config::c('finance_recurring_months',6));
+    }else{
+        _e('Upcoming Transactions for next %s months',(int)module_config::c('finance_recurring_months',6));
+    }
+    ?>
 </h2>
+
+<form action="" method="post" id="finance_recurring_form">
+
+    <table class="search_bar">
+        <tr>
+            <th><?php _e('Filter By:'); ?></th>
+            <td class="search_title">
+                <?php echo _l('Due Date:');?>
+            </td>
+            <td class="search_input">
+                <input type="text" name="search[date_from]" value="<?php echo isset($search['date_from'])?htmlspecialchars($search['date_from']):''; ?>" class="date_field">
+                <?php _e('to');?>
+                <input type="text" name="search[date_to]" value="<?php echo isset($search['date_to'])?htmlspecialchars($search['date_to']):''; ?>" class="date_field">
+            </td>
+            <td class="search_title">
+                <?php _e('Name:');?>
+            </td>
+            <td class="search_input">
+                <input type="text" name="search[generic]" value="<?php echo isset($search['generic'])?htmlspecialchars($search['generic']):''; ?>" size="20">
+            </td>
+            <td class="search_title">
+                <?php _e('Amount:');?>
+            </td>
+            <td class="search_input">
+                <input type="text" name="search[amount_from]" value="<?php echo isset($search['amount_from'])?htmlspecialchars($search['amount_from']):''; ?>" class="currency">
+                <?php _e('to');?>
+                <input type="text" name="search[amount_to]" value="<?php echo isset($search['amount_to'])?htmlspecialchars($search['amount_to']):''; ?>" class="currency">
+            </td>
+            <td class="search_action">
+                <?php echo create_link("Search","submit"); ?>
+            </td>
+        </tr>
+    </table>
+
 
 <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_rows">
     <thead>
@@ -240,5 +324,5 @@ uasort($upcoming_finances,'sort_recurring_finance');
     <?php } ?>
   </tbody>
 </table>
-
+</form>
     <!-- end -->

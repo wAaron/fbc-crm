@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 $options = isset($_REQUEST['options']) ? unserialize(base64_decode($_REQUEST['options'])) : array();
@@ -70,15 +70,17 @@ if($file_id>0 && $file['file_id']==$file_id){
 
 if(!isset($file['customer_id'])||!$file['customer_id'])$file['customer_id']=false; // helps with drop downs below.
 
+$plupload_key = md5(time().mt_rand(1,300));
 
 ?>
 
 
 	
-<form action="" method="post" enctype="multipart/form-data">
+<form action="" method="post" enctype="multipart/form-data" id="form_file_save">
 	<input type="hidden" name="_process" value="save_file" class="no_permissions" />
     <input type="hidden" name="file_id" value="<?php echo $file_id; ?>" class="no_permissions" />
     <input type="hidden" name="options" value="<?php echo base64_encode(serialize($options)); ?>" class="no_permissions" />
+
 
 
     <?php
@@ -127,7 +129,131 @@ if(!isset($file['customer_id'])||!$file['customer_id'])$file['customer_id']=fals
 									<?php echo _l('Upload File'); ?>
 								</th>
 								<td>
+                                    <?php if(module_config::c('file_upload_old',0)){ ?>
 									<input type="file" name="file_upload">
+                                    <?php }else{ ?>
+
+                                        <!-- Third party script for BrowserPlus runtime (Google Gears included in Gears runtime now) -->
+<!-- <script type="text/javascript" src="http://bp.yahooapis.com/2.4.21/browserplus-min.js"></script> -->
+
+<!-- Load plupload and all it's runtimes and finally the jQuery queue widget -->
+<script type="text/javascript" src="<?php echo full_link('includes/plugin_file/js/plupload.full.js');?>"></script>
+
+<script type="text/javascript">
+// Custom example logic
+var uploader=null;
+var selected_files=[];
+$(function() {
+	uploader = new plupload.Uploader({
+		runtimes : 'html5,flash', //html5,silverlight,gears,browserplus
+		browse_button : 'pickfiles',
+		container : 'container',
+		/*max_file_size : '10mb',*/
+		url : '<?php echo module_file::link_open($file_id,false);?>&_process=plupload&plupload_key=<?php echo $plupload_key;?>',
+		flash_swf_url : '<?php echo full_link('includes/plugin_file/js/plupload.flash.swf');?>'
+		/*filters : [
+			{title : "Image files", extensions : "jpg,gif,png"},
+			{title : "Zip files", extensions : "zip"}
+		],
+		resize : {width : 320, height : 240, quality : 90}*/
+	});
+
+	uploader.bind('Init', function(up, params) {
+		//$('#filelist').html("<div>Current runtime: " + params.runtime + "</div>");
+		$('#filelist').html("");
+	});
+
+	$('#butt_save').click(function(e) {
+        if(selected_files.length>0){
+            uploader.start();
+            e.preventDefault();
+            return false;
+        }
+	});
+
+	uploader.init();
+
+
+	uploader.bind('FilesAdded', function(up, files) {
+
+
+        /*console.debug(up.files);
+         plupload.each(files, function(file) {
+            if (up.files.length > 1) {
+                up.removeFile(file);
+            }
+        });
+
+        // remove any selected files
+        var limit = 1,
+            fileCount = up.files.length,
+            i = 0,
+            ids = $.map(up.files, function (item) { return item.id; });
+        for (i = 0; i < fileCount; i++) {
+            uploader.removeFile(uploader.getFile(ids[i]));
+        }*/
+
+		$.each(files, function(i, file) {
+            selected_files.push({
+                file_id: file.id,
+                name: file.name
+            });
+			$('#filelist').append(
+				'<div id="' + file.id + '">' +
+				file.name + ' (' + plupload.formatSize(file.size) + ') <b></b>' +
+                    '<input type="hidden" name="plupload_file_name" value="'+file.name+'" />' +
+			'</div>');
+		});
+
+        if(selected_files.length>1){
+            for(var i = 0; i < selected_files.length-1; i++){
+                if(typeof selected_files[i] == 'object' && typeof selected_files[i]['file_id'] != 'undefined'){
+                    with({file_id:selected_files[i]['file_id']}){
+                        // timeout required to stop exception in plupload js
+                        setTimeout(function(){
+                            uploader.removeFile(uploader.getFile(file_id));
+                            $('#'+file_id).remove();
+                        },50);
+                    }
+                }
+            }
+        }
+		up.refresh(); // Reposition Flash/Silverlight
+	});
+
+
+	uploader.bind('UploadProgress', function(up, file) {
+		$('#' + file.id + " b").html(file.percent + "%");
+        $( "#progressbar" ).progressbar({
+          value: file.percent
+        });
+	});
+
+	uploader.bind('Error', function(up, err) {
+		$('#filelist').append("<div>Error: " + err.code +
+			", Message: " + err.message +
+			(err.file ? ", File: " + err.file.name : "") +
+			"</div>"
+		);
+
+		up.refresh(); // Reposition Flash/Silverlight
+	});
+
+	uploader.bind('FileUploaded', function(up, file) {
+		$('#' + file.id + " b").html("100% ... <?php _e('Processing, please wait');?>");
+        $('#form_file_save').append('<input type="hidden" name="plupload_key" value="<?php echo $plupload_key; ?>" />');
+        $('#form_file_save')[0].submit();
+	});
+});
+</script>
+
+<div id="progressbar"></div>
+<div id="container">
+	<div id="filelist"> Error, unable to upload files. </div>
+    <input type="button" name="u" id="pickfiles" value="<?php _e('Select Files');?>">
+</div>
+
+                                    <?php } ?>
                                     <?php if($file_id){ ?>
                                     <a href="<?php echo $module->link('file_edit',array('_process'=>'download','file_id'=>$file['file_id']),'file',false);?>"><?php echo nl2br(htmlspecialchars($file['file_name']));?></a>
                                     <?php } ?>
@@ -167,6 +293,7 @@ if(!isset($file['customer_id'])||!$file['customer_id'])$file['customer_id']=fals
 									<?php echo print_select_box(module_file::get_statuses(),'status',$file['status'],'',true,false,true); ?>
 								</td>
 							</tr>
+                            <?php if(class_exists('module_customer',false)){ ?>
 							<tr>
 								<th>
 									<?php echo _l('Customer'); ?>
@@ -187,7 +314,8 @@ if(!isset($file['customer_id'])||!$file['customer_id'])$file['customer_id']=fals
                                     ?>
 								</td>
 							</tr>
-                        <?php if (class_exists('module_job',false)){ ?>
+                            <?php }
+                            if (class_exists('module_job',false) && class_exists('module_customer',false)){ ?>
 							<tr>
 								<th>
 									<?php echo _l('Job'); ?>

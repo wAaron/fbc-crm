@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -23,6 +23,7 @@ class module_email extends module_base{
 	public $replace_values;
 
     public $email_id; // queued email id in system.
+    public $website_id;
     private $email_fields; // in db.
 
 
@@ -57,7 +58,7 @@ class module_email extends module_base{
 		$this->module_name = "email";
 		$this->module_position = 1666;
 
-        $this->version = 2.306;
+        $this->version = 2.318;
         // 2.23 - do the email string replace twice so we catch everything.
         // 2.24 - auth
         // 2.25 - bug fix, replace with arrays.
@@ -72,6 +73,18 @@ class module_email extends module_base{
         // 2.304 - showing email history in invoice/jobs/etc..
         // 2.305 - show which user emailed invoice/job/etc..
         // 2.306 - choose different templates when sending an email
+        // 2.307 - email compose fix
+        // 2.308 - started work on generic email compose for customers.
+        // 2.309 - easier ssl/tls options added to email settings area
+        // 2.31 - bcc/cc fix
+        // 2.311 - related job/website email fix
+        // 2.312 - 2013-04-12 - SQL fix in upgrade
+        // 2.313 - 2013-04-16 - fix for sending customer emails
+        // 2.314 - 2013-04-27 - default from email address is current user
+        // 2.315 - 2013-05-28 - email template tag improvements
+        // 2.316 - 2013-05-28 - email template first_name/last_name addition
+        // 2.317 - 2013-06-04 - remember selected job/website when chagning email template
+        // 2.318 - 2013-06-07 - email_from_logged_in_user option added
 
 
 		$this->reset();
@@ -91,8 +104,94 @@ class module_email extends module_base{
                 'menu_include_parent' => 0,
             );
         }
+        // only display if a customer has been created.
+        if(isset($_REQUEST['customer_id']) && $_REQUEST['customer_id'] && $_REQUEST['customer_id']!='new'){
+            $this->links[] = array(
+                "name"=>'Emails',
+                "p"=>"email_admin",
+                'args'=>array('email_id'=>false),
+                'holder_module' => 'customer', // which parent module this link will sit under.
+                'holder_module_page' => 'customer_admin_open',  // which page this link will be automatically added to.
+                'menu_include_parent' => 0,
+            );
+        }
     }
 
+     public static function link_generate($email_id=false,$options=array(),$link_options=array()){
+
+        $key = 'email_id';
+        if($email_id === false && $link_options){
+            foreach($link_options as $link_option){
+                if(isset($link_option['data']) && isset($link_option['data'][$key])){
+                    ${$key} = $link_option['data'][$key];
+                    break;
+                }
+            }
+            if(!${$key} && isset($_REQUEST[$key])){
+                ${$key} = $_REQUEST[$key];
+            }
+        }
+        $bubble_to_module = false;
+        if(!isset($options['type']))$options['type']='email';
+        $options['page'] = 'email_admin';
+        if(!isset($options['arguments'])){
+            $options['arguments'] = array();
+        }
+        $options['arguments']['email_id'] = $email_id;
+        $options['module'] = 'email';
+        if(isset($options['data'])){
+            $data = $options['data'];
+        }else{
+            $data = array();
+            if($email_id>0){
+                $data = self::get_email($email_id);
+            }
+            $options['data'] = $data;
+        }
+        if(!isset($data['customer_id'])&&isset($_REQUEST['customer_id']) && (int)$_REQUEST['customer_id']){
+            $data['customer_id']=(int)$_REQUEST['customer_id'];
+        }
+        // what text should we display in this link?
+        $options['text'] = (!isset($data['subject'])||!trim($data['subject'])) ? 'N/A' : $data['subject'];
+        if(isset($data['customer_id']) && $data['customer_id']>0){
+            $bubble_to_module = array(
+                'module' => 'customer',
+                'argument' => 'customer_id',
+            );
+        }
+        array_unshift($link_options,$options);
+
+        if(!module_security::has_feature_access(array(
+            'name' => 'Customers',
+            'module' => 'customer',
+            'category' => 'Customer',
+            'view' => 1,
+            'description' => 'view',
+        ))
+        ){
+            $bubble_to_module = false;
+            /*if(!isset($options['full']) || !$options['full']){
+                return '#';
+            }else{
+                return isset($options['text']) ? $options['text'] : 'N/A';
+            }*/
+
+        }
+        if($bubble_to_module){
+            global $plugins;
+            return $plugins[$bubble_to_module['module']]->link_generate(false,array(),$link_options);
+        }else{
+            // return the link as-is, no more bubbling or anything.
+            // pass this off to the global link_generate() function
+            return link_generate($link_options);
+
+        }
+    }
+
+	public static function link_open($email_id,$full=false){
+        return self::link_generate($email_id,array('full'=>$full));
+    }
+    
 	public function reset(){
 		// clear all local variables.
 		$this->replace_values = array();
@@ -225,6 +324,12 @@ class module_email extends module_base{
         $this->to[] = array(
             'type' => 'manual',
             'id' => false,
+            'name' => $name,
+            'email' => $email,
+        );
+    }
+    public function set_cc_manual($email,$name){
+        $this->cc[] = array(
             'name' => $name,
             'email' => $email,
         );
@@ -562,29 +667,43 @@ class module_email extends module_base{
     }
 
     public static function get_email_compose_options($options) {
-        $options = array_merge($options,array(
+        $from_email=$from_name=false;
+        if(module_security::is_logged_in() && module_config::c('email_from_logged_in_user',1)){
+            $my_details = module_user::get_user(module_security::get_loggedin_id());
+            $from_email = $my_details['email'];
+            $from_name = $my_details['name'];
+        }
+        $new_options = array(
             'subject' => isset($_REQUEST['subject']) ? $_REQUEST['subject'] : (isset($options['subject']) ? $options['subject'] : ''),
             'content' =>  isset($_REQUEST['content']) ? $_REQUEST['content'] : (isset($options['content']) ? $options['content'] : ''),
             'cancel_url' =>  isset($options['cancel_url']) ? $options['cancel_url'] : false,
             'complete_url' => isset($options['complete_url']) ? $options['complete_url'] : (isset($options['cancel_url']) ? $options['cancel_url'] : false),
-            'from_email' => isset($_REQUEST['from_email']) && $_REQUEST['from_email'] ? $_REQUEST['from_email'] : module_config::c('admin_email_address'),
-            'from_name' => isset($_REQUEST['from_name']) && $_REQUEST['from_name'] ? $_REQUEST['from_name'] : module_config::c('admin_system_name'),
+            'from_email' => isset($_REQUEST['from_email']) && $_REQUEST['from_email'] ? $_REQUEST['from_email'] : ($from_email?$from_email:module_config::c('admin_email_address')),
+            'from_name' => isset($_REQUEST['from_name']) && $_REQUEST['from_name'] ? $_REQUEST['from_name'] : ($from_name?$from_name:module_config::c('admin_system_name')),
             'to' => isset($_REQUEST['to']) ? $_REQUEST['to'] : (isset($options['to']) ? $options['to'] : array()),
             'to_select' => isset($_REQUEST['to_select']) ? $_REQUEST['to_select'] : (isset($options['to_select']) ? $options['to_select'] : false),
             'bcc' => isset($_REQUEST['bcc']) ? $_REQUEST['bcc'] : (isset($options['bcc']) ? $options['bcc'] : ''),
             'attachments' => isset($options['attachments']) ? $options['attachments'] : array(),
             'success_callback' => isset($options['success_callback']) ? $options['success_callback'] : '',
-        ));
+        );
+        foreach(array('website_id','invoice_id','job_id') as $key){
+            if(isset($_REQUEST[$key])){
+                $new_options[$key] = $_REQUEST[$key];
+            }
+        }
+        $options = array_merge($options,$new_options);
         return $options; 
     }
 
     private function _handle_send_email(){
-        $options = unserialize(base64_decode($_REQUEST['options']));
+        $options = @unserialize(base64_decode($_REQUEST['options']));
+        if(!$options)$options=array();
         $options = $this->get_email_compose_options($options);
         if(isset($_REQUEST['custom_to'])){
             $custom_to = explode('||',$_REQUEST['custom_to']);
             $custom_to['email'] = $custom_to[0];
             $custom_to['name'] = $custom_to[1];
+            $custom_to['user_id'] = isset($custom_to[2]) ? (int)$custom_to[2] : 0;
             $to = array($custom_to);
         }else{
             $to = isset($options['to']) && is_array($options['to']) ? $options['to'] : array();;
@@ -609,7 +728,14 @@ class module_email extends module_base{
             }
         }
         if(isset($options['customer_id'])){
+            // todo: verify this is a legit customer id we can send emails to.
             $email->customer_id = $options['customer_id'];
+            if($options['customer_id']>0){
+                foreach(module_customer::get_replace_fields($options['customer_id']) as $key=>$val){
+                    //echo "Replacing $key with $val <br>";
+                    $email->replace($key,$val);
+                }
+            }
         }
         if(isset($options['newsletter_id'])){
             $email->newsletter_id = $options['newsletter_id'];
@@ -619,10 +745,40 @@ class module_email extends module_base{
         }
         if(isset($options['invoice_id'])){
             $email->invoice_id = $options['invoice_id'];
+            if($options['invoice_id']>0){
+                foreach(module_invoice::get_replace_fields($options['invoice_id']) as $key=>$val){
+                    $email->replace($key,$val);
+                }
+            }
         }
         if(isset($options['job_id'])){
             $email->job_id = $options['job_id'];
+            if($options['job_id']>0){
+                foreach(module_job::get_replace_fields($options['job_id']) as $key=>$val){
+                    $email->replace($key,$val);
+                }
+            }
         }
+        if(isset($options['website_id'])){
+            $email->website_id = $options['website_id'];
+            if($options['website_id']>0){
+                foreach(module_website::get_replace_fields($options['website_id']) as $key=>$val){
+                    $email->replace($key,$val);
+                }
+            }
+        }
+
+        // final override for first_name last_name if selected from the custom to drop down
+        foreach($to as $t){
+            if(isset($t['user_id']) && $t['user_id']>0){
+                $user = module_user::get_user($t['user_id']);
+                if($user){
+                    $email->replace('first_name',$user['name']);
+                    $email->replace('last_name',$user['last_name']);
+                }
+            }
+        }
+
         if(isset($options['note_id'])){
             $email->note_id = $options['note_id'];
         }
@@ -646,10 +802,12 @@ class module_email extends module_base{
                 // new callback method using call_user_func_array
                 $args = $options['success_callback_args'];
                 $args['email_id'] = $email->email_id;
-                call_user_func($options['success_callback'],$args);
-            }else if($options['success_callback']){
+                if(preg_match('#module_\w#',$options['success_callback'])){
+                    call_user_func($options['success_callback'],$args);
+                }
+            }/*else if($options['success_callback']){
                 eval($options['success_callback']);
-            }
+            }*/
             set_message('Email sent successfully');
             redirect_browser($options['complete_url']);
         }else{
@@ -658,12 +816,41 @@ class module_email extends module_base{
         }
     }
 
+    
+    public static function get_email($email_id){
+        $email = get_single('email','email_id',$email_id);
+        if($email){
+            $email['attachments'] = @unserialize($email['attachments']);
+        }
+        // todo: permission check
+        if(!$email){
+            // todo: defaults
+            $email=array(
+                'email_id' => 0,
+                'subject' => '',
+                'attachments' => false,
+                'html_content' => '',
+                'text_content' => '',
+                'headers' => '',
+                'customer_id' => isset($_REQUEST['customer_id']) ? (int)$_REQUEST['customer_id'] : 0,
+                'job_id' => isset($_REQUEST['job_id']) ? (int)$_REQUEST['job_id'] : 0,
+                'website_id' => isset($_REQUEST['website_id']) ? (int)$_REQUEST['website_id'] : 0,
+            );
+        }
+        if(!is_array($email['attachments'])){
+            $email['attachments'] = array();
+        }
+        return $email;
+    }
+    public static function get_emails($search){
+        return get_multiple('email',$search);
+    }
     public static function display_emails($options) {
 
         if(!isset($options['search']['status'])){
             $options['search']['status'] = _MAIL_STATUS_SENT;
         }
-        $emails = get_multiple('email',$options['search']);
+        $emails = self::get_emails($options['search']);
         if(count($emails)>0){
             include("pages/email_widget.php");
         }
@@ -676,6 +863,10 @@ class module_email extends module_base{
   `sent_time` int(11) NOT NULL DEFAULT \'0\',
   `status` tinyint(1) NOT NULL DEFAULT \'0\',
   `customer_id` int(11) NOT NULL DEFAULT \'0\',
+  `job_id` int(11) NOT NULL DEFAULT \'0\',
+  `invoice_id` int(11) NOT NULL DEFAULT \'0\',
+  `website_id` int(11) NOT NULL DEFAULT \'0\',
+  `note_id` int(11) NOT NULL DEFAULT \'0\',
   `newsletter_id` int(11) NOT NULL DEFAULT \'0\',
   `send_id` int(11) NOT NULL DEFAULT \'0\',
   `debug` varchar(50) NOT NULL DEFAULT \'\',
@@ -691,7 +882,8 @@ class module_email extends module_base{
   `update_user_id` int(11) NULL,
   `create_ip_address` varchar(15) NOT NULL,
   `update_ip_address` varchar(15) NULL,
-  PRIMARY KEY (`email_id`)
+  PRIMARY KEY (`email_id`),
+  INDEX (  `job_id` ,  `invoice_id` ,  `note_id` )
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8;';
     }
 
@@ -701,7 +893,11 @@ class module_email extends module_base{
             $sql .= "ALTER TABLE  `"._DB_PREFIX."email` ADD  `job_id` INT NOT NULL DEFAULT  '0' AFTER  `send_id` ,
 ADD  `invoice_id` INT NOT NULL DEFAULT  '0' AFTER  `job_id` ,
 ADD  `note_id` INT NOT NULL DEFAULT  '0' AFTER  `invoice_id` ,
-ADD INDEX (  `job_id` ,  `invoice_id` ,  `note_id` )";
+ADD INDEX (  `job_id` ,  `invoice_id` ,  `note_id` ); ";
+        }
+        $fields = get_fields('email');
+        if(!isset($fields['website_id'])){
+            $sql .= 'ALTER TABLE  `'._DB_PREFIX.'email` ADD  `website_id` int(11) NOT NULL DEFAULT \'0\' AFTER `invoice_id`;';
         }
         return $sql;
     }

@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 /**
@@ -32,7 +32,7 @@ class module_encrypt extends module_base{
     public function init(){
         $this->module_name = "encrypt";
         $this->module_position = 1;
-        $this->version = 2.263;
+        $this->version = 2.264;
         // 2.2 - initial release
         // 2.21 - better support for new 'extra' fields
         // 2.22 - permissions.
@@ -44,6 +44,7 @@ class module_encrypt extends module_base{
         // 2.261 - remove console .log
         // 2.262 - fix for encrypted ticket submission + attachments
         // 2.263 - larger popup
+        // 2.264 - 2013-04-07 - fix for special characters in encryption
 
 
 

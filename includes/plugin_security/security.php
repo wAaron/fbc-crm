@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 define('_LABEL_USER_SPECIFIC','User Specific');
@@ -42,7 +42,10 @@ class module_security extends module_base{
 		$this->module_name = "security";
 		$this->module_position = 999;
 
-        $this->version = 2.484;
+        $this->version = 2.493;
+        // 2.493 - 2013-04-20 - added first default user role - Customer
+
+
         // 2.41 - public $process_editable_page so we can set it from contact edit
         // 2.42 - better login with linked accounts.
         // 2.43 - display user count under selected role
@@ -56,6 +59,14 @@ class module_security extends module_base{
         // 2.482 - fix for cron running with hashed passwords
         // 2.483 - option to force SSL upon login
         // 2.484 - php6 fix
+        // 2.485 - link fix
+        // 2.486 - big update, html purification for safer/prettier ticket/email display
+        // 2.487 - 2013-04-10 - new customer permissions
+        // 2.488 - 2013-04-10 - new customer permissions
+        // 2.489 - 2013-04-10 - new customer permissions
+        // 2.49 - 2013-04-11 - error message on invalid login
+        // 2.491 - 2013-04-11 - database sessions, login history and user session ending.
+        // 2.492 - 2013-04-12 - auto login improvement
 
         //self::can_user_login(1);
 
@@ -78,6 +89,15 @@ class module_security extends module_base{
                 'holder_module_page' => 'config_admin',  // which page this link will be automatically added to.
                 'menu_include_parent' => 0,
                 'order'=>4,
+            );
+            $this->links[] = array(
+                "name"=>"Login History",
+                "p"=>"login_history",
+                "args"=>array('security_role_id'=>false),
+                'holder_module' => 'config', // which parent module this link will sit under.
+                'holder_module_page' => 'config_admin',  // which page this link will be automatically added to.
+                'menu_include_parent' => 0,
+                'order'=>40,
             );
         }
 
@@ -567,13 +587,42 @@ class module_security extends module_base{
 	public static function get_data_access(){
 		return (self::getcred() && isset($_SESSION['_data_access']) && $_SESSION['_data_access']) ? unserialize($_SESSION['_data_access']) : array();
 	}
+
+    // this is used when filtering out customers from the system.
+    // it's also used in the can_access_data call that is used in some parts of the system.
+    private static $customer_restrictions=null;
     public static function get_customer_restrictions(){
-        $res = (isset($_SESSION['_restrict_customer_id'])) ? $_SESSION['_restrict_customer_id'] : false;
+        /*
+        new feature: we use this function instead of our hardcoded:
+        switch($customer_access){
+            case _CUSTOMER_ACCESS_ALL:
+            case _CUSTOMER_ACCESS_CONTACTS:
+            case _CUSTOMER_ACCESS_TASKS:
+            case _CUSTOMER_ACCESS_STAFF:
+        }
+        through out the system.
+        */
+
+        /*$res = (isset($_SESSION['_restrict_customer_id'])) ? $_SESSION['_restrict_customer_id'] : false;
         if(!is_array($res) && $res > 0){
             $res = array($res);
+        }*/
+        if(isset(self::$customer_restrictions)){
+            return self::$customer_restrictions;
         }
-        if(!$res)$res=array();
-        return $res;
+        self::$customer_restrictions=array();
+        $customers = module_customer::get_customers();
+        if(count($customers)>0){
+            foreach($customers as $customer){
+                self::$customer_restrictions[$customer['customer_id']] = $customer['customer_id'];
+            }
+        }else{
+            self::$customer_restrictions=array(
+                -1=>-1,
+            );
+        }
+
+        return self::$customer_restrictions;
     }
 
 	public static function logout(){
@@ -581,31 +630,33 @@ class module_security extends module_base{
 		//$_SESSION['_access_level'] = false;
 		$_SESSION['_user_type_id'] = false;
 		$_SESSION['_user_id'] = false;
-		$_SESSION['_restrict_customer_id'] = false;
+		//$_SESSION['_restrict_customer_id'] = false;
 		$_SESSION['display_mode'] = false;
 		//session_unset();
 		//session_destroy();
 	}
 
 	public static function auto_login($redirect=true){
-		$foo = explode(":",$_REQUEST['auto_login']);
-		$user_id = (int)$foo[0];
-		if($user_id){
-			// get the real key.
-			$real_key = self::get_auto_login_string($user_id);
-			if($real_key == $_REQUEST['auto_login']){
-				// log this security in !!
-				$sql = "SELECT * FROM "._DB_PREFIX."user WHERE user_id = '$user_id'";
-				$res = qa1($sql);
-				if($res){
-					if(getcred()){
-						set_message(_l("You have been logged out."));
-					}
-					$_REQUEST['email'] = $res['email'];
-					$_REQUEST['password'] = $res['password'];
-					return self::process_login($redirect);
-				}
-			}
+        if(strlen($_REQUEST['auto_login'])>7){
+            $foo = explode(":",$_REQUEST['auto_login']);
+            $user_id = (int)$foo[0];
+            if($user_id>0){
+                // get the real key.
+                $real_key = self::get_auto_login_string($user_id);
+                if($real_key == $_REQUEST['auto_login']){
+                    // log this security in !!
+                    $sql = "SELECT * FROM "._DB_PREFIX."user WHERE user_id = '$user_id'";
+                    $res = qa1($sql);
+                    if($res){
+                        if(getcred()){
+                            set_message(_l("You have been logged out."));
+                        }
+                        $_REQUEST['email'] = $res['email'];
+                        $_REQUEST['password'] = $res['password'];
+                        return self::process_login($redirect,false);
+                    }
+                }
+            }
 		}
         return false;
 	}
@@ -690,7 +741,19 @@ class module_security extends module_base{
         }
         redirect_browser(_BASE_HREF);
     }
-	public static function process_login($redirect=true){
+	public static function process_login($redirect=true,$captcha_check=true){
+
+        if($captcha_check && module_config::c('login_recaptcha',0)){
+            // ignore captcha check from auto_login call (sets $captcha_check=false)
+            if(!module_captcha::check_captcha_form()){
+                // captcha was wrong.
+                set_error('Sorry the captcha code you entered was incorrect. Please try again.');
+                return;
+                //_e('Sorry the captcha code you entered was incorrect. Please <a href="%s" onclick="%s">go back</a> and try again.','#','window.history.go(-1); return false;');
+                //exit;
+            }
+        }
+
 		$email = trim($_REQUEST['email']);
 		$password = trim($_REQUEST['password']);
 		$_SESSION['_AVA_logged_in'] = false;
@@ -729,7 +792,7 @@ class module_security extends module_base{
 				}
 				$_SESSION['_AVA_logged_in'] = true;
                 // todo - find out all their links.
-                if(isset($res['linked_parent_user_id']) && $res['linked_parent_user_id'] == $res['user_id']){
+                /*if(isset($res['linked_parent_user_id']) && $res['linked_parent_user_id'] == $res['user_id']){
                     // this user is a primary user.
                     $_SESSION['_restrict_customer_id'] = array();
                     $_SESSION['_restrict_customer_id'][$res['customer_id']] = $res['customer_id'];
@@ -741,7 +804,7 @@ class module_security extends module_base{
                 }else{
                     // oldschool permissions.
                     $_SESSION['_restrict_customer_id'] = $res['customer_id'];
-                }
+                }*/
 				// find the access level from the security_access table.
 
 				/*$level = self::get_access_level($res['user_id']);
@@ -770,6 +833,7 @@ class module_security extends module_base{
                 return true;
 			}
 		}
+        set_error('Invalid username or password, please try again.');
         return true;
 	}
 
@@ -808,41 +872,112 @@ class module_security extends module_base{
 			if($security_role_id){
 				$sql = "DELETE FROM `"._DB_PREFIX."security_role_perm` WHERE security_role_id = '".(int)$security_role_id."'";
 				query($sql);
-				if(isset($_REQUEST['permission']) && is_array($_REQUEST['permission'])){
-					// update permissions for this role.
-					foreach($_REQUEST['permission'] as $security_permission_id => $permissions){
-						$actions = array();
-						foreach(self::$available_permissions as $permission){
-							if(isset($permissions[$permission]) && $permissions[$permission]){
-								$actions[$permission] = 1;
-							}
-						}
-						$sql = "REPLACE INTO `"._DB_PREFIX."security_role_perm` SET security_role_id = '".(int)$security_role_id."', security_permission_id = '".(int)$security_permission_id."' ";
-						foreach($actions as $permission => $tf){
-							$sql .= ", `".mysql_real_escape_string($permission)."` = 1";
-						}
-						query($sql);
-					}
-				}
-				if(isset($_REQUEST['permission_drop_down']) && is_array($_REQUEST['permission_drop_down'])){
-					// update permissions for this role.
-                    $permission = 'view';
-					foreach($_REQUEST['permission_drop_down'] as $security_permission_ids => $selected_security_permission_id){
-                        $ids_to_clear = explode('|',$security_permission_ids);
-                        foreach($ids_to_clear as $id_to_clear){
-                            $id_to_clear = (int)$id_to_clear;
-                            if(!$id_to_clear)continue;
-                            $sql = "DELETE FROM `"._DB_PREFIX."security_role_perm` WHERE security_role_id = '".(int)$security_role_id."' AND security_permission_id = '".(int)$id_to_clear."' ";
-						    query($sql);
+                if(isset($_REQUEST['load_defaults']) && strlen($_REQUEST['load_defaults'])>0 && $defaults = json_decode($_REQUEST['load_defaults'],true)){
+
+                    //$export_json[$available_permission['category'].'|'.$available_permission['module'].'|'.$available_permission['name'].'|'.$available_permission['description']][] = $permission;
+                    foreach($defaults as $key => $permissions){
+                        list($category,$module,$name,$description) = explode('|',$key);
+                        $existing = get_single('security_permission',array(
+                            'name',
+                            'category',
+                            'description',
+                            'module',
+                        ),array(
+                            $name,
+                            $category,
+                            $description,
+                            $module,
+                        ));
+                        $security_permission_id = false;
+                        $available_perms = array();
+                        if($existing){
+                            $security_permission_id = $existing['security_permission_id'];
+                            $available_perms = @unserialize($existing['available_perms']);
+                            if(!is_array($available_perms)){
+                                $available_perms = array();
+                            }
                         }
-                        if((int)$selected_security_permission_id> 0){
-                            $sql = "REPLACE INTO `"._DB_PREFIX."security_role_perm` SET security_role_id = '".(int)$security_role_id."', security_permission_id = '".(int)$selected_security_permission_id."' ";
-                            $sql .= ", `".mysql_real_escape_string($permission)."` = 1";
+                        if(!$security_permission_id){
+                            $security_permission_id = update_insert('security_permission_id','new','security_permission',array(
+                                'name' => $name,
+                                'category' => $category,
+                                'module' => $module,
+                                'description' => $description,
+                            ));
                         }
-						query($sql);
-					}
-				}
-				set_message('Role saved successfully.');
+                        $save_perms = false;
+                        foreach(self::$available_permissions as $permission){
+                            if(in_array($permission,$permissions)){
+                                // the script is asking for this available permission.
+                                // check if it exists in the db as an option
+                                if(!isset($available_perms[$permission])){
+                                    // time to add it to the db so we can configure this in the future.
+                                    $available_perms[$permission] = true;
+                                    $save_perms = true;
+                                }
+                            }
+                        }
+                        if($save_perms &&  $security_permission_id){
+                            update_insert('security_permission_id',$security_permission_id,'security_permission',array(
+                                'available_perms' => serialize($available_perms)
+                            ));
+                        }
+                        if($security_permission_id){
+                            $actions = array();
+                            foreach(self::$available_permissions as $permission){
+                                if(in_array($permission,$permissions)){
+                                    $actions[$permission] = 1;
+                                }
+                            }
+                            if(count($actions)){
+                                $sql = "REPLACE INTO `"._DB_PREFIX."security_role_perm` SET security_role_id = '".(int)$security_role_id."', security_permission_id = '".(int)$security_permission_id."' ";
+                                foreach($actions as $permission => $tf){
+                                    $sql .= ", `".mysql_real_escape_string($permission)."` = 1";
+                                }
+                                query($sql);
+                            }
+                        }
+                    }
+                    set_message('Defaults loaded successfully.');
+
+
+                }else{
+                    if(isset($_REQUEST['permission']) && is_array($_REQUEST['permission'])){
+                        // update permissions for this role.
+                        foreach($_REQUEST['permission'] as $security_permission_id => $permissions){
+                            $actions = array();
+                            foreach(self::$available_permissions as $permission){
+                                if(isset($permissions[$permission]) && $permissions[$permission]){
+                                    $actions[$permission] = 1;
+                                }
+                            }
+                            $sql = "REPLACE INTO `"._DB_PREFIX."security_role_perm` SET security_role_id = '".(int)$security_role_id."', security_permission_id = '".(int)$security_permission_id."' ";
+                            foreach($actions as $permission => $tf){
+                                $sql .= ", `".mysql_real_escape_string($permission)."` = 1";
+                            }
+                            query($sql);
+                        }
+                    }
+                    if(isset($_REQUEST['permission_drop_down']) && is_array($_REQUEST['permission_drop_down'])){
+                        // update permissions for this role.
+                        $permission = 'view';
+                        foreach($_REQUEST['permission_drop_down'] as $security_permission_ids => $selected_security_permission_id){
+                            $ids_to_clear = explode('|',$security_permission_ids);
+                            foreach($ids_to_clear as $id_to_clear){
+                                $id_to_clear = (int)$id_to_clear;
+                                if(!$id_to_clear)continue;
+                                $sql = "DELETE FROM `"._DB_PREFIX."security_role_perm` WHERE security_role_id = '".(int)$security_role_id."' AND security_permission_id = '".(int)$id_to_clear."' ";
+                                query($sql);
+                            }
+                            if((int)$selected_security_permission_id> 0){
+                                $sql = "REPLACE INTO `"._DB_PREFIX."security_role_perm` SET security_role_id = '".(int)$security_role_id."', security_permission_id = '".(int)$selected_security_permission_id."' ";
+                                $sql .= ", `".mysql_real_escape_string($permission)."` = 1";
+                            }
+                            query($sql);
+                        }
+                    }
+                    set_message('Role saved successfully.');
+                }
 				redirect_browser($this->link_open_role($security_role_id));
 			}
 		}
@@ -1136,6 +1271,14 @@ INSERT INTO `<?php echo _DB_PREFIX; ?>security_access` VALUES (2, 2, '');
                 redirect_browser($url);
             }
         }
+    }
+
+    public static function purify_html($dirty_html){
+        require_once dirname(__FILE__) .'/htmlpurifier/HTMLPurifier.standalone.php';
+        $config = HTMLPurifier_Config::createDefault();
+        $config->set('Cache.SerializerPath', _UCM_FOLDER.'/temp/');
+        $purifier = new HTMLPurifier($config);
+        return $purifier->purify($dirty_html);
     }
 
 

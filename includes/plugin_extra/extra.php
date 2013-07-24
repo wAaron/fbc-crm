@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 define('_EXTRA_FIELD_DELIM','$#%|');
@@ -29,7 +29,7 @@ class module_extra extends module_base{
         return __CLASS__;
     }
 	function init(){
-        $this->version = 2.24;
+        $this->version = 2.242;
         // 2.16 - fix to disable editing when page isn't editable. this caused double ups on extra keys in table listings.
         // 2.17 - hooks for the encryption module to take over.
         // 2.18 - bug fix with new extra field types.
@@ -39,11 +39,15 @@ class module_extra extends module_base{
         // 2.22 - see Settings-Extra Fields for new options.
         // 2.23 - Extra bug fix
         // 2.24 - permission improvement
+        // 2.241 - clickable links in extra fields
+        // 2.242 - clickable links in extra fields
+        // 2.243 - new delete button in Settings > Extra Fields
 
 		$this->links = array();
 		$this->module_name = "extra";
 		$this->module_position = 8882;
         module_config::register_css('extra','extra.css');
+        module_config::register_js('extra','extra.js');
 	}
 
     public function pre_menu(){
@@ -162,7 +166,7 @@ class module_extra extends module_base{
                         <?php } ?>
                     </th>
                     <td>
-                        <input type="text" name="extra_<?php echo $owner_table;?>_field[<?php echo $extra_id;?>][val]" id="<?php echo $id;?>" value="<?php echo htmlspecialchars($extra_item['extra']);?>">
+                        <input type="text" name="extra_<?php echo $owner_table;?>_field[<?php echo $extra_id;?>][val]" id="<?php echo $id;?>" class="extra_value_input" value="<?php echo htmlspecialchars($extra_item['extra']);?>">
                     </td>
                 </tr>
                 <?php
@@ -520,7 +524,7 @@ class module_extra extends module_base{
             foreach(self::$column_headers[$owner_table] as $column_header){
                 ?>
                 <td>
-                    <?php echo isset($extra_data[$column_header['key']]) ? htmlspecialchars($extra_data[$column_header['key']]['extra']) : '';?>
+                    <?php echo isset($extra_data[$column_header['key']]) ? forum_text($extra_data[$column_header['key']]['extra']) : '';?>
                 </td>
                 <?php
             }

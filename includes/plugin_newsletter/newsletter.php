@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 define('_NEWSLETTER_STATUS_NEW',0);
@@ -25,7 +25,7 @@ class module_newsletter extends module_base{
 	public $links;
 	public $newsletter_types;
 
-    public $version = 2.444;
+    public $version = 2.449;
     // 2.3 - added templates to the listing.
     // 2.4 - newsletter subscriptions and modifying subscriptiond etials.
     // 2.41 - view online render correctly.
@@ -55,6 +55,11 @@ class module_newsletter extends module_base{
     // 2.442 - re-subscribe bug fix
     // 2.443 - link tracking improvements.
     // 2.444 - language fix
+    // 2.445 - view newsletter online bug fix
+    // 2.446 - bounce detection improvements
+    // 2.447 - improved quick search
+    // 2.448 - 2013-06-14 - newsletter send to all contacts under grouped customer
+    // 2.449 - 2013-07-01 - deleted member fix
 
 
 
@@ -105,7 +110,7 @@ class module_newsletter extends module_base{
         module_config::register_css('newsletter','newsletter.css');
 
         // todo - search the newsletter_send list for subjects as well..
-        $this->ajax_search_keys = array(
+        /*$this->ajax_search_keys = array(
             _DB_PREFIX.'newsletter' => array(
                 'plugin' => 'newsletter',
                 'search_fields' => array(
@@ -114,7 +119,7 @@ class module_newsletter extends module_base{
                 'key' => 'newsletter_id',
                 'title' => _l('Newsletter: '),
             ),
-        );
+        );*/
 
         if(class_exists('module_template',false)){
         module_template::init_template('newsletter_unsubscribe_done','<h2>Unsubscribe Successful</h2>
@@ -149,6 +154,43 @@ class module_newsletter extends module_base{
         }
 		
 	}
+    
+    public function ajax_search($search_key){
+        // return results based on an ajax search.
+        $ajax_results = array();
+        $search_key = trim($search_key);
+        if(strlen($search_key) > module_config::c('search_ajax_min_length',2)){
+            //$sql = "SELECT * FROM `"._DB_PREFIX."newsletter` c WHERE ";
+            //$sql .= " c.`newsletter_name` LIKE %$search_key%";
+            //$results = qa($sql);
+            $results = $this->get_newsletters(array('subject'=>$search_key,'group_results'=>1));
+            if(mysql_num_rows($results)){
+                while($result = mysql_fetch_assoc($results)){
+                    // what part of this matched?
+                    /*if(
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['name']) ||
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['last_name']) ||
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['phone'])
+                    ){
+                        // we matched the newsletter contact details.
+                        $match_string = _l('Newsletter Contact: ');
+                        $match_string .= _shl($result['newsletter_name'],$search_key);
+                        $match_string .= ' - ';
+                        $match_string .= _shl($result['name'],$search_key);
+                        // hack
+                        $_REQUEST['newsletter_id'] = $result['newsletter_id'];
+                        $ajax_results [] = '<a href="'.module_user::link_open_contact($result['user_id']) . '">' . $match_string . '</a>';
+                    }else{*/
+                        $match_string = _l('Newsletter: ');
+                        $match_string .= _shl($result['subject'],$search_key);
+                        $ajax_results [] = '<a href="'.$this->link_open($result['newsletter_id']) . '">' . $match_string . '</a>';
+                        //$ajax_results [] = $this->link_open($result['newsletter_id'],true);
+                    /*}*/
+                }
+            }
+        }
+        return $ajax_results;
+    }
 
     public static function link_generate($newsletter_id=false,$options=array(),$link_options=array(),$data=false){
 
@@ -369,6 +411,7 @@ class module_newsletter extends module_base{
                     $group_members = module_group::get_members($group_id);
                     //echo '<pre>';print_r($group_members);exit;
                     // give all these members a callback so the newsletter system can get more data from them.
+                    $group_members_with_data = array();
                     foreach($group_members as $id => $group_member){
                         $args = array(
                              'group_id'=>$group_id,
@@ -376,21 +419,51 @@ class module_newsletter extends module_base{
                              'owner_table'=>$group_member['owner_table'],
                          );
                         // run this data callback to get the data from this group member.
-                        $group_members[$id] = self::member_data_callback($callback,$args);
+                        $all_callback_data = self::member_data_callback($callback,$args);
+                        if(!$all_callback_data){
+                            $error_count++;
+                        }
+                        if(is_array($all_callback_data)){
+                            // check if $callback_data is a multi-array - sometimes this will return more than 1 record (eg: customer = returns all contacts under that customer)
+                            if(!isset($all_callback_data['_multi'])){
+                                // this is a single record. make it multi
+                                $all_callback_data = array($all_callback_data);
+                            }else{
+                                unset($all_callback_data['_multi']);
+                            }
+                            foreach($all_callback_data as $callback_data){
+                                if(!$callback_data)continue;
+                                if(!isset($callback_data['data_callback']) || !$callback_data['data_callback']){
+                                    $callback_data['data_callback'] = $callback;
+                                }
+                                if(!isset($callback_data['data_args']) || !$callback_data['data_args']){
+                                    $callback_data['data_args'] = json_encode($args);
+                                }
+                                $group_members_with_data[] = $callback_data;
+                            }
+                        }
+                        /*$group_members[$id] = self::member_data_callback($callback,$args);
                         if(!$group_members[$id]){
                             // todo: report this problematic group member, possibly remove group member from list.
                             $error_count++;
                             unset($group_members[$id]);
                         }else{
-                            $group_members[$id]['data_callback'] = $callback;
-                            $group_members[$id]['data_args'] = json_encode($args);
-                        }
+                            // a callback on customers will return all contacts for that customer (if advanced option is set)
+                            if(!isset($group_members[$id]['data_callback']) || !$group_members[$id]['data_callback']){
+                                $group_members[$id]['data_callback'] = $callback;
+                            }
+                            if(!isset($group_members[$id]['data_args']) || !$group_members[$id]['data_args']){
+                                $group_members[$id]['data_args'] = json_encode($args);
+                            }
+                        }*/
 
                     }
-                    $members = array_merge($members,$group_members);
+                    unset($group_members);
+                    //$members = array_merge($members,$group_members);
+                    $members = array_merge($members,$group_members_with_data);
                 }
                 if($error_count>0){
-set_error('Failed to get the information on '.$error_count.' group members.');
+                    set_error('Failed to get the information on '.$error_count.' group members.');
                 }
             }
             //echo '<pre>';print_r($members);exit;
@@ -477,11 +550,18 @@ set_error('Failed to get the information on '.$error_count.' group members.');
                         $done_member = true;
                     }else{
                         $error_count++;
-                        if(_DEBUG_MODE)die('failed to create member from email');
+                        if(_DEBUG_MODE){
+                            echo 'failed to create member from email';
+                            print_r($member);
+                            echo '<hr>';
+                        }
                     }
                 }
                 if($error_count){
                     set_error('Failed to add ' .$error_count.' group members to the queue. Possibly because they have no valid email address.');
+                    if(_DEBUG_MODE){
+                        //exit;
+                    }
                 }
                // exit;
                 if(!$done_member && !$adding_members){
@@ -630,6 +710,13 @@ set_error('Failed to get the information on '.$error_count.' group members.');
 			$where .= " u.bounce_email LIKE '%$str%' ";
 			$where .= ' ) ';
 		}
+		if(isset($search['subject'])){
+			$str = mysql_real_escape_string($search['subject']);
+			$where .= " AND ( ";
+			$where .= " u.subject LIKE '%$str%' "; /* OR ";
+			$where .= " ns.subject LIKE '%$str%'*/
+			$where .= ' ) ';
+		}
         if(isset($search['pending']) && $search['pending']){
             $where .= " AND ns.send_id IS NOT NULL AND ( ns.status = "._NEWSLETTER_STATUS_PAUSED;
             $where .= " OR ns.status = "._NEWSLETTER_STATUS_PENDING.") ";
@@ -646,7 +733,11 @@ set_error('Failed to get the information on '.$error_count.' group members.');
             }
         }
         $group_order = '';
-        if(isset($search['draft']) && $search['draft']){
+        if(
+            isset($search['draft']) && $search['draft']
+            ||
+            isset($search['group_results'])
+        ){
             // only show 1 newsletter in drafts
             $group_order .= ' GROUP BY u.newsletter_id ';
         }
@@ -1004,12 +1095,17 @@ set_error('Failed to get the information on '.$error_count.' group members.');
     public static function get_member($member_id){
         return get_multiple('newsletter_member',array('member_id'=>$member_id),'newsletter_member_id');
     }
-    public static function get_send_members($send_id,$all=false)
+    public static function get_send_members($send_id,$all=false,$unprocessed=false)
     {
+        // unprocessed flag is set from the processing cron job inside process_send()
         $sql = "SELECT s.*, m.*  ";
         $sql .= " , COUNT(lo.link_open_id) AS links_clicked ";
         //$sql .= " , lo.timestamp AS links_clicked ";
         $sql .= " , b.newsletter_blacklist_id,  b.`time` AS `unsubscribe_time2` ";
+        if(module_config::c('newsletter_doubleoptin_bypass',0)){
+            // this value is used on the statistics page:
+            $sql .= " , b.`reason` AS blacklist_reason";
+        }
         $sql .= " FROM `"._DB_PREFIX."newsletter_send_member` s ";
         $sql .= " LEFT JOIN `"._DB_PREFIX."newsletter_link_open` lo ON ( s.newsletter_member_id = lo.newsletter_member_id AND s.send_id = lo.send_id) ";
         $sql .= " LEFT JOIN `"._DB_PREFIX."newsletter_member` m ON ( s.newsletter_member_id = m.newsletter_member_id ) ";
@@ -1057,11 +1153,12 @@ set_error('Failed to get the information on '.$error_count.' group members.');
         $sql .= " OR m.receive_email = 0";
         $sql .= " OR m.email = ''";
         $sql .= " OR (m.unsubscribe_date IS NOT NULL AND m.unsubscribe_date != '0000-00-00') ";
-        $sql .= " OR b.newsletter_blacklist_id IS NOT NULL ";
+            $sql .= " OR ( b.newsletter_blacklist_id IS NOT NULL ";
+            if(module_config::c('newsletter_doubleoptin_bypass',0)){
+                $sql .= " AND  b.reason != 'doubleoptin' ";
+            }
+            $sql .= " )";
         $sql .= " )";
-        if(module_config::c('newsletter_doubleoptin_bypass',0)){
-            $sql .= " AND ( b.reason != 'doubleoptin' ) ";
-        }
         $sql .= " GROUP BY s.newsletter_member_id ";
         return query($sql);
     }
@@ -1166,7 +1263,7 @@ set_error('Failed to get the information on '.$error_count.' group members.');
         // check the status of this send is still ok to send.
         $sql = "SELECT `send_id`,`status` FROM `"._DB_PREFIX."newsletter_send` WHERE `newsletter_id` = $newsletter_id AND `send_id` = $send_id";
         // $sql .= " AND `status` = " . _NEWSLETTER_STATUS_PENDING ;
-        $status_check = array_shift(qa($sql,false));
+        $status_check = qa1($sql,false);
         if($status_check['send_id']==$send_id){ //$status_check['status']==_NEWSLETTER_STATUS_PENDING && 
             // we have a go for sending to the next member!
             $sql = "SELECT sm.*, m.* FROM `"._DB_PREFIX."newsletter_send_member` sm ";
@@ -1338,7 +1435,7 @@ set_error('Failed to get the information on '.$error_count.' group members.');
         $send_data = self::get_send($send_id);
         if($send_data && $newsletter && $send_data['newsletter_id'] != $newsletter['newsletter_id'])return array();
 
-        $send_time = isset($send_data['start_time']) ? $send_data['start_time'] : time();
+        $send_time = isset($send_data['start_time']) ? $send_data['start_time'] : isset($newsletter['date_updated']) ? strtotime($newsletter['date_updated']) : time();
         $replace = array();
         
         $replace['COMPANY_NAME'] = '';
@@ -1638,13 +1735,16 @@ set_error('Failed to get the information on '.$error_count.' group members.');
     }
     public static function view_online_url($newsletter_id,$newsletter_member_id=0,$send_id=0,$h=false){
         if(!$newsletter_member_id){
-            return full_link(_EXTERNAL_TUNNEL.'?m=newsletter&h=view_online&n='.$newsletter_id.'&'._MEMBER_HASH_URL_REDIRECT_BITS);
+            if($h){
+                return md5('s3cret7hash for newsletter view online '._UCM_FOLDER.' '.$newsletter_id.'-');
+            }
+            return full_link(_EXTERNAL_TUNNEL.'?m=newsletter&h=vo&n='.$newsletter_id.'&voh='.self::view_online_url($newsletter_id,0,0,true).'&'._MEMBER_HASH_URL_REDIRECT_BITS);
         }
         if($h){
             return md5('s3cret7hash for newsletter view online '._UCM_FOLDER.' '.$newsletter_id.'-'.$newsletter_member_id.'='.$send_id);
         }
         // note: nm= is parsed out in our new statstics_link_clicks.php page
-        return full_link(_EXTERNAL_TUNNEL.'?m=newsletter&h=view_online&n='.$newsletter_id.'&nm='.$newsletter_member_id.'&s='.$send_id.'&hash='.self::view_online_url($newsletter_id,$newsletter_member_id,$send_id,true));
+        return full_link(_EXTERNAL_TUNNEL.'?m=newsletter&h=vo&n='.$newsletter_id.'&nm='.$newsletter_member_id.'&s='.$send_id.'&hash='.self::view_online_url($newsletter_id,$newsletter_member_id,$send_id,true));
     }
     public static function link_to_link($send_id,$link_id,$newsletter_member_id,$h=false){
         if($h){
@@ -1756,8 +1856,44 @@ set_error('Failed to get the information on '.$error_count.' group members.');
                 include('public/unsubscribe.php');
 
                 break;
-            case 'view_online': // viewing the specified newsletter online.
-                //todo - track open?
+            case 'vo': // viewing the specified newsletter online.
+                $newsletter_id = isset($_REQUEST['n']) ? (int)$_REQUEST['n'] : 0;
+                $send_id = isset($_REQUEST['s']) ? (int)$_REQUEST['s'] : 0;
+                $voh = isset($_REQUEST['voh']) ? $_REQUEST['voh'] : false; // ifi no member id, eg: public viewing link.
+                $hash = isset($_REQUEST['hash']) ? $_REQUEST['hash'] : false; // set if member id, eg: view link from a send.
+                $newsletter_member_id = isset($_REQUEST['nm']) ? (int)$_REQUEST['nm'] : 0;
+                if($newsletter_id>0){
+                    if(!$voh && !$hash){
+                        //
+                        echo 'Bad hash. Please report this error.';
+                        exit;
+                    }else if($newsletter_id && $newsletter_member_id && $send_id && $hash){
+                        if(isset($_REQUEST[_MEMBER_HASH_URL_REDIRECT_BITS])){
+                            $correct_hash = self::newsletter_redirect_hash($newsletter_member_id,$send_id);
+                        }else{
+                            $correct_hash = self::view_online_url($newsletter_id,$newsletter_member_id,$send_id,true);
+                        }
+                        if($correct_hash == $hash){
+                            echo module_newsletter::render($newsletter_id,$send_id,$newsletter_member_id,'view_online');
+                            exit;
+                        }
+                    }
+                    if($voh){
+                        // public view link
+                        $correct_voh = self::view_online_url($newsletter_id,false,false,true);
+                        if($correct_voh == $voh){
+                            echo module_newsletter::render($newsletter_id,$send_id,false,'view_online');
+                            exit;
+                        }else{
+                            echo 'Bad newsletter hash. Please report this error.';
+                            exit;
+                        }
+                    }
+                }
+                echo 'Bad newsletter link. Please report this error.';
+                exit;
+                break;
+            case 'view_online': // todo - remove 'view_online' soon and go with 'vo' plus hash. helps prevent viewing past newsletters by changing id without hash.
 
                 $newsletter_id = isset($_REQUEST['n']) ? (int)$_REQUEST['n'] : 0;
                 if($newsletter_id>0){
@@ -2089,10 +2225,7 @@ set_error('Failed to get the information on '.$error_count.' group members.');
             $sql = $options[$installed_version][$new_version];
         }*/
 
-        $res = qa1("SHOW TABLES LIKE '"._DB_PREFIX."newsletter_blacklist'");
-        if(count($res)){
-            // exists.
-        }else{
+        if(!$this->db_table_exists('newsletter_blacklist')){
             // add this new table
             $sql .= 'CREATE TABLE IF NOT EXISTS `'._DB_PREFIX.'newsletter_blacklist` (
       `newsletter_blacklist_id` int(11) NOT NULL auto_increment,

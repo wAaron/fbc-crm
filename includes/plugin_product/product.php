@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -28,11 +28,18 @@ class module_product extends module_base{
 		$this->product_types = array();
 		$this->module_name = "product";
 		$this->module_position = 31;
-        $this->version = 2.14;
-        // 2.11 - initial release
-        // 2.12 - product permissions
-        // 2.13 - permission fix
+        $this->version = 2.147;
+        // 2.147 - 2013-06-16 - javascript fix
+        // 2.146 - 2013-06-07 - further work on product categories
+        // 2.145 - 2013-05-28 - further work on product categories
+        // 2.144 - 2013-05-28 - started work on product categories
+        // 2.143 - 2013-04-27 - css fix for large product list
+        // 2.142 - 2013-04-16 - product fix in invoice
+        // 2.141 - 2013-04-05 - product support in invoices
         // 2.14 - product import via CSV
+        // 2.13 - permission fix
+        // 2.12 - product permissions
+        // 2.11 - initial release
 
         if(module_security::is_logged_in() && self::can_i('view','Products')){
 
@@ -43,6 +50,11 @@ class module_product extends module_base{
                 switch($_REQUEST['_products_ajax']){
                     case 'products_ajax_search':
 
+//                        $sent = headers_sent($file, $line);
+//                        echo 'here';
+//                        print_r($sent);
+//                        print_r($file);
+//                        print_r($line);
                         if(self::$_product_count===false){
                             self::$_product_count = count(self::get_products());
                         }
@@ -52,15 +64,47 @@ class module_product extends module_base{
 
                             $search = array();
                             if(strlen($product_name)>2){
-                                $search['name'] = $product_name;
+                                $search['general'] = $product_name;
                             }
                             $products = self::get_products($search);
                             if(count($products)>0){
+                                // sort products by categories.
+                                $products_in_categories = array();
+                                foreach($products as $product_id => $product){
+                                    if($product['product_category_id'] && $product['product_category_name']){
+                                        if(!isset($products_in_categories[$product['product_category_name']])){
+                                            $products_in_categories[$product['product_category_name']] = array();
+
+                                        }
+                                        $products_in_categories[$product['product_category_name']][] = $product;
+                                        unset($products[$product_id]);
+                                    }else{
+
+                                    }
+                                }
+                                $cat_id=1;
                                 ?>
                                 <ul>
+                                    <?php foreach($products_in_categories as $category_name => $cat_products){ ?>
+                                        <li>
+                                            <a href="#" class="product_category_parent"><?php echo htmlspecialchars($category_name);?></a> (<?php _e('%s products',count($cat_products));?>)
+                                            <ul style="display:none;" id="product_category_<?php echo $cat_id++;?>">
+                                                <?php foreach($cat_products as $product){ ?>
+                                                    <li>
+                                                       <a href="#" onclick="return ucm.product.select_product(<?php echo $product['product_id'];?>);"> <?php echo htmlspecialchars($product['name']); ?></a>
+                                                    </li>
+                                                <?php } ?>
+                                            </ul>
+
+                                    <?php } ?>
                                     <?php foreach($products as $product){ ?>
                                     <li>
-                                        <a href="#" onclick="return ucm.product.select_product(<?php echo $product['product_id'];?>);"><?php echo htmlspecialchars($product['name']);?></a>
+                                        <a href="#" onclick="return ucm.product.select_product(<?php echo $product['product_id'];?>);"><?php
+                                            /*if($product['product_category_name']){
+                                                echo htmlspecialchars($product['product_category_name']);
+                                                echo ' &raquo; ';
+                                            }*/
+                                            echo htmlspecialchars($product['name']);?></a>
                                     </li>
                                     <?php } ?>
                                 </ul>
@@ -96,7 +140,7 @@ class module_product extends module_base{
 
 			$this->links['products'] = array(
 				"name"=>$link_name,
-				"p"=>"product_admin",
+				"p"=>"product_settings",
 				"args"=>array('product_id'=>false),
                 'holder_module' => 'config', // which parent module this link will sit under.
                 'holder_module_page' => 'config_admin',  // which page this link will be automatically added to.
@@ -128,6 +172,26 @@ class module_product extends module_base{
                 ${$key} = $_REQUEST[$key];
             }
         }
+
+        if(!isset($options['type']))$options['type']='product';
+        if(!isset($options['page']))$options['page']='product_settings';
+        if(!isset($options['arguments'])){
+            $options['arguments'] = array();
+        }
+        $options['arguments']['product_id'] = $product_id;
+        $options['module'] = 'product';
+
+         if($options['page']=='product_admin'||$options['page']=='product_admin_category'){
+
+            array_unshift($link_options,$options);
+             if($options['page']=='product_admin_category'){
+                $options['data'] = self::get_product_category($product_id);
+                $options['data']['name'] = $options['data']['product_category_name'];
+            }
+            $options['page']='product_settings';
+            // bubble back onto ourselves for the link.
+            return self::link_generate($product_id,$options,$link_options);
+         }
         // grab the data for this particular link, so that any parent bubbled link_generate() methods
         // can access data from a sub item (eg: an id)
 
@@ -153,7 +217,6 @@ class module_product extends module_base{
             'product_id' => $product_id,
         );
         // generate the path (module & page) for this link
-        $options['page'] = 'product_admin';
         $options['module'] = 'product';
 
         // append this to our link options array, which is eventually passed to the
@@ -187,29 +250,82 @@ class module_product extends module_base{
 
 
 	public static function link_open($product_id,$full=false,$data=array()){
-		return self::link_generate($product_id,array('full'=>$full,'data'=>$data));
+		return self::link_generate($product_id,array('full'=>$full,'data'=>$data,'page'=>'product_admin'));
+	}
+
+	public static function link_open_category($product_category_id,$full=false,$data=array()){
+		return self::link_generate($product_category_id,array('full'=>$full,'data'=>$data,'page'=>'product_admin_category','arguments'=>array('product_category_id'=>$product_category_id)));
 	}
 
 
 
 	public static function get_products($search=array()){
 
-		return get_multiple("product",$search,"product_id","fuzzy","name");
+        $sql = "SELECT * FROM `"._DB_PREFIX."product` p ";
+        $sql .= " LEFT JOIN `"._DB_PREFIX."product_category` pc USING (product_category_id) ";
+        $sql .= " WHERE 1 ";
+        if(isset($search['general'])&&strlen(trim($search['general']))){
+            $sql .= " AND ( p.name LIKE '%".mysql_real_escape_string($search['general'])."%'";
+            $sql .= " OR p.description LIKE '%".mysql_real_escape_string($search['general'])."%'";
+            $sql .= " OR pc.product_category_name LIKE '%".mysql_real_escape_string($search['general'])."%'";
+            $sql .= " )";
+        }
+        if(isset($search['name'])&&strlen(trim($search['name']))){
+            $sql .= " AND p.name LIKE '%".mysql_real_escape_string($search['name'])."%'";
+        }
+        if(isset($search['description'])&&strlen(trim($search['description']))){
+            $sql .= " AND p.description LIKE '%".mysql_real_escape_string($search['description'])."%'";
+        }
+        if(isset($search['product_category_name'])&&strlen(trim($search['product_category_name']))){
+            $sql .= " AND pc.product_category_name LIKE '%".mysql_real_escape_string($search['product_category_name'])."%'";
+        }
+        if(isset($search['product_id']) && (int)$search['product_id']>0){
+            $sql .= " AND p.product_id = ".(int)$search['product_id'];
+        }
+        if(isset($search['product_category_id']) && (int)$search['product_id']>0){
+            $sql .= " AND p.product_category_id = ".(int)$search['product_category_id'];
+        }
+        $sql .= " ORDER BY pc.product_category_name ASC, p.name ASC";
+        return qa($sql);
+
+		//return get_multiple("product",$search,"product_id","fuzzy","name");
 	}
+
 
 
 	public static function get_product($product_id){
         $product = get_single('product','product_id',$product_id);
+        //echo $product_id;print_r($product);exit;
         if(!$product){
             $product = array(
                 'name'=>'',
+                'product_category_id'=>'',
+                'product_category_name'=>'',
                 'amount'=>'',
                 'quantity'=>'',
                 'currency_id'=>'',
                 'description'=>'',
             );
         }
+        if($product['product_category_id']){
+            $product_category = self::get_product_category($product['product_category_id']);
+            $product['product_category_name'] = $product_category['product_category_name'];
+        }
         return $product;
+	}
+
+    public static function get_product_categories($search=array()){
+		return get_multiple("product_category",$search,"product_category_id","fuzzy","product_category_name");
+    }
+	public static function get_product_category($product_category_id){
+        $product_category = get_single('product_category','product_category_id',$product_category_id);
+        if(!$product_category){
+            $product_category = array(
+                'product_category_id'=>'',
+                'product_category_name'=>'',
+            );
+        }
+        return $product_category;
 	}
 
 
@@ -226,6 +342,10 @@ class module_product extends module_base{
 			$product_id = $this->save_product($_REQUEST['product_id'],$_POST);
 			set_message("Product saved successfully");
 			redirect_browser(self::link_open($product_id));
+		}else if("save_product_category" == $_REQUEST['_process']){
+			$product_category_id = $this->save_product_category($_REQUEST['product_category_id'],$_POST);
+			set_message("Product category saved successfully");
+			redirect_browser(self::link_open_category($product_category_id));
 		}
 	}
 
@@ -234,6 +354,11 @@ class module_product extends module_base{
 		$product_id = update_insert("product_id",$product_id,"product",$data);
         module_extra::save_extras('product','product_id',$product_id);
 		return $product_id;
+	}
+	public function save_product_category($product_category_id,$data){
+		$product_category_id = update_insert("product_category_id",$product_category_id,"product_category",$data);
+        //echo $product_category_id;print_r($data);exit;
+		return $product_category_id;
 	}
 
 
@@ -254,6 +379,16 @@ class module_product extends module_base{
         <span style="margin: 0 0 0 -23px; width: 20px; padding: 0; display: inline-block">
             <a href="#" onclick="return ucm.product.do_dropdown('<?php echo $task_id;?>',this);" class="ui-icon ui-icon-arrowthick-1-s">Products</a>
             <input type="hidden" name="job_task[<?php echo $task_id;?>][product_id]" id="task_product_id_<?php echo $task_id;?>" class="no_permissions" value="<?php echo isset($task_data['product_id']) ? (int)$task_data['product_id'] : '0';?>">
+        </span>
+        <?php
+        }
+    }
+    public static function print_invoice_task_dropdown($task_id=false,$task_data=array()){
+        if(self::can_i('view','Products')){
+        ?>
+        <span style="margin: 0 0 0 -23px; width: 20px; padding: 0; display: inline-block">
+            <a href="#" onclick="return ucm.product.do_dropdown('<?php echo $task_id;?>',this);" class="ui-icon ui-icon-arrowthick-1-s">Products</a>
+            <input type="hidden" name="invoice_invoice_item[<?php echo $task_id;?>][product_id]" id="invoice_product_id_<?php echo $task_id;?>" class="no_permissions" value="<?php echo isset($task_data['product_id']) ? (int)$task_data['product_id'] : '0';?>">
         </span>
         <?php
         }
@@ -298,6 +433,15 @@ class module_product extends module_base{
         if(!isset($fields['product_id'])){
             $sql .= 'ALTER TABLE `'._DB_PREFIX.'task` ADD `product_id` INT(11) NOT NULL DEFAULT \'0\' AFTER `task_order`;';
         }
+        if(!$this->db_table_exists('product_category')){
+            $sql .= 'CREATE TABLE `'._DB_PREFIX.'product_category` (
+  `product_category_id` int(11) NOT NULL auto_increment,
+  `product_category_name` varchar(255) NOT NULL DEFAULT \'\',
+  `date_created` date NOT NULL,
+  `date_updated` date NULL,
+  PRIMARY KEY  (`product_category_id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 ;';
+        }
         return $sql;
     }
     public function get_install_sql(){
@@ -315,6 +459,14 @@ CREATE TABLE `<?php echo _DB_PREFIX; ?>product` (
   `date_created` date NOT NULL,
   `date_updated` date NULL,
   PRIMARY KEY  (`product_id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 ;
+
+CREATE TABLE `<?php echo _DB_PREFIX; ?>product_category` (
+  `product_category_id` int(11) NOT NULL auto_increment,
+  `product_category_name` varchar(255) NOT NULL DEFAULT '',
+  `date_created` date NOT NULL,
+  `date_updated` date NULL,
+  PRIMARY KEY  (`product_category_id`)
 ) ENGINE=InnoDB  DEFAULT CHARSET=utf8 ;
 
 

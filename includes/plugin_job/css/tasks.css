@@ -59,3 +59,16 @@
 #create_invoice_button a{
     margin: 10px 0;
 }
+
+.edit_task_button{
+    padding:5px 10px 0 10px;
+}
+.edit_task_options{
+    vertical-align: top;
+}
+table.tableclass tbody.job_task_wrapper tr.task_editting td  {
+vertical-align: top;
+}
+table.tableclass tbody.job_task_wrapper tr.task_editting td.percentage_edit  {
+vertical-align: middle;
+}

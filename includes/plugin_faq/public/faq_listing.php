@@ -5,20 +5,24 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 $search = isset($_REQUEST['search']) ? $_REQUEST['search'] : array();
-if(isset($_REQUEST['faq_product_id']) && $_REQUEST['faq_product_id']){
+if(isset($_REQUEST['faq_product_id']) && $_REQUEST['faq_product_id'] && !isset($search['faq_product_id'])){
     $search['faq_product_id'] = $_REQUEST['faq_product_id'];
 }
 
 $faqs = module_faq::get_faqs($search);
 
+$show_search=isset($_REQUEST['show_search'])?$_REQUEST['show_search']:true;
+$show_header=isset($_REQUEST['show_header'])?$_REQUEST['show_header']:true;
+$show_product=isset($_REQUEST['show_product'])?$_REQUEST['show_product']:true;
 ?>
 
 
+<?php if($show_search){ ?>
 <form action="" method="<?php echo _DEFAULT_FORM_METHOD;?>">
 
     <input type="hidden" name="customer_id" value="<?php echo isset($_REQUEST['customer_id']) ? (int)$_REQUEST['customer_id'] : '';?>">
@@ -44,14 +48,20 @@ $faqs = module_faq::get_faqs($search);
             </td>
         </tr>
     </table>
+    <?php } ?>
+
 
     <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_rows">
+        <?php if($show_header){ ?>
         <thead>
         <tr class="title">
             <th><?php echo _l('Question'); ?></th>
+            <?php if($show_product){ ?>
             <th><?php echo _l('Products'); ?></th>
+            <?php } ?>
         </tr>
         </thead>
+        <?php } ?>
         <tbody>
         <?php
         $c=0;
@@ -63,6 +73,7 @@ $faqs = module_faq::get_faqs($search);
             <td nowrap="">
                 <a href="<?php echo module_faq::link_open_public($data['faq_id'],false);?>&faq_product_id=<?php echo isset($search['faq_product_id'])?(int)$search['faq_product_id']:'';?>"><?php echo htmlspecialchars($faq['question']); ?></a>
             </td>
+            <?php if($show_product){ ?>
             <td>
                 <?php
                 $items = array();
@@ -76,7 +87,13 @@ $faqs = module_faq::get_faqs($search);
                 echo implode(', ',$items);
                 ?>
             </td>
+            <?php } ?>
         </tr>
             <?php } ?>
         </tbody>
     </table>
+
+
+<?php if($show_search){ ?>
+    </form>
+<?php } ?>

@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 $locked = false;
@@ -320,7 +320,7 @@ module_form::prevent_exit(array(
             <?php } ?>
             <tr>
                 <th>
-                    <?php echo _l('Image'); ?>
+                    <?php echo _l('Attachment'); ?>
                 </th>
                 <td>
                      <?php if((int)$finance_id>0){ ?>
@@ -355,7 +355,7 @@ module_form::prevent_exit(array(
         <tr>
             <td colspan="2" align="center">
                 <input type="submit" name="butt_save" id="butt_save" value="<?php _e('Save'); ?>" class="submit_button save_button" />
-                <?php if((int)$finance_recurring_id>0){
+                <?php if((int)$finance_recurring_id>0 && isset($_SESSION['_finance_recurring_ids'])){
                     // find if there is a next recurring id
                     $next = 0;
                     foreach($_SESSION['_finance_recurring_ids'] as $next_data){

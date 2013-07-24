@@ -13,6 +13,7 @@
 var dtbaker_public_change_request = {
     url: '',
     hash: '',
+    include_url: true,
     set_cookie: function(c_name,value,exdays) {
         var exdate=new Date();
         exdate.setDate(exdate.getDate() + exdays);
@@ -44,7 +45,7 @@ var dtbaker_public_change_request = {
             var head= document.getElementsByTagName('head')[0];
             var script= document.createElement('script');
             script.type= 'text/javascript';
-            script.src= t.url+t.hash+(t.url.match(/\?/)?'&':'?')+'url='+encodeURIComponent(window.location.href);
+            script.src= t.url+t.hash+ (t.include_url ? (t.url.match(/\?/)?'&':'?')+'url='+encodeURIComponent(window.location.href) : '');
             head.appendChild(script);
         }
     },

@@ -18,7 +18,7 @@ ucm.product = {
         this.text_box = txtbox;
         if(txtbox.value.length > 2 && txtbox.value != this.product_name_search){
             // grep the id out of this text box.
-            this.task_id = $(this.text_box).attr('id').replace(/task_desc_/,'');
+            this.task_id = $(this.text_box).data('id') ? $(this.text_box).data('id') : $(this.text_box).attr('id').replace(/task_desc_/,'');
             //console.log(this.task_id);
             // search!
 
@@ -35,8 +35,9 @@ ucm.product = {
                     '_products_ajax': 'products_ajax_search'
                 },
                 success: function(result){
+                    result = $.trim(result);
                     if(result != ''){
-                        $(ucm.product.text_box).attr('autocomplete','off');
+                        //$(ucm.product.text_box).attr('autocomplete','off');
                         ucm.product.show_dropdown(result);
                     }else{
                         ucm.product.hide_dropdown();
@@ -65,7 +66,16 @@ ucm.product = {
         if(t.text_box){
             $(t.text_box).before('<div class="product_select_dropdown">Loading...</div>');
             if(typeof products != 'undefined'){
+                $(ucm.product.text_box).attr('autocomplete','off');
                 $('.product_select_dropdown').html(products);
+
+                $('.product_category_parent').bind('click',function(e){
+                    $(this).next('ul').toggle();
+//                    e.stopImmediatePropagation();
+//                    e.stopPropagation();
+//                    e.preventDefault();
+                    return false;
+                });
             }else{
                 // todo - clean this ajax up into a single external call
                 try{ this.ajax_job.abort();}catch(err){}
@@ -77,9 +87,12 @@ ucm.product = {
                         '_products_ajax': 'products_ajax_search'
                     },
                     success: function(result){
+                        result = $.trim(result);
                         if(result != ''){
-                            $(ucm.product.text_box).attr('autocomplete','off');
-                            $('.product_select_dropdown').html(result);
+                            //$(ucm.product.text_box).attr('autocomplete','off');
+//                            $('.product_select_dropdown').html(result);
+                            ucm.product.show_dropdown(result);
+
                         }else{
                             ucm.product.hide_dropdown();
                         }
@@ -87,8 +100,8 @@ ucm.product = {
                 });
             }
             if(!t.clickbound){
-                setTimeout(function(){$('body').bind('click', t.hide_dropdown);},150);
                 t.clickbound=true;
+                setTimeout(function(){$('body').bind('click', t.hide_dropdown);},150);
             }
         }
     },
@@ -121,27 +134,42 @@ ucm.product = {
                 product_id: "1"
                 quantity: "4.00"*/
                 if(product_data && product_data.product_id){
+                    // hack for invoice support as well...
+
                     $('#task_product_id_'+ucm.product.task_id).val(product_data.product_id);
+                    $('#invoice_product_id_'+ucm.product.task_id).val(product_data.product_id);
+                    //etc...
                     if(typeof product_data.name != 'undefined'){
-                        $('#task_desc_'+ucm.product.task_id).val(product_data.name);
+                        var n = product_data.name;
+                        if(typeof product_data.product_category_id != 'undefined' && product_data.product_category_id > 0 && typeof product_data.product_category_name != 'undefined'){
+                            n = product_data.product_category_name + " > " + n;
+                        }
+                        $('#task_desc_'+ucm.product.task_id).val(n);
+                        $('#invoice_item_desc_'+ucm.product.task_id).val(n);
                     }
                     if(typeof product_data.quantity != 'undefined' && parseFloat(product_data.quantity)>0){
                         $('#task_hours_'+ucm.product.task_id).val(product_data.quantity);
+                        $('#'+ucm.product.task_id+'invoice_itemqty').val(product_data.quantity);
                     }else{
                         $('#task_hours_'+ucm.product.task_id).val('');
+                        $('#'+ucm.product.task_id+'invoice_itemqty').val('');
                     }
                     if(typeof product_data.amount != 'undefined' && parseFloat(product_data.amount)>0){
                         $('#'+ucm.product.task_id+'taskamount').val(product_data.amount);
+                        $('#'+ucm.product.task_id+'invoice_itemrate').val(product_data.amount);
                     }else{
                         $('#'+ucm.product.task_id+'taskamount').val('');
+                        $('#'+ucm.product.task_id+'invoice_itemrate').val('');
                     }
                     if(typeof product_data.description != 'undefined'){
                         $('#task_long_desc_'+ucm.product.task_id).val(product_data.description);
+                        $('#'+ucm.product.task_id+'_task_long_description').val(product_data.description);
                         if(product_data.description.length > 0){
                             $(ucm.product.text_box).parent().find('.task_long_description').slideDown();
                         }
                     }else{
                         $('#task_long_desc_'+ucm.product.task_id).val('');
+                        $('#'+ucm.product.task_id+'_task_long_description').val('');
                     }
                 }
             }

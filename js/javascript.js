@@ -226,15 +226,20 @@ function seladd(clickety){
 }
 function dynamic_select_box(element){
     if($(element).val()=='create_new_item'){
-        var id = $(element).attr('id');
         var current_val = $(element).val();
         if(current_val=='create_new_item')current_val = '';
+        var id = $(element).attr('id');
+        if(typeof id == 'object')id = $(element).prop('id');
+        var name = $(element).attr('name');
+        if(typeof name == 'object')name = $(element).prop('name');
+        var html = '<input type="text" name="'+name+'" id="'+id+'" value="'+current_val+'">';
         // add a new input box.
-        $(element).after('<input type="text" name="'+id+'" id="'+id+'" value="'+current_val+'">');
+        $(element).after('<span id="dynamic_select_box_placeholder"></span>');
         $(element).remove();
-        $('#'+id)[0].focus();
-        $('#'+id)[0].select();
-
+        var box = $(html);
+        $('#dynamic_select_box_placeholder').after(box).remove();
+        box[0].focus();
+        box[0].select();
     }
 }
 
@@ -248,4 +253,3 @@ function MyCntrl($scope) {
 	
 	//$scope.service_candidates= ['笔译', '口译', 'DTP', '撰写', '网站', '软件', '多媒体', '课件', '3D', 'APP'];
 }
-

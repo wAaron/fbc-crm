@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 set_time_limit(0);
@@ -129,7 +129,7 @@ if(!$newsletter_id){
                 if(!isset($result['timeout']))$result['timeout'] = $newsletter_send_burst_break;
             }else{
                 //$output_messages[] = _l('Finished sending, %s people remain',$remain);
-                //$output_messages[] = _l('Please <a href="%s"">click here</a> to refresh the page.',module_newsletter::link_queue_watch($newsletter_id,$send_id));
+                //$output_messages[] = _l('Please <a href="%s">click here</a> to refresh the page.',module_newsletter::link_queue_watch($newsletter_id,$send_id));
                 $output_messages[] = _l('Done');
                 if(!isset($result['timeout']))$result['timeout'] = -1;
                 if(!isset($result['done']))$result['done']=1;

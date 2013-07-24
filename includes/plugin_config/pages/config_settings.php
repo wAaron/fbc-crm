@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!module_config::can_i('view','Settings')){
@@ -41,8 +41,18 @@ module_form::prevent_exit(array(
 ?>
     <input type="hidden" name="_process" value="save_config">
 
+    <style type="text/css">
+        .config_variable{
+            border:1px solid #EFEFEF;
+            padding:2px;
+            min-width: 50px;
+            display: inline-block;
+            cursor: pointer;
+        }
+    </style>
        
-        <p><?php _e('Advanced Configuration area below. This contains every configurable value in the system. Change at own risk :)');?></p>
+        <p><?php _e('Advanced Configuration area below. This contains every configurable value in the system. Change at own risk :)');?>
+        <br/>Please <strong>click</strong> on an item to change it.</p>
 
     <table class="tableclass tableclass_rows">
         <thead>
@@ -64,7 +74,7 @@ module_form::prevent_exit(array(
                 <?php echo $config['key']; ?>
             </th>
             <td>
-                <input type="text" name="config[<?php echo htmlspecialchars($config['key']);?>]" value="<?php echo htmlspecialchars($config['val']);?>" size="60">
+                <span data-name="config[<?php echo htmlspecialchars($config['key']);?>]" class="config_variable"><?php echo htmlspecialchars($config['val']);?></span>
             </td>
         </tr>
         <?php } ?>
@@ -78,3 +88,14 @@ module_form::prevent_exit(array(
     </table>
 </form>
 
+<script type="text/javascript">
+    $(function(){
+        $('.config_variable').click(function(){
+            var txt = $('<input type="text" name="'+$(this).attr('data-name')+'" value="">');
+            $(this).after(txt.val($(this).html()));
+            $(this).remove();
+            txt[0].focus();
+            txt[0].select();
+        });
+    });
+</script>

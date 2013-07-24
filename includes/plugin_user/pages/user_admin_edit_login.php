@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */ echo _l('User Security');?></h3>
 
     <table width="100%" border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form">
@@ -68,7 +68,7 @@
                         <?php echo _l('Set Password'); ?>
                     </th>
                     <td>
-                        <input type="password" name="password_new" autocomplete="off" value="" />
+                        <input type="password" name="password_new" autocomplete="off" value="" class="no_permissions" />
                         <?php _h('Giving this user a password and login permissions will let them gain access to this system. Depending on the permissions you give them will decide what parts of the system they can access.'); ?>
                     </td>
                 </tr>

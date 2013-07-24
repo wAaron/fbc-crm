@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 $dbcnx = false;
@@ -129,7 +129,7 @@ function get_fields($table,$ignore=array(),$hidden=array()){
 			$format = array("/^\d\d\d\d-\d\d-\d\d$/","YYYY-MM-DD");
 			$type = "date";
 			$maxlength = $size = 20;
-		}else if(preg_match("/decimal/",$r['Type'])){
+		}else if(preg_match("/decimal/",$r['Type']) || preg_match("/double/",$r['Type'])){
 			$format = array("/^\d+\.?[\d+]?$/","Decimal");
 			$type = "decimal";
 			$maxlength = $size = 20;
@@ -298,13 +298,13 @@ function update_insert($pkey,$pid,$table,$data=false,$do_replace=false){
 		}
 	}
 
-	//print_r($fields);exit;
+    //print_r($fields);exit;
     //print_r($data);exit;
 
     if(!$do_replace && isset($data[$pkey])){
         unset($data[$pkey]);
     }
-    
+	
     //NULL list
     $null_fields = array("cooperate_from", "customer_pay_days", "customer_main_pm", "customer_backup_pm", "customer_ex_salesman", "customer_current_salesman", "customer_build_from", "customer_vip_end", "customer_vip_renew", "contact_birthday", "contact_child_year", "contact_importance", "contact_sensitive", "customer_active");
 	
@@ -321,6 +321,10 @@ function update_insert($pkey,$pid,$table,$data=false,$do_replace=false){
         		$data[$field['name']] = NULL;
 			}
 		}
+        // special format for int / double fields.
+        if(($field['type']=='decimal'||$field['type']=='double') && function_exists('number_in')){
+            $data[$field['name']] = number_in($data[$field['name']]);
+        }
 
 		if(is_array($data[$field['name']]))
 			$val = serialize($data[$field['name']]);

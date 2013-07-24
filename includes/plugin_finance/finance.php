@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -19,7 +19,7 @@ class module_finance extends module_base{
 	public static function get_class() {
         return __CLASS__;
     }
-    public $version = 2.255;
+    public $version = 2.262;
     // 2.2 - adding currency to finance options.
     // 2.21 - finance table sorting capability
     // 2.22 - dashbarods summary date translations
@@ -40,6 +40,12 @@ class module_finance extends module_base{
     // 2.253 - extra fields for finance items
     // 2.254 - extra fields update - show in main listing option
     // 2.255 - update for extra information on homepage
+    // 2.256 - permissino fix on finance tab
+    // 2.257 - 2013-04-10 - new customer permissions
+    // 2.258 - 2013-05-02 - search upcoming
+    // 2.259 - 2013-05-06 - date translation fix
+    // 2.261 - 2013-06-21 - permission update
+    // 2.262 - 2013-06-24 - search transaction list fix
 
 	function init(){
 		$this->links = array();
@@ -595,39 +601,81 @@ class module_finance extends module_base{
         $sql .= " LEFT JOIN `"._DB_PREFIX."finance_account` fa USING (finance_account_id) ";
         $sql .= " LEFT JOIN `"._DB_PREFIX."finance_category_rel` fcr ON f.finance_id = fcr.finance_id ";
         $sql .= " LEFT JOIN `"._DB_PREFIX."finance_category` fc ON fcr.finance_category_id = fc.finance_category_id ";
-        $sql .= " WHERE 1 ";
-        if(isset($search['job_id']) && (int)$search['job_id']>0){
-            $sql .= " AND f.`job_id` = ".(int)$search['job_id'];
-        }
-        if(isset($search['customer_id']) && (int)$search['customer_id']>0){
-            $sql .= " AND f.`customer_id` = ".(int)$search['customer_id'];
-        }
-        if(isset($search['generic']) && strlen(trim($search['generic']))){
-            $name = mysql_real_escape_string(trim($search['generic']));
-            $sql .= " AND (f.`name` LIKE '%$name%' OR f.description LIKE '%$name%' )";
-        }
+        $where = " WHERE 1 ";
+
         if(isset($search['finance_account_id']) && $search['finance_account_id']){
-            $sql .= " AND f.finance_account_id = '".(int)$search['finance_account_id']."'";
+            $where .= " AND f.finance_account_id = '".(int)$search['finance_account_id']."'";
             $hide_invoice_payments = true;
         }
         if(isset($search['finance_recurring_id']) && $search['finance_recurring_id']){
-            $sql .= " AND f.finance_recurring_id = '".(int)$search['finance_recurring_id']."'";
+            $where .= " AND f.finance_recurring_id = '".(int)$search['finance_recurring_id']."'";
             $hide_invoice_payments = true;
         }
         if(isset($search['finance_category_id']) && $search['finance_category_id']){
-            $sql .= " AND fcr.finance_category_id = '".(int)$search['finance_category_id']."'";
+            $where .= " AND fcr.finance_category_id = '".(int)$search['finance_category_id']."'";
             $hide_invoice_payments = true;
         }
 
+        // below 5 searches are repeated again below in invoice payments
+        if(isset($search['job_id']) && (int)$search['job_id']>0){
+            $where .= " AND f.`job_id` = ".(int)$search['job_id'];
+        }
+        if(isset($search['customer_id']) && (int)$search['customer_id']>0){
+            $where .= " AND f.`customer_id` = ".(int)$search['customer_id'];
+        }
+        if(isset($search['generic']) && strlen(trim($search['generic']))){
+            $name = mysql_real_escape_string(trim($search['generic']));
+            $where .= " AND (f.`name` LIKE '%$name%' OR f.description LIKE '%$name%' )";
+        }
         if(isset($search['date_from']) && $search['date_from'] != ''){
-            $sql .= " AND f.transaction_date >= '".input_date($search['date_from'])."'";
+            $where .= " AND f.transaction_date >= '".input_date($search['date_from'])."'";
         }
         if(isset($search['date_to']) && $search['date_to'] != ''){
-            $sql .= " AND f.transaction_date <= '".input_date($search['date_to'])."'";
+            $where .= " AND f.transaction_date <= '".input_date($search['date_to'])."'";
         }
 
-        $sql .= " GROUP BY f.finance_id ";
-        $sql .= " ORDER BY f.transaction_date DESC ";
+
+        // permissions from job module.
+        /*switch(module_job::get_job_access_permissions()){
+            case _JOB_ACCESS_ALL:
+
+                break;
+            case _JOB_ACCESS_ASSIGNED:
+                // only assigned jobs!
+                //$from .= " LEFT JOIN `"._DB_PREFIX."task` t ON u.job_id = t.job_id ";
+                //u.user_id = ".(int)module_security::get_loggedin_id()." OR
+                $where .= " AND (t.user_id = ".(int)module_security::get_loggedin_id().")";
+                break;
+            case _JOB_ACCESS_CUSTOMER:
+                break;
+        }*/
+
+        // permissions from customer module.
+        // tie in with customer permissions to only get jobs from customers we can access.
+        switch(module_customer::get_customer_data_access()){
+            case _CUSTOMER_ACCESS_ALL:
+                // all customers! so this means all jobs!
+                break;
+            case _CUSTOMER_ACCESS_ALL_COMPANY:
+            case _CUSTOMER_ACCESS_CONTACTS:
+            case _CUSTOMER_ACCESS_TASKS:
+            case _CUSTOMER_ACCESS_STAFF:
+                $valid_customer_ids = module_security::get_customer_restrictions();
+                if(count($valid_customer_ids)){
+                    $where .= " AND f.customer_id IN ( ";
+                    foreach($valid_customer_ids as $valid_customer_id){
+                        $where .= (int)$valid_customer_id.", ";
+                    }
+                    $where = rtrim($where,', ');
+                    $where .= " )";
+                }
+
+        }
+
+
+        $where .= " GROUP BY f.finance_id ";
+        $where .= " ORDER BY f.transaction_date DESC ";
+        $sql .= $where;
         $finances1 = qa($sql);
         // invoice payments:
         $finances2 = array();
@@ -647,16 +695,70 @@ class module_finance extends module_base{
             if(isset($search['customer_id']) && (int)$search['customer_id']>0){
                 $where .= " AND i.`customer_id` = ".(int)$search['customer_id'];
             }
+            /*if(isset($search['generic']) && strlen(trim($search['generic']))){
+                $name = mysql_real_escape_string(trim($search['generic']));
+                $where .= " AND (i.`name` LIKE '%$name%' OR p.method LIKE '%$name%' )";
+            }*/
             if(isset($search['date_from']) && $search['date_from'] != ''){
                 $where .= " AND p.date_paid >= '".input_date($search['date_from'])."'";
             }
             if(isset($search['date_to']) && $search['date_to'] != ''){
                 $where .= " AND p.date_paid <= '".input_date($search['date_to'])."'";
             }
+            switch(module_customer::get_customer_data_access()){
+                case _CUSTOMER_ACCESS_ALL:
+                    // all customers! so this means all jobs!
+                    break;
+                case _CUSTOMER_ACCESS_ALL_COMPANY:
+                case _CUSTOMER_ACCESS_CONTACTS:
+                case _CUSTOMER_ACCESS_TASKS:
+                case _CUSTOMER_ACCESS_STAFF:
+                    $valid_customer_ids = module_security::get_customer_restrictions();
+                    if(count($valid_customer_ids)){
+                        $where .= " AND i.customer_id IN ( ";
+                        foreach($valid_customer_ids as $valid_customer_id){
+                            $where .= (int)$valid_customer_id.", ";
+                        }
+                        $where = rtrim($where,', ');
+                        $where .= " )";
+                    }
+
+            }
+
             $sql .= $where . " ORDER BY p.date_paid DESC ";
             //echo $sql;
             $finances2 = qa($sql);
-            //print_r($finances2);
+            foreach($finances2 as $finance_id => $finance){
+                // doesn't have an finance / account reference just yet.
+                // but they can create one and this will become a child entry to it.
+                $invoice_data = module_invoice::get_invoice($finance['invoice_id'],true);
+                $finance['url'] = self::link_open('new',false).'&invoice_payment_id='.$finance['invoice_payment_id'];
+                $finance['name'] = !isset($finance['name']) ? _l('Invoice Payment') : $finance['name'];
+                $finance['description'] = !isset($finance['description']) ? _l('Payment against invoice <a href="%s">#%s</a> via "%s" method',module_invoice::link_open($finance['invoice_id'],false),$invoice_data['name'],$finance['method']) : $finance['description'];
+                $finance['credit'] = $finance['amount'];
+                $finance['debit'] = 0;
+                $finance['account_name'] = '';
+                $finance['categories'] = '';
+                // grab a new name/descriptino/etc.. from other plugins (at the moment only subscription)
+                $new_finance = hook_handle_callback('finance_invoice_listing',$finance['invoice_id'],$finance);
+                if(is_array($new_finance) && count($new_finance)){
+                    foreach($new_finance as $n){
+                        $finance = array_merge($finance,$n);
+                    }
+                }
+                $finances2[$finance_id] = $finance;
+            }
+            if(isset($search['generic']) && strlen(trim($search['generic']))){
+                $name = mysql_real_escape_string(trim($search['generic']));
+//                $where .= " AND (i.`name` LIKE '%$name%' OR p.method LIKE '%$name%' )";
+                // we have to do a PHP search here because
+                foreach($finances2 as $finance_id => $finance){
+                    if(stripos($finance['name'],$name)===false && stripos($finance['description'],$name)===false){
+                        unset($finances2[$finance_id]);
+                    }
+                }
+            }
+//            print_r($finances2);
         }
         $finances = array_merge($finances1,$finances2);
         unset($finances1);
@@ -723,25 +825,10 @@ class module_finance extends module_base{
                 $finance = self::get_finance($finance['parent_finance_id']);
             }
 
-            if(isset($finance['invoice_payment_id']) && $finance['invoice_payment_id'] && isset($finance['invoice_id']) && $finance['invoice_id']){
-                // doesn't have an finance / account reference just yet.
-                // but they can create one and this will become a child entry to it.
-                $invoice_data = module_invoice::get_invoice($finance['invoice_id'],true);
-                $finance['url'] = self::link_open('new',false).'&invoice_payment_id='.$finance['invoice_payment_id'];
-                $finance['name'] = _l('Invoice Payment');
-                $finance['description'] = _l('Payment against invoice <a href="%s">#%s</a> via "%s" method',module_invoice::link_open($finance['invoice_id'],false),$invoice_data['name'],$finance['method']);
-                $finance['credit'] = $finance['amount'];
-                $finance['debit'] = 0;
-                $finance['account_name'] = '';
-                $finance['categories'] = '';
-                // also in get-finance
-                $new_finance = hook_handle_callback('finance_invoice_listing',$finance['invoice_id'],$finance);
-                if(is_array($new_finance) && count($new_finance)){
-                    foreach($new_finance as $n){
-                        $finance = array_merge($finance,$n);
-                    }
-                }
-            }else if(isset($finance['finance_id']) && $finance['finance_id']){
+            /*if(isset($finance['invoice_payment_id']) && $finance['invoice_payment_id'] && isset($finance['invoice_id']) && $finance['invoice_id']){
+                // moved to above.
+            }else*/
+            if(isset($finance['finance_id']) && $finance['finance_id']){
                 $finance['url'] = self::link_open($finance['finance_id'],false);
                 $finance['credit'] = $finance['type'] == 'i' ? $finance['amount'] : 0;
                 $finance['debit'] = $finance['type'] == 'e' ? $finance['amount'] : 0;
@@ -962,6 +1049,17 @@ class module_finance extends module_base{
             $sql .= " LEFT JOIN `"._DB_PREFIX."task` t ON tl.task_id = t.task_id ";
             $sql .= " LEFT JOIN `"._DB_PREFIX."job` p ON tl.job_id = p.job_id";
             $sql .= " WHERE tl.date_created >= '$week_start' AND tl.date_created < '$week_end'";
+            $sql .= " AND tl.job_id IN ( ";
+                $valid_job_ids = module_job::get_jobs();
+                if(count($valid_job_ids)){
+                    foreach($valid_job_ids as $valid_job_id){
+                        $sql .= (int)$valid_job_id.", ";
+                    }
+                    $sql = rtrim($sql,', ');
+                }else{
+                    $sql .= ' NULL ';
+                }
+            $sql .= " ) ";
             //echo $sql;
             $tasks = query($sql);
             $logged_tasks = array();
@@ -1029,14 +1127,16 @@ class module_finance extends module_base{
         // group invoices into days of the week.
         while($i = mysql_fetch_assoc($invoices)){
             $invoice_data = module_invoice::get_invoice($i['invoice_id']);
-            if($multiplyer > 1){
-                $week_day = date('w',strtotime($i['date_sent'])) - 1;
-                $i['date_sent'] = date('Y-m-d',strtotime('-'.$week_day.' days',strtotime($i['date_sent'])));
-            }
-            $key = date("Ymd",strtotime($i['date_sent']));
-            if(isset($data[$key])){
-                $data[$key]['amount_invoiced'] += $invoice_data['total_amount'];
-                $data['total']['amount_invoiced'] += $invoice_data['total_amount'];
+            if($invoice_data){
+                if($multiplyer > 1){
+                    $week_day = date('w',strtotime($i['date_sent'])) - 1;
+                    $i['date_sent'] = date('Y-m-d',strtotime('-'.$week_day.' days',strtotime($i['date_sent'])));
+                }
+                $key = date("Ymd",strtotime($i['date_sent']));
+                if(isset($data[$key])){
+                    $data[$key]['amount_invoiced'] += $invoice_data['total_amount'];
+                    $data['total']['amount_invoiced'] += $invoice_data['total_amount'];
+                }
             }
         }
         // find all payments made this week.
@@ -1150,8 +1250,8 @@ class module_finance extends module_base{
                 $row['amount_invoiced_link'] = '<a href="'.$base_href.'w=amount_invoiced&date='.$date.'" class="summary_popup">'. $row['amount_invoiced'] . '</a>';
                 $row['amount_paid_link'] = '<a href="'.$base_href.'w=amount_paid&date='.$date.'" class="summary_popup">'. $row['amount_paid'] . '</a>';
                 $row['amount_spent_link'] = '<a href="'.$base_href.'w=amount_spent&date='.$date.'" class="summary_popup">'. $row['amount_spent'] . '</a>';
-                $row['day'] = _l(date('D',$time)).' '.date('jS',$time);
-                $row['week'] = _l(date('M',$time)).' '.date('jS',$time);
+                $row['day'] = _l(date('D',$time)).' '.date('j',$time) ._l(date('S',$time));
+                $row['week'] = _l(date('M',$time)).' '.date('j',$time) ._l(date('S',$time));
                 // if it's today.
                 if($time == strtotime(date("Y-m-d"))){
                     $row['highlight'] = true;

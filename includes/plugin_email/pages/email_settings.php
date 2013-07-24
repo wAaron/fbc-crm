@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -26,6 +26,18 @@ $settings = array(
             'default'=>'',
              'type'=>'text',
              'description'=>'SMTP hostname (eg: mail.yoursite.com)',
+         ),
+         array(
+            'key'=>'email_smtp_auth',
+            'default'=>'',
+             'type'=>'select',
+             'options' => array(
+                 '' => _l('Nothing (default)'),
+                 'ssl' => _l('SSL'),
+                 'tls' => _l('TLS (use for Google SMTP)'),
+             ),
+             'description'=>'SMTP Security',
+             'help'=>'If the Nothing (default) option does not work, try using SSL or TLS.',
          ),
          array(
             'key'=>'email_smtp_authentication',

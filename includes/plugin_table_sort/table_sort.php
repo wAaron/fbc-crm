@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 /*
@@ -34,7 +34,9 @@ class module_table_sort extends module_base{
 	public function init(){
 		$this->module_name = "table_sort";
 		$this->module_position = 0;
-        $this->version = 2.1;
+        $this->version = 2.21;
+        // 2.21 - 2013-07-17 - fix for per-page dropdown
+        // 2.2 - 2013-07-17 - memory improvements
 
         module_config::register_css('table_sort','table_sort.css');
 	}
@@ -76,6 +78,13 @@ class module_table_sort extends module_base{
                 $_SESSION['_table_sort'][self::$table_sort_options['table_id']][0] = $new_sort_column;
                 $_SESSION['_table_sort'][self::$table_sort_options['table_id']][1] = $new_sort_direction;
             }
+            // count how many results for the "per page" drop down below.
+            self::$table_sort_options['row_count']= is_resource($rows) ? mysql_num_rows($rows) : count($rows);
+
+
+            if(!isset($_SESSION['_table_sort']) || !isset($_SESSION['_table_sort'][self::$table_sort_options['table_id']])){
+                return;
+            }
 
             if($new_sort_column&&$new_sort_direction){
                 // clear defaults! time for a user defined one.
@@ -88,7 +97,6 @@ class module_table_sort extends module_base{
                     }
                 }
             }
-
             if($new_sort_per_page>=1){
                 $per_page = $new_sort_per_page;
             }else if($new_sort_per_page==-2){
@@ -103,14 +111,12 @@ class module_table_sort extends module_base{
                 while($row = mysql_fetch_assoc($rows)){
                     $new_rows[]=$row;
                 }
+                mysql_free_result($rows);
                 $rows = $new_rows;
             }else{
                 // rows stays the same.
             }
             if(is_array($rows) && count($rows)){
-
-                // count how many results for the "per page" drop down below.
-                self::$table_sort_options['row_count']=count($rows);
 
                 foreach(self::$table_sort_options['sortable'] as $column_id => $options){
                     if(isset($options['current'])){

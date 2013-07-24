@@ -1,3 +1,5 @@
 temp
 /.externalToolBuilders
 /.settings
+/includes/plugin_file/upload
+/includes/plugin_ticket/attachments

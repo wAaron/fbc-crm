@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -14,8 +14,9 @@
 class module_timer extends module_base{
 
 
-    public $version = 2.11;
+    public $version = 2.12;
     //2.11 - first Task Timer version
+    //2.12 - one active timer at a time
 
     public static function can_i($actions,$name=false,$category=false,$module=false){
         if(!$module)$module=__CLASS__;
@@ -33,7 +34,20 @@ class module_timer extends module_base{
             module_config::register_css('timer','timer.css');
             module_config::register_js('timer','timer.js');
             hook_add('job_task_after','module_timer::hook_job_task_after');
+
+
+            hook_add('header_print_js','module_timer::hook_header_print_js');
         }
+    }
+
+    public static function hook_header_print_js(){
+        ?>
+        <script type="text/javascript">
+           $(function(){
+               ucm.timer.mode = <?php echo (int)module_config::c('timer_mode',1);?>;
+           });
+        </script>
+        <?php
     }
 
     public function handle_hook($hook_name){

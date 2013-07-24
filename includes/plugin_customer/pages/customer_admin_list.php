@@ -244,8 +244,8 @@ $pagination = process_pagination($customers);
         </td>
         <td class="search_input">
          <?php
-         echo print_select_box(array('yes'=>"主信息已完成", 'no'=>"主信息未完成"), "search[core_completed]", isset($search['core_completed'])?$search['core_completed']:false);
-         echo print_select_box(array('yes'=>"全部信息完成", 'no'=>"未全部完成"), "search[full_completed]", isset($search['full_completed'])?$search['full_completed']:false);
+         echo print_select_box(array('yes'=>"涓讳俊鎭凡瀹屾垚", 'no'=>"涓讳俊鎭湭瀹屾垚"), "search[core_completed]", isset($search['core_completed'])?$search['core_completed']:false);
+         echo print_select_box(array('yes'=>"鍏ㄩ儴淇℃伅瀹屾垚", 'no'=>"鏈叏閮ㄥ畬鎴�), "search[full_completed]", isset($search['full_completed'])?$search['full_completed']:false);
          ?>
         </td>
         <td class="search_title">

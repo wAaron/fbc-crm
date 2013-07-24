@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -29,7 +29,12 @@ class module_ticket extends module_base{
 	public $links;
 	public $ticket_types;
 
-    public $version = 2.401;
+    public $version = 2.415;
+    // 2.415 - 2013-05-28 - faq improvement
+    // 2.414 - 2013-05-02 - sanitised html message output in external ticket view
+    // 2.413 - 2013-04-16 - fix for updated invoice system
+
+    // old history:
     // 2.351 - ability to change the assigned contact / customer in the ticket.
     // 2.352 - added novalidate-cert to ticket IMAP connection
     // 2.353 - fix for get_user() to get_contact()
@@ -70,6 +75,17 @@ class module_ticket extends module_base{
     // 2.398 - extra fields update - show in main listing option
     // 2.399 - speed improvements
     // 2.401 - bug fix with ticket creation on staff accounts
+    // 2.402 - ticket creation fix
+    // 2.403 - character encoding fixes
+    // 2.404 - improvement on displaying html ticket messages.
+    // 2.405 - improved quick search
+    // 2.406 - improved replying from administrator email account
+    // 2.407 - email import fix
+    // 2.408 - started work on email CC/BCC fields
+    // 2.409 - new cc/bcc option for ticket administrators
+    // 2.41 - 2013-04-07 - ticket faq fixes
+    // 2.411 - 2013-04-10 - new customer permissions
+    // 2.412 - 2013-04-12 - status drop down clarification
 
 
     public static $ticket_statuses = array();
@@ -96,7 +112,7 @@ class module_ticket extends module_base{
         );
 
 
-        $this->ajax_search_keys = array(
+        /*$this->ajax_search_keys = array(
             _DB_PREFIX.'ticket' => array(
                 'plugin' => 'ticket',
                 'search_fields' => array(
@@ -106,7 +122,7 @@ class module_ticket extends module_base{
                 'key' => 'ticket_id',
                 'title' => _l('Ticket: '),
             ),
-        );
+        );*/
 
         module_config::register_css('ticket','tickets.css');
         module_config::register_js('ticket','tickets.js');
@@ -164,6 +180,43 @@ Thanks,
 
 
 	}
+    
+    public function ajax_search($search_key){
+        // return results based on an ajax search.
+        $ajax_results = array();
+        $search_key = trim($search_key);
+        if(strlen($search_key) > module_config::c('search_ajax_min_length',2)){
+            //$sql = "SELECT * FROM `"._DB_PREFIX."ticket` c WHERE ";
+            //$sql .= " c.`ticket_name` LIKE %$search_key%";
+            //$results = qa($sql);
+            $results = $this->get_tickets(array('generic'=>$search_key));
+            if(mysql_num_rows($results)){
+                while($result = mysql_fetch_assoc($results)){
+                    // what part of this matched?
+                    /*if(
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['name']) ||
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['last_name']) ||
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['phone'])
+                    ){
+                        // we matched the ticket contact details.
+                        $match_string = _l('Ticket Contact: ');
+                        $match_string .= _shl($result['ticket_name'],$search_key);
+                        $match_string .= ' - ';
+                        $match_string .= _shl($result['name'],$search_key);
+                        // hack
+                        $_REQUEST['ticket_id'] = $result['ticket_id'];
+                        $ajax_results [] = '<a href="'.module_user::link_open_contact($result['user_id']) . '">' . $match_string . '</a>';
+                    }else{*/
+                        $match_string = _l('Ticket: ');
+                        $match_string .= _shl('#'.self::ticket_number($result['ticket_id']).' '.$result['subject'],$search_key);
+                        $ajax_results [] = '<a href="'.$this->link_open($result['ticket_id']) . '">' . $match_string . '</a>';
+                        //$ajax_results [] = $this->link_open($result['ticket_id'],true);
+                    /*}*/
+                }
+            }
+        }
+        return $ajax_results;
+    }
 
     public function pre_menu(){
 
@@ -371,7 +424,7 @@ Thanks,
             $bubble_to_module = array(
                 'module' => 'config',
             );
-        }else if((!isset($_GET['customer_id'])||!$_GET['customer_id']) && class_exists('module_faq',false) && module_config::c('ticket_separate_product_queue',0)){
+        }else if((!isset($_GET['customer_id'])||!$_GET['customer_id']) && class_exists('module_faq',false) && (module_config::c('ticket_separate_product_queue',0)||module_config::c('ticket_separate_product_menu',0))){
 
         }else if($options['data']['customer_id']>0){
             if(!module_security::has_feature_access(array(
@@ -500,7 +553,7 @@ Thanks,
                             <td>
                                 <?php
                                 $sql = "SELECT COUNT(ticket_id) AS c FROM `"._DB_PREFIX."ticket` WHERE status_id = 1 OR status_id = 2";
-                                $res = array_shift(qa($sql));
+                                $res = qa1($sql);
                                 echo $res['c'];
                                 ?>
                             </td>
@@ -510,7 +563,7 @@ Thanks,
                             <td>
                                 <?php
                                 $sql = "SELECT COUNT(ticket_id) AS c FROM `"._DB_PREFIX."ticket` WHERE status_id = 3 OR status_id = 5";
-                                $res = array_shift(qa($sql));
+                                $res = qa1($sql);
                                 echo $res['c'];
                                 ?>
                             </td>
@@ -520,7 +573,7 @@ Thanks,
                             <td>
                                 <?php
                                 $sql = "SELECT COUNT(ticket_id) AS c FROM `"._DB_PREFIX."ticket` WHERE status_id >= "._TICKET_STATUS_RESOLVED_ID;
-                                $res = array_shift(qa($sql));
+                                $res = qa1($sql);
                                 echo $res['c'];
                                 ?>
                             </td>
@@ -1120,6 +1173,10 @@ Thanks,
 			$str = mysql_real_escape_string($search['generic']);
 			$where .= " AND ( ";
 			$where .= " t.subject LIKE '%$str%' ";
+            $id_test = trim(ltrim($search['generic'],'0'));
+            if(is_numeric($id_test) && (int)$id_test>0){
+                $where .= " OR t.ticket_id LIKE '%".(int)$id_test."%' ";
+            }
 			$where .= ' ) ';
 		}
 		if(isset($search['date_from']) && $search['date_from']){
@@ -1221,11 +1278,11 @@ Thanks,
             case _TICKET_ACCESS_CUSTOMER:
                 $valid_customer_ids = module_security::get_customer_restrictions();
                 if(is_array($valid_customer_ids) && count($valid_customer_ids)){
-                    $where .= " AND ( ";
+                    $where .= " AND t.customer_id IN ( ";
                     foreach($valid_customer_ids as $valid_customer_id){
-                        $where .= " t.customer_id = '".(int)$valid_customer_id."' OR ";
+                        $where .= (int)$valid_customer_id.", ";
                     }
-                    $where = rtrim($where,'OR ');
+                    $where = rtrim($where,', ');
                     $where .= " )";
                 }
                 break;
@@ -1572,7 +1629,7 @@ Thanks,
                     // admin is allowed to change the status of a message.
                     $from_user_id = $ticket_data['assigned_user_id'] ? $ticket_data['assigned_user_id'] : module_security::get_loggedin_id();
                     //echo "From $from_user_id to $ticket_creator ";exit;
-                    $ticket_message_id = $this->send_reply($ticket_id,$data['new_ticket_message'], $from_user_id, $ticket_creator, 'admin');
+                    $ticket_message_id = $this->send_reply($ticket_id,$data['new_ticket_message'], $from_user_id, $ticket_creator, 'admin' ); // do we add cc/bcc here?
                 }
             }
 
@@ -1638,7 +1695,9 @@ Thanks,
             $invoice_data['invoice_invoice_item']=array(
                 'new' => array(
                     'description' => $task_name. ' - '._l('Ticket #'.$this->ticket_number($ticket_id)),
-                    'amount' => $task_cost,
+                    'hourly_rate' => $task_cost,
+                    'manual_task_type' => _TASK_TYPE_AMOUNT_ONLY,
+                    //'amount' => $task_cost,
                     'completed' => 1, // not needed?
                 )
             );
@@ -1673,6 +1732,11 @@ Thanks,
     }
 
 
+    /**
+     * Used only when admin/user replies via web interface
+     * Or when a new ticket/reply is submitted via public interface
+     * Or when an autoreply is sent
+     * */
     public static function send_reply($ticket_id,$message,$from_user_id,$to_user_id, $reply_type = 'admin' , $internal_from = ''){
 
 
@@ -1743,7 +1807,7 @@ Thanks,
         }
 
 
-        $ticket_message_id = update_insert('ticket_message_id','new','ticket_message',array(
+        $ticket_message_data = array(
                                              'ticket_id' => $ticket_id,
                                              'content' => $message,
                                              'htmlcontent' => $htmlmessage,
@@ -1751,7 +1815,37 @@ Thanks,
                                              'from_user_id' => $from_user_id,
                                              'to_user_id' => $to_user_id,
                                             'message_type_id' => ($reply_type == 'admin' ? _TICKET_MESSAGE_TYPE_ADMIN : _TICKET_MESSAGE_TYPE_CREATOR),
-                                     ));
+                                     );
+        if(self::can_edit_tickets()){
+            // we look for the extra cc/bcc headers.
+            if(module_config::c('ticket_allow_cc_bcc',1)){
+                $headers = array();
+                if(isset($_POST['ticket_cc']) && strlen($_POST['ticket_cc'])){
+                    $bits = explode(',',$_POST['ticket_cc']);
+                    foreach($bits as $b){
+                        $b = trim($b);
+                        if(strlen($b)){
+                            if(!isset($headers['cc_emails']))$headers['cc_emails']=array();
+                            $headers['cc_emails'][] = array('address'=>$b);
+                        }
+                    }
+                }
+                if(isset($_POST['ticket_bcc']) && strlen($_POST['ticket_bcc'])){
+                    $bits = explode(',',$_POST['ticket_bcc']);
+                    foreach($bits as $b){
+                        $b = trim($b);
+                        if(strlen($b)){
+                            if(!isset($headers['bcc_emails']))$headers['bcc_emails']=array();
+                            $headers['bcc_emails'][] = array('address'=>$b);
+                        }
+                    }
+                }
+                if(count($headers)){
+                    $ticket_message_data['cache'] = serialize($headers);
+                }
+            }
+        }
+        $ticket_message_id = update_insert('ticket_message_id','new','ticket_message',$ticket_message_data);
         if(!$ticket_message_id)return false;
 
         // handle any attachemnts.
@@ -1861,6 +1955,8 @@ Thanks,
         $s = self::get_statuses();
         $reply_line = module_config::s('ticket_reply_line','----- (Please reply above this line) -----');
         if(!$ticket_message_id){
+            $no_ticket_message_id = true; // used for our new cc/bcc hack. only send cc/bcc if $ticket_message_id is provided
+            // ticket_message_id isn't provided when sending mails from a cron job.
             $ticket_message_id = $ticket_details['last_ticket_message_id'];
         }
         $last_ticket_message = self::get_ticket_message($ticket_message_id);
@@ -1876,7 +1972,11 @@ Thanks,
         }
 
         $to_user_id = $last_ticket_message['to_user_id'];
-        if(!$to_user_id)$to_user_id = $ticket_details['user_id']; // default to assigned user
+        if(!$to_user_id || $last_ticket_message['message_type_id']==_TICKET_MESSAGE_TYPE_ADMIN){
+            // default to assigned user
+            // always sent admin messages back to the end user
+            $to_user_id = $ticket_details['user_id'];
+        }
 
         // bug fix! don't send a customer alert back to a staff member account.
         $staff_members = self::get_ticket_staff_rel();
@@ -1948,6 +2048,31 @@ Thanks,
             $email->set_from('user',$from_user_id);
         }else{
             $email->set_from_manual($reply_to_address,$reply_to_name);
+        }
+        if(!isset($no_ticket_message_id)){
+            // we're right to do our cc/bcc hack
+            $headers = @unserialize($last_ticket_message['cache']);
+            if($headers && isset($headers['to_emails'])){
+                foreach($headers['to_emails'] as $to_emails){
+                    if(isset($to_emails['address']) && strlen($to_emails['address'])){
+                        $email->set_to_manual($to_emails['address'],isset($to_emails['name'])?$to_emails['name']:'');
+                    }
+                }
+            }
+            if($headers && isset($headers['cc_emails'])){
+                foreach($headers['cc_emails'] as $cc_emails){
+                    if(isset($cc_emails['address']) && strlen($cc_emails['address'])){
+                        $email->set_cc_manual($cc_emails['address'],isset($cc_emails['name'])?$cc_emails['name']:'');
+                    }
+                }
+            }
+            if($headers && isset($headers['bcc_emails'])){
+                foreach($headers['bcc_emails'] as $bcc_emails){
+                    if(isset($bcc_emails['address']) && strlen($bcc_emails['address'])){
+                        $email->set_bcc_manual($bcc_emails['address'],isset($bcc_emails['name'])?$bcc_emails['name']:'');
+                    }
+                }
+            }
         }
         $email->set_reply_to($reply_to_address,$reply_to_name);
         $email->set_subject('[TICKET:'.$ticket_number.'] Re: '.$ticket_details['subject']);
@@ -2292,6 +2417,61 @@ Thanks,
                             }
 
 
+                            /*$results: Array
+                                (
+                                    [Type] => html
+                                    [Description] => HTML message
+                                    [Encoding] => iso-8859-1
+                                    [Data] => asdfasdf
+                                    [Alternative] => Array
+                                        (
+                                            [0] => Array
+                                                (
+                                                    [Type] => text
+                                                    [Description] => Text message
+                                                    [Encoding] => iso-8859-1
+                                                    [Data] => asdfasdf
+                                                )
+                                        )
+                                    [Subject] => [TICKET:004372] Re: Testing cc and bcc fields...
+                                    [Date] => Sun, 24 Mar 2013 22:04:49 +1000
+                                    [From] => Array
+                                        (
+                                            [0] => Array
+                                                (
+                                                    [address] => email@gmail.com
+                                                    [name] => Dave
+                                                )
+                                        )
+
+                                    [To] => Array
+                                        (
+                                            [0] => Array
+                                                (
+                                                    [address] => email@dtbaker.
+                                                    [name] => dtbaker Support
+                                                )
+
+                                            [1] => Array
+                                                (
+                                                    [address] => email+test@gmail.com
+                                                )
+                                        )
+
+                                    [Cc] => Array
+                                        (
+                                            [0] => Array
+                                                (
+                                                    [address] => email+testcc@gmail.com
+                                                )
+
+                                            [1] => Array
+                                                (
+                                                    [address] => info@email.com.au
+                                                    [name] => Hayley
+                                                )
+                                        )
+                                ) */
                             if($to_regex){
                                 $to_match = false;
                                 foreach($results['To'] as $possible_to_address){
@@ -2334,6 +2514,16 @@ Thanks,
                                 // try to find a user based on this from email address.
                                 $sql = "SELECT * FROM `"._DB_PREFIX."user` u WHERE u.`email` LIKE '".mysql_real_escape_string($from_address)."' ORDER BY `date_created` DESC";
                                 $from_user = qa1($sql);
+
+                                // convert the name if it's encoded strangely:
+                                if(isset($results['From'][0]['name']) && strlen($results['From'][0]['name']) && isset($results['Encoding']) && strtolower($results['Encoding']) !='utf8' && strtolower($results['Encoding']) != 'utf-8'){
+                                    //$name_decoded = quoted_printable_decode($results['From'][0]['name']);
+                                    $name_decoded = mb_convert_encoding($results['From'][0]['name'],'UTF-8',$results['Encoding']);
+                                    if(strlen($name_decoded)>0){
+                                        $results['From'][0]['name'] = $name_decoded;
+                                    }
+                                }
+
                                 // todo! this user may be in the system twice!
                                 // eg: once from submitting a ticket - then again when creating that user as a contact under a different customer.
                                 // so we find the latest entry and use that... ^^ done! updated the above to sort by date updated.
@@ -2344,8 +2534,8 @@ Thanks,
                                         $account['default_customer_id'] = $from_user['customer_id'];
                                     }
 
-                                }else{
-                                    // create a user under this account customer.
+                                }else if(module_config::c('ticket_allow_new_from_email',1)){
+                                    // create a user under this account customer because we allow new emails to be created
                                     if($account['default_customer_id']){
                                         // create a new support user! go go!
                                         $from_user = array(
@@ -2371,11 +2561,25 @@ Thanks,
                                         //continue;
                                     }
                                 }
-
                                 if(!$from_user_id){
-                                    echo 'Failed - cannot find the from user id';
-                                    echo $from_address . ' to '.var_export($results['To'],true).' : subject: '.$overview->subject.'<hr>';
-                                    continue;
+                                    // creating a new user for this ticket. not allowed for spam reasons sometimes.
+                                    if(module_config::c('ticket_allow_new_from_email',1)){
+                                        // failed to create a user in the database.
+                                        echo 'Failed - cannot find the from user id';
+                                        echo $from_address . ' to '.var_export($results['To'],true).' : subject: '.$overview->subject.'<hr>';
+                                        continue;
+                                    }else{
+                                        // new option to ignore these emails and force people to submit new tickets via the web interface
+                                        // send an autoreply to this user saying that their ticket was not created.
+                                        $temp_from_user = array(
+                                            'name' => isset($results['From'][0]['name']) ? $results['From'][0]['name'] : $from_address,
+                                            'email' => $from_address,
+                                        );
+                                        module_ticket::send_customer_rejection_alert($temp_from_user,$overview->subject);
+                                        echo 'Rejecting new tickets';
+                                        $parse_success = true;
+                                        continue;
+                                    }
                                 }
                                 $sql = "SELECT * FROM `"._DB_PREFIX."user` u WHERE u.`email` LIKE '".mysql_real_escape_string($email_to)."'";
                                 $to_user_temp = qa1($sql);
@@ -2391,7 +2595,7 @@ Thanks,
                                 $ticket_id = false;
                                 $new_message = true;
                                 // check if the subject matches an existing ticket subject.
-                                if(preg_match('#\[TICKET:(\d+)\]#i',$overview->subject,$subject_matches)){
+                                if(preg_match('#\[TICKET:(\d+)\]#i',$overview->subject,$subject_matches) || preg_match('#\#(\d+)#',$overview->subject,$subject_matches)){
                                     // found an existing ticket.
                                     // find this ticket in the system.
                                     $ticket_id = ltrim($subject_matches[1],'0');
@@ -2472,20 +2676,7 @@ Thanks,
                                     }
                                 }
 
-
                                 if(!$ticket_id){
-                                    // creating a new ticket for this email.
-                                    // new option to ignore these emails and force people to submit new tickets via the web interface
-                                    if(!module_config::c('ticket_allow_new_from_email',1)){
-                                        // todo: do the same as this above when we're creating new user accounts etc...
-                                        // dont create a new user account if this option is disabled
-                                        // send an autoreply to this user saying that their ticket was not created.
-
-                                        module_ticket::send_customer_rejection_alert($from_user,$overview->subject);
-                                        echo 'Rejecting new tickets';
-                                        $parse_success = true;
-                                        continue;
-                                    }
                                     $ticket_id = update_insert('ticket_id','new','ticket',array(
                                                       'subject' => $overview->subject,
                                                       'ticket_account_id' => $account['ticket_account_id'],
@@ -2507,10 +2698,25 @@ Thanks,
                                 $cache = array(
                                     'from_email' =>  $from_address,
                                     'to_email' => $email_to,
+                                    'to_emails' => isset($results['To']) && is_array($results['To']) ? $results['To'] : array(),
+                                    'cc_emails' => isset($results['Cc']) && is_array($results['Cc']) ? $results['Cc'] : array(),
                                 );
 
                                 // pull otu the email bodyu.
                                 $body = $results['Data'];
+                                //if($from_address=='dtbaker@gmail.com'){
+                                    if(isset($results['Encoding']) && strtolower($results['Encoding']) !='utf8' && strtolower($results['Encoding']) != 'utf-8'){
+                                        //mail('dtbaker@gmail.com','Ticket import results: Encoding',$results['Encoding']."\n\n".var_export($results,true));
+                                        $body2 = quoted_printable_decode($body);
+                                        $body3 = mb_convert_encoding($body2,'UTF-8',$results['Encoding']);
+                                        //$body3 = mb_convert_encoding($body,'HTML-ENTITIES',$results['Encoding']);
+                                        //$body4 = iconv_mime_decode($body,ICONV_MIME_DECODE_CONTINUE_ON_ERROR,"UTF-8");
+                                        //mail('dtbaker@gmail.com','Ticket import results: Converted',$body . "\n\n\n\n\n ------------ " . $body2 . "\n\n\n\n\n ------------ " . $body3);
+                                        if(strlen($body3)>0){
+                                            $body = $body3;
+                                        }
+                                    }
+                                //} // debug
                                 if($results['Type']=="html"){
                                     $is_html = true;
                                 }else{
@@ -2524,6 +2730,15 @@ Thanks,
                                     foreach($results['Alternative'] as $alt_id => $alt){
                                         if($alt['Type']=="text"){
                                             $altbody = $alt['Data'];
+                                            // if($from_address=='dtbaker@gmail.com'){
+                                                if(isset($results['Encoding']) && strtolower($results['Encoding']) !='utf8' && strtolower($results['Encoding']) != 'utf-8'){
+                                                    $altbody2 = quoted_printable_decode($altbody);
+                                                    $altbody3 = mb_convert_encoding($altbody2,'UTF-8',$results['Encoding']);
+                                                    if(strlen($altbody3)>0){
+                                                        $altbody = $altbody3;
+                                                    }
+                                                }
+                                            //}
                                             break;
                                         }
                                     }
@@ -2842,7 +3057,7 @@ Thanks,
                 'priority'=>_TICKET_PRIORITY_STATUS_ID,
                 'status_id'=>'<'._TICKET_STATUS_RESOLVED_ID,
             );
-            if($faq_product_id !== false && module_config::c('ticket_separate_product_queue',0)){
+            if($faq_product_id !== false && ( module_config::c('ticket_separate_product_queue',0) || module_config::c('ticket_separate_product_menu',0) )){
                 $search['faq_product_id'] = $faq_product_id;
             }
             $res = self::get_tickets($search);
@@ -2934,7 +3149,7 @@ Thanks,
     }
 
     public static function is_text_html($text){
-        return stripos($text,'<br')!==false;
+        return (stripos($text,'<br')!==false || stripos($text,'<p>')!==false);
     }
 
 

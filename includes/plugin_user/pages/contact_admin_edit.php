@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!$user_safe)die('fail');
@@ -87,7 +87,7 @@ if(isset($user['customer_id']) && $user['customer_id']){
 
 
 
-<form action="#" method="post">
+<form action="" method="post" autocomplete="off">
 	<input type="hidden" name="_process" value="save_user" />
 	<!-- <input type="hidden" name="_redirect" value="<?php echo $module->link("",array("saved"=>true,"user_id"=>((int)$user_id)?$user_id:'')); ?>" /> -->
 	<input type="hidden" name="user_id" value="<?php echo $user_id; ?>" />
@@ -167,10 +167,7 @@ if(isset($user['customer_id']) && $user['customer_id']){
 				<td valign="top" width="50%">
 					<h3><?php echo _l('Contact Core Details'); ?></h3>
 
-					<?php
-                    include('contact_admin_form.php');
-                    ?>
-                    
+					<?php include('contact_admin_form.php'); ?>
                     <h3><?php echo _l('Contact Background Information'); ?></h3>
 					<table border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form tableclass_full">
 						<tbody>

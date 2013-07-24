@@ -5,13 +5,13 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */ 
 
 $links = array();
 
-if((!isset($_GET['customer_id'])||!$_GET['customer_id']) && class_exists('module_faq',false) && module_config::c('ticket_separate_product_queue',0)){
+if((!isset($_GET['customer_id'])||!$_GET['customer_id']) && class_exists('module_faq',false) && (module_config::c('ticket_separate_product_queue',0)||module_config::c('ticket_separate_product_menu',0))){
 
     $showing_ticket = false;
     if(isset($_GET['ticket_id']) && (int)$_GET['ticket_id'] > 0){

@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 function sort_notes($a,$b){
@@ -16,7 +16,7 @@ function sort_notes($a,$b){
 class module_note extends module_base{
 	
 	var $links;
-    public $version = 2.242;
+    public $version = 2.245;
     // 2.23 - note delete
     // 2.231 - note delete bug fix
     // 2.232 - regenerate note links based on owner table/id rather than using rel_data for home page alerts.
@@ -30,6 +30,9 @@ class module_note extends module_base{
     // 2.24 - note 'public' bug fix
     // 2.241 - view permission fix to see full notes
     // 2.242 - javascript fix
+    // 2.243 - permission improvement (create/edit/delete notes without having edit permission on parent page)
+    // 2.244 - 2013-05-28 - dashboard note reminder permission fix
+    // 2.245 - 2013-07-15 - bug fix
 
     public static function can_i($actions,$name=false,$category=false,$module=false){
         if(!$module)$module=__CLASS__;
@@ -59,12 +62,6 @@ class module_note extends module_base{
                     $sql .= " AND ( n.`user_id` = 0 OR n.`user_id` = ".module_security::get_loggedin_id().")";
                     $tasks = qa($sql);
                     foreach($tasks as $task){
-                        switch($task['owner_table']){
-                            case 'invoice':
-                                $invoice_data = module_invoice::get_invoice($task['owner_id'],true);
-                                if(!$invoice_data)continue;
-                                break;
-                        }
                         $alert_res = process_alert(date('Y-m-d',$task['note_time']), _l('Note Reminder'));
                         if($alert_res){
                             $alert_res['link'] = $task['rel_data'];
@@ -78,14 +75,25 @@ class module_note extends module_base{
                                         $alert_res['link'] = module_user::link_open($task['owner_id']);
                                     }
                                     break;
+                                case 'invoice':
+                                    $invoice_data = module_invoice::get_invoice($task['owner_id'],true);
+                                    if(!$invoice_data||!isset($invoice_data['invoice_id'])||$invoice_data['invoice_id']!=$task['owner_id'])continue 2;
+                                    $alert_res['link'] = module_invoice::link_open($task['owner_id'],false,$invoice_data);
+                                    break;
                                 case 'website':
-                                    $alert_res['link'] = module_website::link_open($task['owner_id']);
+                                    $website_data = module_website::get_website($task['owner_id']);
+                                    if(!$website_data||!isset($website_data['website_id'])||$website_data['website_id']!=$task['owner_id'])continue 2;
+                                    $alert_res['link'] = module_website::link_open($task['owner_id'],false);
                                     break;
                                 case 'customer':
-                                    $alert_res['link'] = module_customer::link_open($task['owner_id']);
+                                    $customer_data = module_customer::get_customer($task['owner_id']);
+                                    if(!$customer_data||!isset($customer_data['customer_id'])||$customer_data['customer_id']!=$task['owner_id'])continue 2;
+                                    $alert_res['link'] = module_customer::link_open($task['owner_id'],false,$customer_data);
                                     break;
                                 case 'job';
-                                    $alert_res['link'] = module_job::link_open($task['owner_id']);
+                                    $job_data = module_job::get_job($task['owner_id']);
+                                    if(!$job_data||!isset($job_data['job_id'])||$job_data['job_id']!=$task['owner_id'])continue 2;
+                                    $alert_res['link'] = module_job::link_open($task['owner_id'],false,$job_data);
                                     break;
                                 // todo - add others.
                             }
@@ -151,9 +159,9 @@ class module_note extends module_base{
             $can_create = $plugins[$options['owner_table']]->can_i('create',$options['title']);
             $can_delete = $plugins[$options['owner_table']]->can_i('delete',$options['title']);
         }
-        if(!module_security::is_page_editable()){
+        /*if(!module_security::is_page_editable()){
             $can_edit=$can_create=$can_delete=false;
-        }
+        }*/
         if(!$can_view)return '';
         // display links in a popup?
         $popup_links = get_display_mode() != 'mobile'; // disable popups in mobile version.
@@ -261,7 +269,7 @@ class module_note extends module_base{
         }
 
         if(!module_security::is_page_editable()){
-            $can_edit=$can_create=$can_delete=false;
+            //$can_edit=$can_create=$can_delete=false;
         }
         
         //

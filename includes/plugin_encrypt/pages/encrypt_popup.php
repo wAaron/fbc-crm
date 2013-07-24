@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 /*
 chdir('includes/plugin_encrypt/phpseclib/');
@@ -52,7 +52,7 @@ $callback_id = isset($_REQUEST['callback_id']) ? $_REQUEST['callback_id'] : '';
 
 
 $encrypt_id = isset($_REQUEST['encrypt_id']) ? (int)$_REQUEST['encrypt_id'] : 0;
-$existing_value = isset($_REQUEST['value']) ? @base64_decode($_REQUEST['value']) : '';
+$existing_value = isset($_REQUEST['value']) ? html_entity_decode(@base64_decode($_REQUEST['value'])) : '';
 $encrypt = module_encrypt::get_encrypt($encrypt_id);
 $encryption_keys = module_encrypt::get_encrypt_keys();
 if($encrypt && $encrypt['encrypt_key_id'] && isset($encryption_keys[$encrypt['encrypt_key_id']])){

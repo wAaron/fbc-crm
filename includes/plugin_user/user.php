@@ -5,9 +5,14 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
+
+
+define('_USER_ACCESS_ALL','All Contact and User Accounts'); // do not change string
+define('_USER_ACCESS_ME','Only My Account'); // do not change string
+define('_USER_ACCESS_CONTACTS','Only Contact Accounts'); // do not change string
 
 
 class module_user extends module_base{
@@ -15,7 +20,13 @@ class module_user extends module_base{
 	public $links;
 	public $user_types;
 
-    public $version = 2.246;
+    public $version = 2.251;
+    // 2.251 - 2013-06-21 - permission update
+    // 2.25 - 2013-06-17 - form autocomplete/autofill improvement for google chrome
+    // 2.249 - 2013-05-01 - ticket create user fix
+    // 2.248 - 2013-04-30 - new user permissions
+    // 2.247 - 2013-04-10 - new customer permissions
+
     // 2.21 - contact deletion redirect / permissions fix
     // 2.22 - all customer contacts permission expansion
     // 2.221 - viewing customer contact groups as permissions.
@@ -110,15 +121,15 @@ class module_user extends module_base{
         }else{
             $data = array();
         }
+        if(!$data && $user_id){
+            $data = self::get_user($user_id,false); //,2);
+            $options['data'] = $data;
+        }
         if(isset($options['full']) && $options['full']){
-            // only hit database if we need to print a full link with the name in it.
-            if(!$data && $user_id){
-                $data = self::get_user($user_id,false,true,2);
-                $options['data'] = $data;
-            }
+
             // what text should we display in this link?
             //$options['text'] = (!isset($data['name'])||!trim($data['name'])) ? 'N/A' : $data['name'].(isset($data['last_name'])?' '.$data['last_name']:'');
-            $options['text'] = (!isset($data['name'])||!trim($data['name'])) ? 'N/A' : $data['name'];
+        	$options['text'] = (!isset($data['name'])||!trim($data['name'])) ? 'N/A' : $data['name'];
             if(!$data || !$user_id){
                 // linking to a new user?
                 // shouldn't happen in a "full" link.
@@ -166,33 +177,47 @@ class module_user extends module_base{
         array_unshift($link_options,$options);
 
         // check if people have permission to link to this item.
-        /*if(isset($options['type']) && $options['type'] == 'contact'){
-            // check they can access this particular contact type
+        /*if((!isset($options['skip_permissions']) || !$options['skip_permissions'])){
+            if(isset($options['type']) && $options['type'] == 'contact'){
+                // check they can access this particular contact type
+                if(!module_security::has_feature_access(array(
+                    'name' => 'Customers',
+                    'module' => 'customer',
+                    'category' => 'Customer',
+                    'view' => 1,
+                    'description' => 'Permissions',
+                    ))
+                    && (!isset($options['skip_permissions']) || !$options['skip_permissions'])
+                ){
+                    if(!isset($options['full']) || !$options['full']){
+                        return '#';
+                    }else{
+                        return isset($options['text']) ? $options['text'] : 'N/A';
+                    }
 
-        }*/
-        if(
-            !module_security::has_feature_access(array(
-                'name' => 'Settings',
-                'module' => 'config',
-                'category' => 'Config',
-                'view' => 1,
-                'description' => 'view',
-            )) && !module_security::has_feature_access(array(
-                'name' => 'Customers',
-                'module' => 'customer',
-                'category' => 'Customer',
-                'view' => 1,
-                'description' => 'view',
-            ))
-            && (!isset($options['skip_permissions']) || !$options['skip_permissions'])
-        ){
-            if(!isset($options['full']) || !$options['full']){
-                return '#';
+                }
             }else{
-                return isset($options['text']) ? $options['text'] : 'N/A';
-            }
+                // we assume we're linking to a staff user.
+                if(
+                    !module_security::has_feature_access(array(
+                        'name' => 'Users',
+                        'module' => 'user',
+                        'category' => 'Config',
+                        'description' => 'Permissions',
+                        'view' => 1,
+                    ))
+                    && (int)$user_id != module_security::get_loggedin_id()
+                ){
+                    if(!isset($options['full']) || !$options['full']){
+                        return '#';
+                    }else{
+                        return isset($options['text']) ? $options['text'] : 'N/A';
+                    }
+                }
 
-        }
+            }
+        }*/
+
         if($bubble_to_module){
             global $plugins;
             if(isset($plugins[$bubble_to_module['module']])){
@@ -205,13 +230,28 @@ class module_user extends module_base{
 
 
     }
-    
 
-	public static function link_open($user_id,$full=false,$data=array(),$skip_permissions=false){
+
+    /**
+     * @param $user_id
+     * @param bool $full
+     * @param array $data
+     * @param bool $skip_permissions - this is only used in security.php during the password reset.
+     * @return mixed|string
+     */
+    public static function link_open($user_id,$full=false,$data=array(),$skip_permissions=false){
         return self::link_generate($user_id,array('full'=>$full,'data'=>$data,'skip_permissions'=>$skip_permissions));
 	}
 
-	public static function link_open_contact($user_id,$full=false,$data=array(),$skip_permissions=false){
+
+    /**
+     * @param $user_id
+     * @param bool $full
+     * @param array $data
+     * @param bool $skip_permissions only used in security.php during password reset
+     * @return mixed|string
+     */
+    public static function link_open_contact($user_id,$full=false,$data=array(),$skip_permissions=false){
 		return self::link_generate($user_id,array('type'=>'contact','full'=>$full,'data'=>$data,'skip_permissions'=>$skip_permissions));
 	}
 
@@ -367,42 +407,41 @@ class module_user extends module_base{
                 $where .= " AND u.`$key` LIKE '$str'";
             }
         }
-        foreach(array('site_id','customer_id') as $key){
+        foreach(array('site_id') as $key){
             if(isset($search[$key]) && $search[$key] !== ''&& $search[$key] !== false){
                 $str = mysql_real_escape_string($search[$key]);
                 $where .= " AND u.`$key` = '$str'";
             }
         }
         if(class_exists('module_customer',false)){
-            switch(module_customer::get_customer_data_access()){
-                case _CUSTOMER_ACCESS_ALL:
-
+            switch(module_user::get_user_data_access()){
+                case _USER_ACCESS_ALL:
+                    // all user accounts.
                     break;
-                case _CUSTOMER_ACCESS_CONTACTS:
-                    // we only want customers that are directly linked with the currently logged in user contact.
-
-                    $valid_customer_ids = module_security::get_customer_restrictions();
-                    if(count($valid_customer_ids)){
-                        $where .= " AND ( ";
-                        foreach($valid_customer_ids as $valid_customer_id){
-                            $where .= " u.customer_id = '".(int)$valid_customer_id."' OR ";
-                        }
-                        $where = rtrim($where,'OR ');
-                        $where .= " )";
-                    }
-
-                    /*if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                        // this session variable is set upon login, it holds their customer id.
-                        $where .= " AND u.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
-                    }*/
+                case _USER_ACCESS_ME:
+                    $where .= " AND u.`user_id` = ".(int)module_security::get_loggedin_id();
                     break;
-                case _CUSTOMER_ACCESS_TASKS:
-                    // only customers who have linked jobs that I am assigned to.
-                    $from .= " LEFT JOIN `"._DB_PREFIX."job` j ON u.customer_id = j.customer_id ";
-                    $from .= " LEFT JOIN `"._DB_PREFIX."task` t ON j.job_id = t.job_id ";
-                    $where .= " AND (j.user_id = ".(int)module_security::get_loggedin_id()." OR t.user_id = ".(int)module_security::get_loggedin_id().")";
+                case _USER_ACCESS_CONTACTS:
+                    $where .= " AND u.`customer_id` > 0 ";
                     break;
             }
+            /*switch(module_customer::get_customer_data_access()){
+                case _CUSTOMER_ACCESS_ALL:
+                    // all customers! so this means all jobs!
+                    break;
+                case _CUSTOMER_ACCESS_CONTACTS:
+                case _CUSTOMER_ACCESS_TASKS:
+                case _CUSTOMER_ACCESS_STAFF:
+                    $valid_customer_ids = module_security::get_customer_restrictions();
+                    if(count($valid_customer_ids)){
+                        $where .= " AND u.customer_id IN ( ";
+                        foreach($valid_customer_ids as $valid_customer_id){
+                            $where .= (int)$valid_customer_id.", ";
+                        }
+                        $where = rtrim($where,', ');
+                        $where .= " )";
+                    }
+            }*/
         }
 		$group_order = ' GROUP BY u.user_id ORDER BY u.name'; // stop when multiple company sites have same region
 		$sql = $sql . $from . $where . $group_order;
@@ -461,33 +500,34 @@ class module_user extends module_base{
             }
         }
         if(class_exists('module_customer',false)){
+            switch(module_user::get_user_data_access()){
+                case _USER_ACCESS_ALL:
+                    // all user accounts.
+                    break;
+                case _USER_ACCESS_ME:
+                    $where .= " AND u.`user_id` = ".(int)module_security::get_loggedin_id();
+                    break;
+                case _USER_ACCESS_CONTACTS:
+                    $where .= " AND u.`customer_id` > 0 ";
+                    break;
+            }
             switch(module_customer::get_customer_data_access()){
                 case _CUSTOMER_ACCESS_ALL:
-
+                    // all customers! so this means all jobs!
                     break;
+                case _CUSTOMER_ACCESS_ALL_COMPANY:
                 case _CUSTOMER_ACCESS_CONTACTS:
-                    // we only want customers that are directly linked with the currently logged in user contact.
+                case _CUSTOMER_ACCESS_TASKS:
+                case _CUSTOMER_ACCESS_STAFF:
                     $valid_customer_ids = module_security::get_customer_restrictions();
                     if(count($valid_customer_ids)){
-                        $where .= " AND ( ";
+                        $where .= " AND u.customer_id IN ( ";
                         foreach($valid_customer_ids as $valid_customer_id){
-                            $where .= " u.customer_id = '".(int)$valid_customer_id."' OR ";
+                            $where .= (int)$valid_customer_id.", ";
                         }
-                        $where = rtrim($where,'OR ');
+                        $where = rtrim($where,', ');
                         $where .= " )";
                     }
-                    /*
-                    if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                        // this session variable is set upon login, it holds their customer id.
-                        $where .= " AND u.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
-                    }*/
-                    break;
-                case _CUSTOMER_ACCESS_TASKS:
-                    // only customers who have linked jobs that I am assigned to.
-                    $from .= " LEFT JOIN `"._DB_PREFIX."job` j ON u.customer_id = j.customer_id ";
-                    $from .= " LEFT JOIN `"._DB_PREFIX."task` t ON j.job_id = t.job_id ";
-                    $where .= " AND (j.user_id = ".(int)module_security::get_loggedin_id()." OR t.user_id = ".(int)module_security::get_loggedin_id().")";
-                    break;
             }
         }
         if($new_security_check){
@@ -515,7 +555,7 @@ class module_user extends module_base{
 	}
 
     private static $_user_cache = array();
-	public static function get_user($user_id,$perms=true,$do_link=true,$basic=false){
+	public static function get_user($user_id,$perms=true,$do_link=true){ //,$basic=false
         if(isset(self::$_user_cache[$user_id])){
             return self::$_user_cache[$user_id];
         }
@@ -531,21 +571,47 @@ class module_user extends module_base{
             }else{
 
                 if(class_exists('module_customer',false)){
-                    switch(module_customer::get_customer_data_access()){
-                        case _CUSTOMER_ACCESS_ALL:
-
-                            break;
-                        case _CUSTOMER_ACCESS_CONTACTS:
-                            // we only want customers that are directly linked with the currently logged in user contact.
-
-                            $valid_customer_ids = module_security::get_customer_restrictions();
-                            if(count($valid_customer_ids)){
-                                $is_valid_user = false;
-                                foreach($valid_customer_ids as $valid_customer_id){
-                                    if($user['customer_id'] && $user['customer_id'] == $valid_customer_id){
-                                        $is_valid_user = true;
+                    if($user){
+                        switch(module_user::get_user_data_access()){
+                            case _USER_ACCESS_ME:
+                                if($user['user_id'] != module_security::get_loggedin_id()){
+                                    if($perms){
+                                        $user = false;
+                                    }else{
+                                        // eg for linking.
+                                        $user['_perms'] = false;
                                     }
                                 }
+                                break;
+                            case _USER_ACCESS_CONTACTS:
+                                if(!$user['customer_id']){
+                                    // this user is not a customer contact, don't let them access it.
+                                    if($perms){
+                                        $user = false;
+                                    }else{
+                                        // eg for linking.
+                                        $user['_perms'] = false;
+                                    }
+                                }
+                                break;
+                            case _USER_ACCESS_ALL:
+                            default:
+                                // all user accounts.
+
+                                break;
+                        }
+                    }
+                    if($user && $user['customer_id']>0){
+                        switch(module_customer::get_customer_data_access()){
+                            case _CUSTOMER_ACCESS_ALL:
+                                // all customers! so this means all jobs!
+                                break;
+                            case _CUSTOMER_ACCESS_ALL_COMPANY:
+                            case _CUSTOMER_ACCESS_CONTACTS:
+                            case _CUSTOMER_ACCESS_TASKS:
+                            case _CUSTOMER_ACCESS_STAFF:
+                                $valid_customer_ids = module_security::get_customer_restrictions();
+                                $is_valid_user = isset($valid_customer_ids[$user['customer_id']]);
                                 if(!$is_valid_user){
                                     if($perms){
                                         $user = false;
@@ -554,54 +620,7 @@ class module_user extends module_base{
                                         $user['_perms'] = false;
                                     }
                                 }
-                            }
-                            /*
-                            if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                                // this session variable is set upon login, it holds their customer id.
-                                //$where .= " AND c.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
-                                if(!$user['customer_id'] || $user['customer_id'] != $_SESSION['_restrict_customer_id']){
-                                    if($perms){
-                                        $user = false;
-                                    }else{
-                                        // eg for linking.
-                                        $user['_perms'] = false;
-                                    }
-                                }
-                            }*/
-                            break;
-                        case _CUSTOMER_ACCESS_TASKS:
-                            // only customers who have linked jobs that I am assigned to.
-                            //$sql .= " LEFT JOIN `"._DB_PREFIX."job` j ON c.customer_id = j.customer_id ";
-                            //$sql .= " LEFT JOIN `"._DB_PREFIX."task` t ON j.job_id = t.job_id ";
-                            //$where .= " AND (j.user_id = ".(int)module_security::get_loggedin_id()." OR t.user_id = ".(int)module_security::get_loggedin_id().")";
-                            if(!$user['customer_id']){
-                                $has_job_access = false;
-                            }else{
-                                $has_job_access = false;
-                                $jobs = module_job::get_jobs(array('customer_id'=>$user['customer_id']));
-                                foreach($jobs as $job){
-                                    if($job['user_id']==module_security::get_loggedin_id()){
-                                        $has_job_access=true;
-                                        break;
-                                    }
-                                    $tasks = module_job::get_tasks($job['job_id']);
-                                    foreach($tasks as $task){
-                                        if($task['user_id']==module_security::get_loggedin_id()){
-                                            $has_job_access=true;
-                                            break;
-                                        }
-                                    }
-                                }
-                            }
-                            if(!$has_job_access){
-                                if($perms){
-                                    $user = false;
-                                }else{
-                                    // eg for linking.
-                                    $user['_perms'] = false;
-                                }
-                            }
-                            break;
+                        }
                     }
                 }
             }
@@ -620,6 +639,7 @@ class module_user extends module_base{
                 'fax' => '',
                 'roles' => array(),
                 'language' => module_config::c('default_language','en'),
+                'company_ids' => array(),
             );
             $use_master_key = self::get_contact_master_key();
             if(isset($_REQUEST[$use_master_key])){
@@ -627,24 +647,38 @@ class module_user extends module_base{
             }
         }else{
             $user['roles'] = get_multiple('user_role',array('user_id'=>$user_id));
+            if(class_exists('module_company',false) && module_company::is_enabled()){
+                $user['company_ids']=array();
+                foreach(module_company::get_companys_by_user($user['user_id']) as $company){
+                    $user['company_ids'][$company['company_id']] = $company['name'];
+                }
+            }
             self::$_user_cache[$user_id] = $user;
         }
 		return $user;
 	}
 
-    public function create_user($user_data,$user_type=false){
+    public function create_user($user_data){ // $user_type=false
         // todo - check user data is correct.
         $user_data['status_id'] = 1;
         if(isset($user_data['password'])){
             $user_data['password_new'] = $user_data['password'];
         }
-        $user_id = $this->save_user('new',$user_data);
+        $user_id = $this->save_user('new',$user_data, true);
         //self::set_user_type($user_id,$user_type);
         return $user_id;
     }
 
-	public function save_user($user_id,$data){
-        $user_id = (int)$user_id;
+	public function save_user($user_id,$data, $from_public = false){
+        if($from_public){
+            $user_id = 0;
+        }else{
+            if(!self::can_i('edit','Users','Config')){
+                set_error('Unable to edit users.');
+                return false;
+            }
+            $user_id = (int)$user_id;
+        }
         $temp_user = array();
         if($user_id>0){
             // check permissions
@@ -652,6 +686,12 @@ class module_user extends module_base{
             if(!$temp_user || $temp_user['user_id'] != $user_id || isset($temp_user['_perms'])){
                 $user_id = false;
             }
+        }
+        if(!$user_id && !self::can_i('create','Users','Config') && !$from_public){
+            set_error('Unable to create new users.');
+            return false;
+        }else if($user_id == 1 && module_security::get_loggedin_id() != 1){
+            set_error('Sorry only the administrator can modify this account');
         }
         // check the customer id is valid assignment to someone who has these perms.
         if(isset($data['customer_id']) && (int)$data['customer_id'] > 0){
@@ -829,6 +869,22 @@ class module_user extends module_base{
                 $plugins['site']->set_primary_user_id($data['site_id'],0);
             }
         }*/
+        
+        // save the company information if it's available
+        if(class_exists('module_company',false) && module_company::can_i('edit','Company') && module_company::is_enabled() && module_user::can_i('edit','User')){
+            if(isset($_REQUEST['available_user_company']) && is_array($_REQUEST['available_user_company'])){
+                $selected_companies = isset($_POST['user_company']) && is_array($_POST['user_company']) ? $_POST['user_company'] : array();
+                foreach($_REQUEST['available_user_company'] as $company_id => $tf){
+                    if(!isset($selected_companies[$company_id]) || !$selected_companies[$company_id]){
+                        // remove user from this company
+                        module_company::delete_user($company_id,$user_id);
+                    }else{
+                        // add user to this company (if they are not already existing)
+                        module_company::add_user_to_company($company_id,$user_id);
+                    }
+                }
+            }
+        }
 
 		return $user_id;
 	}
@@ -967,6 +1023,14 @@ class module_user extends module_base{
     }
 
 
+    public static function get_user_data_access() {
+        if(class_exists('module_security',false)){
+            return module_security::can_user_with_options(module_security::get_loggedin_id(),'User Account Access',array(_USER_ACCESS_ALL, _USER_ACCESS_ME, _USER_ACCESS_CONTACTS, ));
+        }else{
+            return true;
+        }
+    }
+
 
     /*
     array(
@@ -1031,30 +1095,6 @@ class module_user extends module_base{
         self::$users_by_perm_cache[$cache_key] = $users;
         return $users;
 
-    }
-    
-    static $users_by_group_cache = array();
-    public static function get_users_by_group($group_name){
-    	$cache_key = md5(serialize($group_name));
-    	if(isset(self::$users_by_group_cache[$cache_key]))return self::$users_by_group_cache[$cache_key];
-    	
-    	
-    	$sql = "SELECT u.*, u.user_id AS id FROM `"._DB_PREFIX."user` u WHERE u.user_id IN (";
-    	
-    	$sql .= "SELECT gm.owner_id";
-    	$sql .= " FROM `"._DB_PREFIX."group_member` gm";
-    	$sql .= " , `"._DB_PREFIX."group` g WHERE g.group_id = gm.group_id";
-    	$sql .= " AND g.name = '".mysql_real_escape_string($group_name)."'";
-    	$sql .= " AND gm.owner_table = 'user'";
-    	
-    	$sql .= ')';
-    	
-    	error_log($sql);
-    	
-    	$users = qa($sql);
-    	
-    	self::$users_by_group_cache[$cache_key] = $users;
-    	return $users;
     }
 
     public static function get_staff_members() {
@@ -1219,5 +1259,27 @@ CREATE TABLE IF NOT EXISTS `<?php echo _DB_PREFIX; ?>user_type` (
         return ob_get_clean();
     }
 
-
+    static $users_by_group_cache = array();
+    public static function get_users_by_group($group_name){
+    	$cache_key = md5(serialize($group_name));
+    	if(isset(self::$users_by_group_cache[$cache_key]))return self::$users_by_group_cache[$cache_key];
+    	 
+    	 
+    	$sql = "SELECT u.*, u.user_id AS id FROM `"._DB_PREFIX."user` u WHERE u.user_id IN (";
+    	 
+    	$sql .= "SELECT gm.owner_id";
+    	$sql .= " FROM `"._DB_PREFIX."group_member` gm";
+    	$sql .= " , `"._DB_PREFIX."group` g WHERE g.group_id = gm.group_id";
+    	$sql .= " AND g.name = '".mysql_real_escape_string($group_name)."'";
+    	$sql .= " AND gm.owner_table = 'user'";
+    	 
+    	$sql .= ')';
+    	 
+    	error_log($sql);
+    	 
+    	$users = qa($sql);
+    	 
+    	self::$users_by_group_cache[$cache_key] = $users;
+    	return $users;
+    }
 }

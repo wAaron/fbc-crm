@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!$job_safe)die('denied');
@@ -83,7 +83,9 @@ $job_tasks = array(); //module_job::get_tasks($job_id);
             $(this).parent().find('.task_long_description').slideToggle();
             return false;
         });
+        <?php if(module_config::c('job_create_task_as_name',0)){ ?>
         $('#job_name').keyup(setnewjobtask).change(setnewjobtask);
+        <?php } ?>
     });
 </script>
 
@@ -309,6 +311,17 @@ $job_tasks = array(); //module_job::get_tasks($job_id);
                                         }
                                 } ?>
 								</td>
+                                <tr>
+                                    <th>
+                                        <?php _e('Task Type');?>
+                                    </th>
+                                    <td>
+                                        <?php
+                                        echo print_select_box(module_job::get_task_types(),'default_task_type',isset($job['default_task_type'])?$job['default_task_type']:0,'',false);?>
+                                        <?php _h('The default is hourly rate + amount. This will show the "Hours" column along with an "Amount" column. Inputing a number of hours will auto complete the price based on the job hourly rate. <br>Quantity and Amount will allow you to input a Quantity (eg: 2) and an Amount (eg: $100) and the final price will be $200 (Quantity x Amount). The last option "Amount Only" will just have the amount column for manual input of price. Change the advanced setting "default_task_type" between 0, 1 and 2 to change the default here.'); ?>
+
+                                    </td>
+                                </tr>
                                 <?php
                             $job_default_tasks = module_job::get_default_tasks();
                                 if(module_config::c('job_enable_default_tasks',1) && count($job_default_tasks)){
@@ -368,7 +381,14 @@ $job_tasks = array(); //module_job::get_tasks($job_id);
                             <th width="10">#</th>
                             <?php } ?>
                             <th class="task_column task_width"><?php _e('Description');?></th>
-                            <th width="10"><?php echo module_config::c('task_hours_name',_l('Hours'));?></th>
+                            <th width="10" class="task_type_label">
+                            <?php if($job['default_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                }else if($job['default_task_type']==_TASK_TYPE_QTY_AMOUNT){
+                                echo module_config::c('task_qty_name',_l('Qty'));
+                                }else if($job['default_task_type']==_TASK_TYPE_HOURS_AMOUNT){
+                                echo module_config::c('task_hours_name',_l('Hours'));
+                                } ?>
+                            </th>
                             <th width="72"><?php _e('Amount');?></th>
                             <th width="83"><?php _e('Due Date');?></th>
                             <?php if(module_config::c('job_allow_staff_assignment',1)){ ?>

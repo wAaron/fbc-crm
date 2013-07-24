@@ -86,16 +86,16 @@ switch($display_mode){
                 }
                 ?>
                 $.datepicker.regional['ucmcal'] = {
-                    closeText: '<?php _e('Done');?>',
-                    prevText: '<?php _e('Prev');?>',
-                    nextText: '<?php _e('Next');?>',
-                    currentText: '<?php _e('Today');?>',
-                    monthNames: ['<?php _e('January');?>','<?php _e('February');?>','<?php _e('March');?>','<?php _e('April');?>','<?php _e('May');?>','<?php _e('June');?>', '<?php _e('July');?>','<?php _e('August');?>','<?php _e('September');?>','<?php _e('October');?>','<?php _e('November');?>','<?php _e('December');?>'],
-                    monthNamesShort: ['Jan', '<?php _e('Feb');?>', '<?php _e('Mar');?>', '<?php _e('Apr');?>', '<?php _e('May');?>', '<?php _e('Jun');?>', '<?php _e('Jul');?>', '<?php _e('Aug');?>', '<?php _e('Sep');?>', '<?php _e('Oct');?>', '<?php _e('Nov');?>', '<?php _e('Dec');?>'],
-                    dayNames: ['<?php _e('Sunday');?>', '<?php _e('Monday');?>', '<?php _e('Tuesday');?>', '<?php _e('Wednesday');?>', '<?php _e('Thursday');?>', '<?php _e('Friday');?>', '<?php _e('Saturday');?>'],
-                    dayNamesShort: ['<?php _e('Sun');?>', '<?php _e('Mon');?>', '<?php _e('Tue');?>', '<?php _e('Wed');?>', '<?php _e('Thu');?>', '<?php _e('Fri');?>', '<?php _e('Sat');?>'],
-                    dayNamesMin: ['<?php _e('Su');?>','<?php _e('Mo');?>','<?php _e('Tu');?>','<?php _e('We');?>','<?php _e('Th');?>','<?php _e('Fr');?>','<?php _e('Sa');?>'],
-                    weekHeader: '<?php _e('Wk');?>',
+                    closeText: '<?php echo addcslashes(_l('Done'),"'");?>',
+                    prevText: '<?php echo addcslashes(_l('Prev'),"'");?>',
+                    nextText: '<?php echo addcslashes(_l('Next'),"'");?>',
+                    currentText: '<?php echo addcslashes(_l('Today'),"'");?>',
+                    monthNames: ['<?php echo addcslashes(_l('January'),"'");?>','<?php echo addcslashes(_l('February'),"'");?>','<?php echo addcslashes(_l('March'),"'");?>','<?php echo addcslashes(_l('April'),"'");?>','<?php echo addcslashes(_l('May'),"'");?>','<?php echo addcslashes(_l('June'),"'");?>', '<?php echo addcslashes(_l('July'),"'");?>','<?php echo addcslashes(_l('August'),"'");?>','<?php echo addcslashes(_l('September'),"'");?>','<?php echo addcslashes(_l('October'),"'");?>','<?php echo addcslashes(_l('November'),"'");?>','<?php echo addcslashes(_l('December'),"'");?>'],
+                    monthNamesShort: ['Jan', '<?php echo addcslashes(_l('Feb'),"'");?>', '<?php echo addcslashes(_l('Mar'),"'");?>', '<?php echo addcslashes(_l('Apr'),"'");?>', '<?php echo addcslashes(_l('May'),"'");?>', '<?php echo addcslashes(_l('Jun'),"'");?>', '<?php echo addcslashes(_l('Jul'),"'");?>', '<?php echo addcslashes(_l('Aug'),"'");?>', '<?php echo addcslashes(_l('Sep'),"'");?>', '<?php echo addcslashes(_l('Oct'),"'");?>', '<?php echo addcslashes(_l('Nov'),"'");?>', '<?php echo addcslashes(_l('Dec'),"'");?>'],
+                    dayNames: ['<?php echo addcslashes(_l('Sunday'),"'");?>', '<?php echo addcslashes(_l('Monday'),"'");?>', '<?php echo addcslashes(_l('Tuesday'),"'");?>', '<?php echo addcslashes(_l('Wednesday'),"'");?>', '<?php echo addcslashes(_l('Thursday'),"'");?>', '<?php echo addcslashes(_l('Friday'),"'");?>', '<?php echo addcslashes(_l('Saturday'),"'");?>'],
+                    dayNamesShort: ['<?php echo addcslashes(_l('Sun'),"'");?>', '<?php echo addcslashes(_l('Mon'),"'");?>', '<?php echo addcslashes(_l('Tue'),"'");?>', '<?php echo addcslashes(_l('Wed'),"'");?>', '<?php echo addcslashes(_l('Thu'),"'");?>', '<?php echo addcslashes(_l('Fri'),"'");?>', '<?php echo addcslashes(_l('Sat'),"'");?>'],
+                    dayNamesMin: ['<?php echo addcslashes(_l('Su'),"'");?>','<?php echo addcslashes(_l('Mo'),"'");?>','<?php echo addcslashes(_l('Tu'),"'");?>','<?php echo addcslashes(_l('We'),"'");?>','<?php echo addcslashes(_l('Th'),"'");?>','<?php echo addcslashes(_l('Fr'),"'");?>','<?php echo addcslashes(_l('Sa'),"'");?>'],
+                    weekHeader: '<?php echo addcslashes(_l('Wk'),"'");?>',
                     dateFormat: '<?php echo $js_cal_format;?>',
                     firstDay: <?php echo module_config::c('calendar_first_day_of_week','1');?>,
                     yearRange: '<?php echo module_config::c('calendar_year_range','-90:+3');?>'
@@ -165,7 +165,7 @@ switch($display_mode){
 	    	<div id="profile_info">
 				<?php echo module_user::link_open($_SESSION['_user_id'],true);?> <span class="sep">|</span>
                 <a href="<?php echo _BASE_HREF;?>index.php?_logout=true"><?php _e('Logout');?></a>
-                <div class="date"><?php echo date('l jS \of F Y'); ?></div>
+                <div class="date"><?php echo _l('%s %s%s of %s %s',_l(date('l')),date('j'),_l(date('S')),_l(date('F')),date('Y')); ?></div>
 			</div>
 		<?php
 		}

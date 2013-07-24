@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */ echo $task_id;?> task_preview<?php echo $percentage>=1 ?' tasks_completed':'';?> <?php echo ($task_editable) ? ' task_editable' : '';?>" rel="<?php echo $task_id;?>">
         <?php if($show_task_numbers){ ?>
             <td valign="top" class="task_order task_drag_handle"><?php echo $task_data['task_order'];?></td>
@@ -71,18 +71,22 @@
         </td>
         <td valign="top" class="task_drag_handle">
             <?php
-            // are the logged hours different to the billed hours?
-            // are we completed too?
-            if($percentage == 1 && $task_data['completed'] < $task_data['hours']){
-                echo '<span class="success_text">';
-                echo $task_data['hours']>0 ? $task_data['hours'] : '-';
-                echo '</span>';
-            }else if($percentage == 1 && $task_data['completed'] > $task_data['hours']){
-                echo '<span class="error_text">';
-                echo $task_data['hours']>0 ? $task_data['hours'] : '-';
-                echo '</span>';
+            if($task_data['hours'] == 0 && $task_data['manual_task_type'] == _TASK_TYPE_AMOUNT_ONLY){
+            // only amount, no hours or qty
             }else{
-                echo $task_data['hours']>0 ? $task_data['hours'] : '-';
+                // are the logged hours different to the billed hours?
+                // are we completed too?
+                if($percentage == 1 && $task_data['completed'] < $task_data['hours']){
+                    echo '<span class="success_text">';
+                    echo $task_data['hours']>0 ? $task_data['hours'] : '-';
+                    echo '</span>';
+                }else if($percentage == 1 && $task_data['completed'] > $task_data['hours']){
+                    echo '<span class="error_text">';
+                    echo $task_data['hours']>0 ? $task_data['hours'] : '-';
+                    echo '</span>';
+                }else{
+                    echo $task_data['hours']>0 ? $task_data['hours'] : '-';
+                }
             }
 
             ?>
@@ -91,6 +95,12 @@
         <td valign="top" class="task_drag_handle">
             <span class="currency <?php echo $task_data['billable'] ? 'success_text' : 'error_text';?>">
             <?php echo $task_data['amount']>0 ? dollar($task_data['amount'],true,$job['currency_id']) : dollar($task_data['hours']*$job['hourly_rate'],true,$job['currency_id']);?>
+                <?php if($task_data['manual_task_type'] == _TASK_TYPE_QTY_AMOUNT){
+                    $full_amount = $task_data['hours'] * $task_data['amount'];
+                    if($full_amount != $task_data['amount']){
+                        echo '<br/>('.dollar($full_amount,true,$job['currency_id']).')';
+                    }
+                } ?>
             </span>
         </td>
         <?php } ?>
@@ -151,7 +161,11 @@
                 }
                 echo '</span>';*/
             }else if($task_editable){ ?>
+                <?php if(module_config::c('job_task_edit_icon',0)){ // old icon:  ?>
                 <a href="#" class="ui-state-default ui-corner-all ui-icon ui-icon-<?php echo $percentage == 1 ? 'pencil' : 'check';?>" title="<?php _e( $percentage == 1 ? 'Edit' : 'Complete');?>" onclick="edittask(<?php echo $task_id;?>,<?php echo ($task_data['hours']>0?($task_data['hours']-$task_data['completed']):1);?>); return false;"><?php _e('Edit');?></a>
+                <?php }else{ ?>
+                    <input type="button" name="edit" value="<?php _e('Edit');?>" class="small_button" onclick="edittask(<?php echo $task_id;?>,<?php echo ($task_data['hours']>0?($task_data['hours']-$task_data['completed']):1);?>); return false;">
+                <?php } ?>
 
             <?php } ?>
         </td>

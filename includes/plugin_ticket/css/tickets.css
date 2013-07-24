@@ -106,3 +106,7 @@
     margin: 0 0 5px 0;
     display: block;
 }
+
+.email_input{
+    width:80%;
+}

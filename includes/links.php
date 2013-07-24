@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -16,7 +16,9 @@ function full_link($link,$secure=false){
 
     if(!_REWRITE_LINKS){
         // convert rewritten links into normal links.
-        $url_part = preg_replace('#^'.preg_quote(module_config::c('system_base_dir','/'),'#').'#i','',$link);
+        $base_url = module_config::c('system_base_dir');
+        if(!$base_url)$base_url='/';
+        $url_part = preg_replace('#^'.preg_quote($base_url,'#').'#i','',$link);
         $url_part = preg_replace('#\?.*$#','',$url_part);
         //echo $url_part."<br>";
         if($url_part){

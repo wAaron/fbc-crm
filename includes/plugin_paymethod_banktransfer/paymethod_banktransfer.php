@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -28,7 +28,8 @@ class module_paymethod_banktransfer extends module_base{
 		$this->module_name = "paymethod_banktransfer";
 		$this->module_position = 8882;
 
-        module_template::init_template('paymethod_banktransfer','Hello,
+        if(class_exists('module_template',false)){
+            module_template::init_template('paymethod_banktransfer','Hello,
 Please make payment via Bank Transfer using the following details:
 
 {BANK_DETAILS}
@@ -40,10 +41,11 @@ Please <a href="{LINK}" target="_blank">click here</a> to return to your previou
 Thank you
 ','Displayed when Bank Transfer payment method is selected.');
 
-        module_template::init_template('paymethod_banktransfer_details','Bank Name: <strong>Name Here</strong>
+            module_template::init_template('paymethod_banktransfer_details','Bank Name: <strong>Name Here</strong>
 Bank Account: <strong>123456</strong>
 Payment Reference: <strong>{NAME}</strong>
 Amount: <strong>{AMOUNT}</strong>','Bank transfer details for invoice payments.');
+        }
 
 	}
 

@@ -5,15 +5,16 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
 require_once("includes/config.php");
 
 define('_APPLICATION_ID',2621629); // not used any more.
-define('_SCRIPT_VERSION','3.39.3'); //DDX patch
+define('_SCRIPT_VERSION','3.44');
+// 3.42 - invoice product adjustments
 
 if(!isset($_SERVER['REQUEST_URI'])){
 //ISAPI_Rewrite 3.x
@@ -41,22 +42,7 @@ if(!isset($_SERVER['REQUEST_URI'])){
         $_SERVER['REQUEST_URI'] = $_SERVER['HTTP_REQUEST_URI'];
     }
 }
-// some hosting accounts dont have default session settings that work :-/
-//ini_set('error_reporting',E_ALL);
-//ini_set('display_errors',false);
 
-
-// some hosting accounts dont have default session settings that work :-/
-//ini_set('error_reporting',E_ALL);
-//ini_set('display_errors',true);
-if(!session_id() && (!isset($disable_sessions) || !$disable_sessions)){
-    if(is_dir(_UCM_FOLDER . "/temp/") && is_writable(_UCM_FOLDER . "/temp/")){
-        ini_set("session.save_handler", "files");
-        session_save_path (_UCM_FOLDER . "/temp/");
-    }
-    session_start();
-    // if there are no session values
-}
 // oldschool setups:
 if(get_magic_quotes_gpc()){
     function stripslashes_deep(&$value){
@@ -66,6 +52,10 @@ if(get_magic_quotes_gpc()){
 	stripslashes_deep($_GET);
     stripslashes_deep($_POST);
 }
+
+require_once("includes/functions.php");
+require_once("includes/database.php");
+require_once("includes/links.php");
 
 
 // include all our plugin files:
@@ -77,16 +67,32 @@ foreach(glob("includes/plugin_*") as $plugin_dir){
     }
 }
 
-require_once("includes/functions.php");
-require_once("includes/database.php");
-require_once("includes/links.php");
-
-define('_UCM_INSTALLED',is_installed());
+define('_UCM_INSTALLED',is_installed()); // is_installed() will do our db_connection
 
 
 $plugins = array();
 if(_UCM_INSTALLED){
     $db = db_connect();
+}
+
+// storing sessions in a database, only if it's enabled.
+
+// some hosting accounts dont have default session settings that work :-/
+//ini_set('error_reporting',E_ALL);
+//ini_set('display_errors',true);
+if(!session_id() && (!isset($disable_sessions) || !$disable_sessions)){
+    if(is_dir(_UCM_FOLDER . "/temp/") && is_writable(_UCM_FOLDER . "/temp/")){
+        if(class_exists('module_session') && module_session::is_db_sessions_enabled()){
+            // don't set file based sessions
+            new module_session();
+        }else{
+            // file based sessions in the local /temp/ folder. bad! oh well.
+            ini_set("session.save_handler", "files");
+            session_save_path (_UCM_FOLDER . "/temp/");
+        }
+    }
+    session_start();
+    // if there are no session values
 }
 
 
@@ -127,11 +133,12 @@ define('_UCM_HOST',$ucm_host);
 $default_base_dir = str_replace('\\\\','\\',str_replace('//','/',dirname($_SERVER['REQUEST_URI'].'?foo=bar').'/'));
 $default_base_dir = preg_replace('#includes/plugin_[^/]*/css/#','',$default_base_dir);
 $default_base_dir = preg_replace('#includes/plugin_[^/]*/#','',$default_base_dir);
-// hack for ssl
-if(isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != '' && $_SERVER['HTTPS']!='off'){
-    $default_base_dir = preg_replace('#^https?#','https',$default_base_dir);
+if(isset($external) && $external){
+    // stops us saving a bogus entry in db when resetting database in demo:
+    define('_BASE_HREF',module_config::c('system_base_dir'));
+}else{
+    define('_BASE_HREF',module_config::c('system_base_dir',$default_base_dir));
 }
-define('_BASE_HREF',module_config::c('system_base_dir',$default_base_dir));
 
 if(!function_exists('sort_plugins')){
     function sort_plugins($a,$b){
@@ -157,13 +164,6 @@ if(isset($_REQUEST['_process_reset'])){
 }
 if(isset($_REQUEST['_process_login'])){
     // check recaptcha
-    if(module_config::c('login_recaptcha',0)){
-        if(!module_captcha::check_captcha_form()){
-            // captcha was wrong.
-            _e('Sorry the captcha code you entered was incorrect. Please <a href="%s" onclick="%s">go back</a> and try again.','#','window.history.go(-1); return false;');
-            exit;
-        }
-    }
 	module_security::process_login();
 }
 if(isset($_REQUEST['_logout'])){
@@ -221,3 +221,11 @@ if(!is_array($_REQUEST['m']))$_REQUEST['m'] = array($_REQUEST['m']);
 if(!is_array($_REQUEST['p']))$_REQUEST['p'] = array($_REQUEST['p']);
 
 $load_modules = array_reverse($load_modules,true);
+
+if(module_config::c('database_utf8',0)){
+    // from predatorkill
+    mysql_query("SET CHARACTER SET `utf8`");
+    mysql_query("SET NAMES `utf8`");
+    //trying this out too
+    mb_internal_encoding( 'UTF-8' );
+}

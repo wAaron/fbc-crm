@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!$ticket_safe){
@@ -38,7 +38,7 @@ if($ticket_id>0 && $ticket && $ticket['ticket_id']==$ticket_id){
         // we want to do our own special type of form modification here
         // so we don't pass it off to "check_page" which will hide all input boxes.
         if(!module_ticket::can_i('edit','Tickets') && !module_ticket::can_i('create','Tickets')){
-            set_error('Access to editing tickets denied.');
+            set_error('Access to editing or creating tickets is denied.');
             redirect_browser(module_ticket::link_open(false));
         }
 	}
@@ -126,7 +126,22 @@ foreach($temp_tickets as $key=>$val){
 }
 
 ob_start(); ?>
-<p align="center">
+<script type="text/javascript">
+    ucm.ticket = {};
+    ucm.ticket.add_to_message = function(content){
+        <?php if(module_config::c('ticket_message_text_or_html','html')=='html'){ ?>
+        content = content.replace(/\n/g,"<br/>\n");
+        tinyMCE.activeEditor.execCommand('mceInsertContent', false, content);
+        <?php }else{ ?>
+        $('#new_ticket_message').val(
+                $('#new_ticket_message').val() + content
+        );
+        <?php } ?>
+        return false;
+    }
+</script>
+
+    <p align="center">
     <input type="submit" name="butt_save" id="butt_save" value="<?php echo _l('Save details'); ?>" class="submit_button save_button" />
     <?php if((int)$ticket_id && module_ticket::can_i('delete','Tickets')){ ?>
     <input type="submit" name="butt_del" id="butt_del" value="<?php echo _l('Delete'); ?>" class="submit_button delete_button" />
@@ -148,7 +163,7 @@ ob_start(); ?>
         <tr>
             <td align="left">
                 <?php if($prev_ticket && $prev_ticket!==true){ ?>
-                <a href="<?php echo module_ticket::link_open($prev_ticket);?>" class="uibutton"><?php _e('&laquo; Prev Ticket');?></a>
+                <a href="<?php echo module_ticket::link_open($prev_ticket);?>" class="uibutton">&laquo; <?php _e('Prev Ticket');?></a>
                 <?php } ?>
             </td>
             <td align="center">
@@ -156,7 +171,7 @@ ob_start(); ?>
             </td>
             <td align="right">
                 <?php if($next_ticket){ ?>
-                <a href="<?php echo module_ticket::link_open($next_ticket);?>" class="uibutton"><?php _e('Next Ticket &raquo;');?></a>
+                <a href="<?php echo module_ticket::link_open($next_ticket);?>" class="uibutton"><?php _e('Next Ticket');?> &raquo;</a>
                 <?php } ?>
             </td>
         </tr>
@@ -334,12 +349,13 @@ ob_start(); ?>
                                             echo friendly_key(module_faq::get_faq_products_rel(),$ticket['faq_product_id']);
                                         }
                                         // show a button that does a jquery popup with the list of faq items and an option to create new one.
-                                        echo ' ';
-                                        echo popup_link('<a href="'.module_faq::link_open_list($ticket['faq_product_id']).'">'._l('FAQ').'</a>',array(
-                                            'force'=>true,
-                                            'width'=>1100,
-                                            'height'=>600,
-                                        ));
+                                        //if(module_faq::can_i('edit','FAQ')){                                                                            echo ' ';
+                                            echo popup_link('<a href="'.module_faq::link_open_list($ticket['faq_product_id']).'">'._l('FAQ').'</a>',array(
+                                                'force'=>true,
+                                                'width'=>1100,
+                                                'height'=>600,
+                                            ));
+                                        //}
                                         ?>
                                     </td>
                                 </tr>
@@ -704,16 +720,18 @@ ob_start(); ?>
                                                             <a href="#" onclick="jQuery(this).parent().hide(); jQuery(this).parent().parent().find('.ticket_message_title_full').show(); return false;"><?php echo _l('more &raquo;');?></a>
                                                         </div>
                                                         <div class="ticket_message_title_full">
+                                                            <?php
+                                                                $header_cache = @unserialize($ticket_message['cache']); ?>
 
                                                             <span>
                                                                 <?php _e('Date:');?> <strong>
                                               <?php echo print_date($ticket_message['message_time'],true); ?></strong>
-                                                            </span>
+                                                            </span><br/>
                                                             <span>
                                                                 <?php _e('From:');?> <strong><?php
                                                                 $from_temp = module_user::get_user($ticket_message['from_user_id'],false);
                                                                 echo htmlspecialchars($from_temp['name']);?> &lt;<?php echo htmlspecialchars($from_temp['email']);?>&gt;</strong>
-                                                            </span>
+                                                            </span><br/>
                                                             <span>
                                                                 <?php _e('To:');?>
                                                                 <strong><?php
@@ -721,9 +739,8 @@ ob_start(); ?>
                                                                 if($ticket_message['to_user_id']){
                                                                     $to_temp = module_user::get_user($ticket_message['to_user_id'],false);
                                                                 }else{
-                                                                    $cache = @unserialize($ticket_message['cache']);
-                                                                    if($cache && isset($cache['to_email'])){
-                                                                        $to_temp['email'] = $cache['to_email'];
+                                                                    if($header_cache && isset($header_cache['to_email'])){
+                                                                        $to_temp['email'] = $header_cache['to_email'];
                                                                     }
                                                                 }
                                                                 if(isset($to_temp['name']))echo htmlspecialchars($to_temp['name']);
@@ -731,8 +748,69 @@ ob_start(); ?>
                                                                     &lt;<?php echo htmlspecialchars($to_temp['email']); ?>&gt;
                                                                 <?php } ?>
                                                                 </strong><?php
+                                                                // hack support for other to fields.
+                                                                if($header_cache && isset($header_cache['to_emails']) && is_array($header_cache['to_emails'])){
+                                                                    foreach($header_cache['to_emails'] as $to_email_additional){
+                                                                        if(isset($to_email_additional['address']) && strlen($to_email_additional['address']) && $to_email_additional['address'] != $to_temp['email']){
+                                                                            echo ', <strong>';
+                                                                            if(isset($to_email_additional['name'])){
+                                                                                echo htmlspecialchars($to_email_additional['name']);
+                                                                            }
+                                                                            ?> &lt;<?php echo htmlspecialchars($to_email_additional['address']); ?>&gt; <?php
+                                                                            echo '</strong>';
+                                                                        }
+                                                                    }
+                                                                }
                                                                 ?>
-                                                            </span>
+                                                            </span><br/>
+                                                            <?php
+                                                            // hack support for other to fields.
+                                                            if($header_cache && isset($header_cache['cc_emails']) && is_array($header_cache['cc_emails']) && count($header_cache['cc_emails'])){
+                                                                ?> 
+                                                                <span>
+                                                                    <?php _e('CC:');?>
+                                                                    <?php
+                                                                    $donecc=false;
+                                                                    foreach($header_cache['cc_emails'] as $cc_email_additional){
+                                                                        if(isset($cc_email_additional['address']) && strlen($cc_email_additional['address'])){
+                                                                            if($donecc)echo ', ';
+                                                                            $donecc=true;
+                                                                            echo '<strong>';
+                                                                            if(isset($cc_email_additional['name'])){
+                                                                                echo htmlspecialchars($cc_email_additional['name']);
+                                                                            }
+                                                                            ?> &lt;<?php echo htmlspecialchars($cc_email_additional['address']); ?>&gt; <?php
+                                                                            echo '</strong>';
+                                                                        }
+                                                                    }
+                                                                    ?> 
+                                                                </span>  <br/>
+                                                                <?php 
+                                                            }
+                                                            // hack support for other to fields.
+                                                            if($header_cache && isset($header_cache['bcc_emails']) && is_array($header_cache['bcc_emails']) && count($header_cache['bcc_emails'])){
+                                                                ?> 
+                                                                <span>
+                                                                    <?php _e('BCC:');?>
+                                                                    <?php
+                                                                    $donebcc=false;
+                                                                    foreach($header_cache['bcc_emails'] as $bcc_email_additional){
+                                                                        if(isset($bcc_email_additional['address']) && strlen($bcc_email_additional['address'])){
+                                                                            if($donebcc)echo ', ';
+                                                                            $donebcc=true;
+                                                                            echo '<strong>';
+                                                                            if(isset($bcc_email_additional['name'])){
+                                                                                echo htmlspecialchars($bcc_email_additional['name']);
+                                                                            }
+                                                                            ?> &lt;<?php echo htmlspecialchars($bcc_email_additional['address']); ?>&gt; <?php
+                                                                            echo '</strong>';
+                                                                        }
+                                                                    }
+                                                                    ?> 
+                                                                </span>  <br/>
+                                                                <?php 
+                                                            }
+                                                            ?>
                                                         </div>
                                                             <?php
                                                             if(count($attachments)){
@@ -755,31 +833,55 @@ ob_start(); ?>
                                                         /*if(preg_match('#<br[^>]*>#i',$ticket_message['content'])){
                                                             $ticket_message['content'] = preg_replace("#\r?\n#",'',$ticket_message['content']);
                                                         }*/
-                                                        $ticket_message['content'] = preg_replace("#<br[^>]*>#i",'',$ticket_message['content']);
-                                                        $ticket_message['content'] = preg_replace('#(\r?\n\s*){2,}#',"\n\n",$ticket_message['content']);
+                                                        /*if(isset($_REQUEST['ticket_page_debug'])){
+                                                            echo "UTF8 method: ".module_config::c('ticket_utf8_method',1). "<br>\n";
+                                                            echo "Cache: ".$ticket_message['cache']."<br>\n";
+                                                            echo "<hr> Raw Content: <hr>";
+                                                            echo $ticket_message['content'];
+                                                            echo "<hr> HTML Content: <hr>";
+                                                            echo $ticket_message['htmlcontent'];
+                                                            echo "<hr> Content: <hr>";
+                                                            echo htmlspecialchars($ticket_message['content']);
+                                                            echo "<hr>";
 
-                                                        switch(module_config::c('ticket_utf8_method',1)){
-                                                            case 1:
-                                                                $text = forum_text($ticket_message['content']);
-                                                                break;
-                                                            case 2:
-                                                                $text = forum_text(utf8_encode($ticket_message['content']));
-                                                                break;
-                                                            case 3:
-                                                                $text = forum_text(utf8_encode(utf8_decode($ticket_message['content'])));
-                                                                break;
+                                                        }*/
+
+                                                        // do we use html or plain text?
+                                                        $text = '';
+                                                        if(module_config::c('ticket_message_text_or_html','html')=='html'){
+                                                            $text = $ticket_message['htmlcontent'];
+                                                            // linkify the text, without messing with existing <a> links. todo: move this into a global method for elsewhere (eg: eamils)
+                                                            //$text = preg_replace('@(?!(?!.*?<a)[^<]*<\/a>)(?:(?:https?|ftp|file)://|www\.|ftp\.)[-A-Z0-9+&#/%=~_|$?!:,.]*[A-Z0-9+&#/%=~_|$]@i','<a href="\0" target="_blank">\0</a>', $text );
                                                         }
-                                                        //$text = forum_text(utf8_encode($ticket_message['content']));
-                                                        //$text = forum_text(utf8_encode(utf8_decode($ticket_message['content'])));
+                                                        if(!strlen(trim($text))){
+                                                            $text = $ticket_message['content'];
+                                                            $text = preg_replace("#<br[^>]*>#i",'',$text);
+                                                            $text = preg_replace('#(\r?\n\s*){2,}#',"\n\n",$text);
+                                                            switch(module_config::c('ticket_utf8_method',1)){
+                                                                case 1:
+                                                                    $text = forum_text($text,true);
+                                                                    break;
+                                                                case 2:
+                                                                    $text = forum_text(utf8_encode($text),true);
+                                                                    break;
+                                                                case 3:
+                                                                    $text = forum_text(utf8_encode(utf8_decode($text)),true);
+                                                                    break;
+                                                            }
+                                                        }
+
 
                                                         if($ticket_message['cache']=='autoreply' && strlen($ticket_message['htmlcontent'])>2){
-                                                            $text = $ticket_message['htmlcontent'];
+                                                            $text = $ticket_message['htmlcontent']; // override for autoreplies, always show as html.
                                                         }
 
                                                         if((!$text || !strlen($text)) && strlen($ticket_message['content'])){
                                                             $text = nl2br($ticket_message['content']);
                                                         }
 
+                                                        $text = preg_replace("#<br[^>]>#i","$0\n",$text);
+                                                        $text = preg_replace("#</p>#i","$0\n",$text);
+                                                        $text = preg_replace("#</div>#i","$0\n",$text);
                                                         $lines = explode("\n",$text);
                                                         $do_we_hide = count($lines)>4 && module_config::c('ticket_hide_messages',1) && $ticket_message_counter<$ticket_message_count && $ticket_message_count!=2;
 
@@ -804,10 +906,10 @@ ob_start(); ?>
                                                                 if(
                                                                     count($hide__ines) ||
                                                                     preg_match('#^>#',$line) ||
-                                                                    preg_match('#'.preg_quote($reply__ine,'#').'.*$#ims',$line) ||
-                                                                    preg_match('#'.preg_quote($reply__ine_default,'#').'.*$#ims',$line)
+                                                                    preg_match('#'.preg_quote($reply__ine,'#').'#ims',$line) ||
+                                                                    preg_match('#'.preg_quote($reply__ine_default,'#').'#ims',$line)
                                                                 ){
-                                                                    if(!count($hide__ines)){
+                                                                    if(!count($hide__ines) && module_config::c('ticket_message_text_or_html','html') != 'html'){
                                                                         // move the line before if it exists.
                                                                         if(isset($print__ines[$line_number-1])){
                                                                             if(trim(preg_replace('#<br[^>]*>#i','',$print__ines[$line_number-1]))){
@@ -839,12 +941,13 @@ ob_start(); ?>
                                                             }
                                                             ksort($hide__ines);
                                                             ksort($print__ines);
-                                                            echo implode("\n",$print__ines);
+                                                            //echo module_security::purify_html(implode("\n",$hide__ines)); echo '<hr>';
+                                                            echo module_security::purify_html(implode("\n",$print__ines));
                                                             //print_r($print__ines);
                                                             if(count($hide__ines)){
-                                                                echo '<a href="#" onclick="jQuery(this).parent().find(\'div\').toggle(); return false;">'._l('- show quoted text -').'</a> ';
+                                                                echo '<a href="#" onclick="jQuery(this).parent().find(\'div\').show(); jQuery(this).hide(); return false;">'._l('- show quoted text -').'</a> ';
                                                                 echo '<div style="display:none;">';
-                                                                echo implode("\n",$hide__ines);
+                                                                echo module_security::purify_html(implode("\n",$hide__ines));
                                                                 echo '</div>';
                                                                 //print_r($hide__ines);
                                                             }
@@ -924,9 +1027,7 @@ ob_start(); ?>
                                                                                 data: '_process=insert_saved_response&saved_response_id='+$('#canned_response_id').val(),
                                                                                 dataType: 'json',
                                                                                 success: function(r){
-                                                                                    $('#new_ticket_message').val(
-                                                                                            $('#new_ticket_message').val() + r.value
-                                                                                    );
+                                                                                    ucm.ticket.add_to_message(r.value);
                                                                                 }
                                                                             });
                                                                         });
@@ -941,6 +1042,65 @@ ob_start(); ?>
                                                     <div class="ticket_message_text">
 
                                                         <textarea rows="6" cols="20" name="new_ticket_message" id="new_ticket_message"></textarea>
+                                                        <?php if(module_config::c('ticket_create_wysiwyg',1)){ ?>
+                                    <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/tiny_mce3.4.4/jquery.tinymce.js"></script>
+                                                            <script type="text/javascript">
+                                                                var done_auto_insert=false;
+                                                                function tinymce_focus(){
+                                                                    // if the user has entered a default reply, insert it here.
+                                                                    <?php
+                                                                    //module_template::init_template('ticket_reply_default','','Default reply text to appear when admin replies to a ticket');
+                                                                    $template = module_template::get_template_by_key('ticket_reply_default');
+                                                                    if($template->template_id){ ?>
+                                                                    if(!done_auto_insert){
+                                                                        done_auto_insert = true;
+                                                                        ucm.ticket.add_to_message("<?php echo preg_replace("#[\r\n]+#",'', addcslashes($template->content,'"'));?>");
+                                                                    }
+                                                                    <?php } ?>
+
+                                                                }
+                                                                function tinymce_blur(){
+
+                                                                }
+	$(function() {
+		$('#new_ticket_message').tinymce({
+			// Location of TinyMCE script
+			script_url : '<?php echo _BASE_HREF;?>js/tiny_mce3.4.4/tiny_mce.js',
+
+            relative_urls : false,
+            convert_urls : false,
+
+			// General options
+			theme : "advanced",
+			plugins : "autolink,lists,pagebreak,style,layer,table,save,advhr,advimage,advlink,emotions,iespell,inlinepopups,insertdatetime,preview,media,searchreplace,print,contextmenu,paste,directionality,fullscreen,noneditable,visualchars,nonbreaking,xhtmlxtras,template,advlist",
+
+			// Theme options
+            theme_advanced_buttons1 : "undo,redo,|,bold,italic,underline,strikethrough,|,justifyleft,justifycenter,justifyright,justifyfull,|,formatselect,fontselect,fontsizeselect",
+            theme_advanced_buttons2 : "cut,copy,paste,pastetext,pasteword,|,bullist,numlist,|,link,unlink,anchor,image,cleanup,code,|,forecolor,backcolor",
+            theme_advanced_buttons3 : "tablecontrols,|,hr,removeformat,visualaid,|,sub,sup,|,charmap,emotions,iespell",
+			/*theme_advanced_buttons1 : "save,newdocument,|,bold,italic,underline,strikethrough,|,justifyleft,justifycenter,justifyright,justifyfull,styleselect,formatselect,fontselect,fontsizeselect",
+			theme_advanced_buttons2 : "cut,copy,paste,pastetext,pasteword,|,search,replace,|,bullist,numlist,|,outdent,indent,blockquote,|,undo,redo,|,link,unlink,anchor,image,cleanup,help,code,|,insertdate,inserttime,preview,|,forecolor,backcolor",
+			theme_advanced_buttons3 : "tablecontrols,|,hr,removeformat,visualaid,|,sub,sup,|,charmap,emotions,iespell,media,advhr,|,print,|,ltr,rtl,|,fullscreen",
+			theme_advanced_buttons4 : "insertlayer,moveforward,movebackward,absolute,|,styleprops,|,cite,abbr,acronym,del,ins,attribs,|,visualchars,nonbreaking,template,pagebreak",*/
+			theme_advanced_toolbar_location : "top",
+			theme_advanced_toolbar_align : "left",
+			theme_advanced_statusbar_location : "bottom",
+			theme_advanced_resizing : true,
+
+            height : '400px',
+            width : '100%',
+
+            setup: function(ed){
+                ed.onInit.add(function(ed){
+                    $(ed.getDoc()).contents().find('body').focus(function(){tinymce_focus();});
+                    $(ed.getDoc()).contents().find('body').blur(function(){tinymce_blur();});
+                });
+            }
+
+		});
+	});
+</script>
+                                                        <?php } ?>
                                                         <table align="center" class="tableclass tableclass_full tableclass_space">
                                                             <tbody>
 
@@ -992,6 +1152,28 @@ ob_start(); ?>
 
                                                         <?php } ?>
 
+                                                            </tbody>
+                                                            <?php if(module_ticket::can_edit_tickets() && module_config::c('ticket_allow_cc_bcc',1)){ ?>
+                                                            <tbody id="ticket_cc_bcc" style="display:none;">
+                                                                <tr>
+                                                                    <td style="text-align:right;">
+                                                                        <?php _e('Email CC'); ?>
+                                                                    </td>
+                                                                    <td>
+                                                                        <input type="text" name="ticket_cc" class="email_input"> <?php _h('Enter a list of email addresses here (comma separated) and this ticket message will be carbon copied to these recipients.  These recipients can reply to the ticket and their reply will appeear here in the ticketing system if you have POP3/IMAP setup correctly.'); ?>
+                                                                    </td>
+                                                                </tr>
+                                                                <tr>
+                                                                    <td style="text-align:right;">
+                                                                        <?php _e('Email BCC'); ?>
+                                                                    </td>
+                                                                    <td>
+                                                                        <input type="text" name="ticket_bcc" class="email_input"> <?php _h('Enter a list of email addresses here (comma separated) and this ticket message will be blind carbon copied to these recipients. These recipients can reply to the ticket and their reply will appeear here in the ticketing system if you have POP3/IMAP setup correctly.'); ?>
+                                                                    </td>
+                                                                </tr>
+                                                            </tbody>
+                                                            <?php } ?>
+                                                            <tbody>
                                                             <?php /* <tr>
                                                                 <td align="right">
                                                                      <?php _e('Send message as:');?>
@@ -1008,6 +1190,10 @@ ob_start(); ?>
                                                             </tr> */ ?>
                                                             <tr>
                                                                 <td colspan="2" style="text-align: center">
+
+                                                                <?php if(module_ticket::can_edit_tickets() && module_config::c('ticket_allow_cc_bcc',1)){ ?>
+                                                                        <input type="button" name="show_cc_bcc" class="submit_button" value="<?php _e('Add CC/BCC');?>" onclick="$('#ticket_cc_bcc').show(); $(this).hide();">
+                                                                <?php } ?>
                                                                     <?php if($next_ticket){ ?>
                                                                     <input type="submit" name="newmsg" value="<?php _e('Submit Message');?>" class="submit_button">
                                                                     <input type="submit" name="newmsg_next" value="<?php _e('Submit Message &amp; Go To Next Ticket');?>" class="submit_button save_button">
@@ -1038,7 +1224,7 @@ ob_start(); ?>
         <tr>
             <td align="left">
                 <?php if($prev_ticket && $prev_ticket!==true){ ?>
-                <a href="<?php echo module_ticket::link_open($prev_ticket);?>" class="uibutton"><?php _e('&laquo; Prev Ticket');?></a>
+                <a href="<?php echo module_ticket::link_open($prev_ticket);?>" class="uibutton">&laquo; <?php _e('Prev Ticket');?></a>
                 <?php } ?>
             </td>
             <td align="center">
@@ -1046,7 +1232,7 @@ ob_start(); ?>
             </td>
             <td align="right">
                 <?php if($next_ticket){ ?>
-                <a href="<?php echo module_ticket::link_open($next_ticket);?>" class="uibutton"><?php _e('Next Ticket &raquo;');?></a>
+                <a href="<?php echo module_ticket::link_open($next_ticket);?>" class="uibutton"><?php _e('Next Ticket');?> &raquo;</a>
                 <?php } ?>
             </td>
         </tr>

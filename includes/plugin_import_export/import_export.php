@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -26,7 +26,7 @@ class module_import_export extends module_base{
 		$this->module_name = "import_export";
 		$this->module_position = 8882;
 
-        $this->version = 2.234;
+        $this->version = 2.235;
         // 2.2 - exporting groups to CSV (started with customer export)
         // 2.21 - clear 'eys' value from form after generation - support for a non parent() form submission (eg: from finance list)
         // 2.22 - import options moved to a hidden form submit, rather than a long GET url. better!
@@ -35,6 +35,7 @@ class module_import_export extends module_base{
         // 2.232 - fix for large file imports
         // 2.233 - error checking with sohusin max_fields setting
         // 2.234 - better handle large imports, option to edit/delete import rows
+        // 2.235 - 2013-05-28 - advanced setting import_export_base64 to help with some hosting providers
 
 
         module_config::register_css('import_export','import_export.css');
@@ -189,7 +190,8 @@ class module_import_export extends module_base{
                 'page'=>'import',
                 'module'=>'import_export'
             )
-                ));?>" method="post" style="display:none;" id="import_form"><input type="submit" name="buttongo" value="go"><input type="hidden" name="import_options" value="<?php echo base64_encode(json_encode($options));?>"></form> <?php
+                ));?>" method="post" style="display:none;" id="import_form"><input type="submit" name="buttongo" value="go"><input type="hidden" name="import_options" value='<?php
+                echo module_config::c('import_export_base64',1) ? base64_encode(json_encode($options)) : addcslashes(json_encode($options),"'");?>'></form> <?php
             $url = 'javascript:document.forms.import_form.submit();';
         }else{
             //oldway:

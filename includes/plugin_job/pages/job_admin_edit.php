@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!$job_safe)die('denied');
@@ -15,6 +15,7 @@ $job_task_creation_permissions = module_job::get_job_task_creation_permissions()
 
 $job_id = (int)$_REQUEST['job_id'];
 $job = module_job::get_job($job_id);
+$job_id = (int)$job['job_id'];
 $staff_members = module_user::get_staff_members();
 $staff_member_rel = array();
 foreach($staff_members as $staff_member){
@@ -342,10 +343,10 @@ if(class_exists('module_import_export',false)){
         $('#save_saved').click(function(){
             // set a flag and submit our form.
             if($('#default_task_list_id').val() == ''){
-                alert('<?php _e('Please enter a name for this saved task listing');?>');
+                alert('<?php echo addcslashes(_l('Please enter a name for this saved task listing'),"'");?>');
                 return false;
             }
-            if(confirm('<?php _e('Really save these tasks as a default task listing?');?>')){
+            if(confirm('<?php echo addcslashes(_l('Really save these tasks as a default task listing?'),"'");?>')){
                 $('#default_tasks_action').val('save_default');
                 $('#job_form')[0].submit();
             }
@@ -449,7 +450,7 @@ if(class_exists('module_import_export',false)){
 									<?php echo _l('Hourly Rate'); ?>
 								</th>
 								<td>
-                                    <?php echo currency('<input type="text" name="hourly_rate" class="currency" value="'.$job['hourly_rate'].'">');?>
+                                    <?php echo currency('<input type="text" name="hourly_rate" class="currency" value="'.number_out($job['hourly_rate']).'">');?>
 								</td>
 							</tr>
                             <?php } ?>
@@ -518,7 +519,7 @@ if(class_exists('module_import_export',false)){
 								<td>
 									<input type="text" name="total_tax_name" value="<?php echo htmlspecialchars($job['total_tax_name']);?>" style="width:30px;">
 									@
-                                    <input type="text" name="total_tax_rate" value="<?php echo htmlspecialchars($job['total_tax_rate']);?>" style="width:35px;">%
+                                    <input type="text" name="total_tax_rate" value="<?php echo htmlspecialchars(number_out($job['total_tax_rate']));?>" style="width:35px;">%
 
 								</td>
 							</tr>
@@ -615,11 +616,10 @@ if(class_exists('module_import_export',false)){
                     }
                     ?>
                     
-
+                <?php if(module_job::can_i('view','Job Advanced')){ ?>
                     <h3><?php echo _l('Advanced'); ?></h3>
                     <table border="0" cellspacing="0" cellpadding="2" class="tableclass tableclass_form tableclass_full">
 						<tbody>
-
                             <tr>
                                 <th class="width1">
                                     <?php _e('Customer Link');?>
@@ -794,7 +794,7 @@ if(class_exists('module_import_export',false)){
                         <?php if(module_config::c('job_show_task_numbers',1)){ ?>
                         <tr>
                             <th>
-                                <?php _e('Task numbers');?>
+                                <?php _e('Task Numbers');?>
                             </th>
                             <td>
                                 <?php echo print_select_box(array(
@@ -806,6 +806,17 @@ if(class_exists('module_import_export',false)){
                             </td>
                         </tr>
                         <?php } ?>
+                        <tr>
+                            <th>
+                                <?php _e('Task Type');?>
+                            </th>
+                            <td>
+                                <?php
+                                echo print_select_box(module_job::get_task_types(),'default_task_type',isset($job['default_task_type'])?$job['default_task_type']:0,'',false);?>
+                                <?php _h('The default is hourly rate + amount. This will show the "Hours" column along with an "Amount" column. Inputing a number of hours will auto complete the price based on the job hourly rate. <br>Quantity and Amount will allow you to input a Quantity (eg: 2) and an Amount (eg: $100) and the final price will be $200 (Quantity x Amount). The last option "Amount Only" will just have the amount column for manual input of price. Change the advanced setting "default_task_type" between 0, 1 and 2 to change the default here.'); ?>
+
+                            </td>
+                        </tr>
                         <?php if(class_exists('module_job_discussion',false) && isset($job['job_discussion'])){ ?>
                         <tr>
                             <th>
@@ -829,11 +840,13 @@ if(class_exists('module_import_export',false)){
                                 <td>
                                     <?php echo currency('<input type="text" name="job_deposit" value="" class="currency">');?>
                                     <input type="submit" name="butt_create_deposit" value="<?php _e('Create Deposit Invoice');?>" class="exit_button small_button">
+                                    <?php _h('Enter a dollar value here to create a deposit invoice for this job. Also supports entering a percentage (eg: 20%)'); ?>
                                 </td>
                             </tr>
                                 <?php } ?>
 						</tbody>
 					</table>
+                    <?php } ?>
 
                     <p align="center">
                         <input type="submit" name="butt_save" id="butt_save" value="<?php echo _l('Save job'); ?>" class="submit_button save_button" />
@@ -910,7 +923,14 @@ if(class_exists('module_import_export',false)){
                             <th width="10">#</th>
                             <?php } ?>
                             <th class="task_column task_width"><?php _e('Description');?></th>
-                            <th width="15"><?php echo module_config::c('task_hours_name',_l('Hours'));?></th>
+                            <th width="15" class="task_type_label">
+                                <?php if($job['default_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                }else if($job['default_task_type']==_TASK_TYPE_QTY_AMOUNT){
+                                echo module_config::c('task_qty_name',_l('Qty'));
+                                }else if($job['default_task_type']==_TASK_TYPE_HOURS_AMOUNT){
+                                echo module_config::c('task_hours_name',_l('Hours'));
+                                } ?>
+                            </th>
                             <?php if(module_invoice::can_i('view','Invoices')){ ?>
                             <th width="79"><?php _e('Amount');?></th>
                             <?php } ?>
@@ -947,7 +967,15 @@ if(class_exists('module_import_export',false)){
                                 </div>
                             </td>
                             <td valign="top">
+                                <?php if($job['default_task_type']==_TASK_TYPE_AMOUNT_ONLY){
+                                    // no hour input
+                                }else if($job['default_task_type']==_TASK_TYPE_QTY_AMOUNT){ ?>
+                                <input type="text" name="job_task[new][hours]" value="" size="3" style="width:25px;" class="no_permissions" id="task_hours_new">
+                                <?php }else if($job['default_task_type']==_TASK_TYPE_HOURS_AMOUNT){
+                                 ?>
                                 <input type="text" name="job_task[new][hours]" value="" size="3" style="width:25px;" onchange="setamount(this.value,'new');" onkeyup="setamount(this.value,'new');" class="no_permissions" id="task_hours_new">
+                                <?php
+                                } ?>
                             </td>
                             <?php if(module_invoice::can_i('view','Invoices')){ ?>
                             <td valign="top" nowrap="">

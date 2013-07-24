@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 /* vim: set expandtab tabstop=4 shiftwidth=4 softtabstop=4: */
 
@@ -2358,12 +2358,12 @@ class Math_BigInteger {
     }
 
     /**
-     * Calculates the greatest common divisor and Bï¿½zout's identity.
+     * Calculates the greatest common divisor and Bézout's identity.
      *
-     * Say you have 693 and 609.  The GCD is 21.  Bï¿½zout's identity states that there exist integers x and y such that
+     * Say you have 693 and 609.  The GCD is 21.  Bézout's identity states that there exist integers x and y such that
      * 693*x + 609*y == 21.  In point of fact, there are actually an infinite number of x and y combinations and which
      * combination is returned is dependant upon which mode is in use.  See
-     * {@link http://en.wikipedia.org/wiki/B%C3%A9zout%27s_identity Bï¿½zout's identity - Wikipedia} for more information.
+     * {@link http://en.wikipedia.org/wiki/B%C3%A9zout%27s_identity Bézout's identity - Wikipedia} for more information.
      *
      * Here's an example:
      * <code>

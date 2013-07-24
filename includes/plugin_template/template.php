@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -34,7 +34,9 @@ class module_template extends module_base{
 		$this->module_name = "template";
 		$this->module_position = 28;
 
-        $this->version = 2.235;
+        $this->version = 2.238;
+        //2.238 - 2014-05-01 - template printing improvements
+
         //2.22 - wysiwyg edior error on creating new templates.
         //2.221 - perm fix
         //2.222 - sort by name instead of id
@@ -44,6 +46,8 @@ class module_template extends module_base{
         //2.233 - speed improvements
         //2.234 - bug fix create new template
         //2.235 - support for basic arithmatic in template variables (+-) and dates (+1d-1m+2y)
+        //2.236 - new 'external_template' template, used for all external layouts (jobs, tickets, invoices, etc..)
+        //2.237 - css tweak
 
 		// the link within Admin > Settings > templates.
 		if(module_security::has_feature_access(array(
@@ -410,45 +414,70 @@ class module_template extends module_base{
             case 'pretty_html':
                 // header and footer so plain contnet can be rendered nicely.
                 $display_mode = get_display_mode();
-                ?>
-                        <html>
-                        <head>
-                            <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-                            <title><?php echo $this->page_title ? $this->page_title : module_config::s('admin_system_name');?></title>
-                            <?php $header_favicon = module_theme::get_config('theme_favicon','');
-                            if($header_favicon){ ?>
-                                <link rel="icon" href="<?php echo htmlspecialchars($header_favicon);?>">
-                                <?php } ?>
-                            <link rel="stylesheet" href="<?php echo _BASE_HREF;?>css/desktop.css" type="text/css">
-                            <link rel="stylesheet" href="<?php echo _BASE_HREF;?>css/styles.css" type="text/css">
-                            <link type="text/css" href="<?php echo _BASE_HREF;?>css/smoothness/jquery-ui-1.9.2.custom.min.css" rel="stylesheet" />
-                            <?php module_config::print_css();?>
-                            <style type="text/css">
-
-                            </style>
-
-                            <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jquery-1.8.3.min.js"></script>
-                            <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jquery-ui-1.9.2.custom.min.js"></script>
-                            <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/timepicker.js"></script>
-                            <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/cookie.js"></script>
-                            <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/javascript.js?ver=2"></script>
-                            <?php module_config::print_js();?>
-                        </head>
-
-                        <body>
-
-                        <div style="" class="pretty_content_wrap">
-                            <?php
-                            $c = $this->replace_content();
+                // addition - woah! we pass this through to the template module for re-rending again:
+                ob_start();
+                ?><html>
+<head>
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+    <title>{PAGE_TITLE}</title>
+    {FAVICON}
+    {AUTOMATIC_STYLES}
+    {AUTOMATIC_SCRIPTS}
+    <style type="text/css">
+        body{
+            margin:0;
+        }
+    </style>
+</head>
+<body>
+<div class="pretty_content_wrap">
+    {CONTENT}
+</div>
+</body>
+</html>
+                <?php
+                /*$c = $this->replace_content();
                             if(!$this->wysiwyg){
                                 //$c = nl2br($c);
                             }
-                            echo $c;
-                            ?>
-                        </div>
-                        </body>
-                        </html>
+                            echo $c;*/
+                module_template::init_template('external_template',ob_get_clean(),'Used when displaying the external content such as "External Jobs" and "External Invoices" and "External Tickets".','code',array(
+                    'CONTENT'=>'The inner content',
+                    'PAGE_TITLE'=>'in the <title> tag',
+                    'FAVICON'=>'if the theme specifies a favicon it will be here',
+                    'AUTOMATIC_STYLES'=>'system generated stylesheets',
+                    'AUTOMATIC_SCRIPTS'=>'system generated javascripts',
+                ));
+
+                ob_start();
+                ?>
+                <link rel="stylesheet" href="<?php echo _BASE_HREF;?>css/desktop.css" type="text/css">
+                <link rel="stylesheet" href="<?php echo _BASE_HREF;?>css/print.css" type="text/css" media="print">
+                <link rel="stylesheet" href="<?php echo _BASE_HREF;?>css/styles.css" type="text/css">
+                <link type="text/css" href="<?php echo _BASE_HREF;?>css/smoothness/jquery-ui-1.9.2.custom.min.css" rel="stylesheet" />
+                <?php module_config::print_css();?> <?php
+                $css = ob_get_clean();
+                ob_start();
+                ?>
+                <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jquery-1.8.3.min.js"></script>
+                <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/jquery-ui-1.9.2.custom.min.js"></script>
+                <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/timepicker.js"></script>
+                <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/cookie.js"></script>
+                <script type="text/javascript" src="<?php echo _BASE_HREF;?>js/javascript.js?ver=2"></script>
+                <?php module_config::print_js();?>
                 <?php
+                $scripts = ob_get_clean();
+
+                $external_template = self::get_template_by_key('external_template');
+                $external_template->assign_values(array(
+                    'CONTENT' => $this->replace_content(),
+                    'PAGE_TITLE' => $this->page_title ? $this->page_title : module_config::s('admin_system_name'),
+                    'FAVICON' => (module_theme::get_config('theme_favicon','')) ? '<link rel="icon" href="'.htmlspecialchars(module_theme::get_config('theme_favicon','')).'">' : '',
+                    'AUTOMATIC_STYLES' => $css,
+                    'AUTOMATIC_SCRIPTS' => $scripts,
+                ));
+                echo $external_template->render('raw');
+
                 break;
             case 'html':
             default:

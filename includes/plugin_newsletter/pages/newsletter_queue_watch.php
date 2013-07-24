@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 $retry_failures = isset($_REQUEST['retry_failures']);
@@ -105,12 +105,14 @@ $start_time = $send['start_time'];
                                 <td><?php echo $send_member['bounce_time'] ? print_date($send_member['bounce_time'],true) : _l('No');?></td>
                                 <td><?php
 
-                                    if($send_member['unsubscribe_time']){
+                                    if(module_config::c('newsletter_doubleoptin_bypass',0) && isset($send_member['blacklist_reason']) && $send_member['blacklist_reason'] == 'doubleoptin'){
+                                        _e('No');
+                                    }else if($send_member['unsubscribe_time']){
                                         echo print_date($send_member['unsubscribe_time'],true);
                                     }else if($send_member['unsubscribe_time2']){
                                         echo print_date($send_member['unsubscribe_time2'],true);
                                     }else{
-                                        echo _l('No');
+                                        _e('No');
                                     }
                                     ?></td>
                                 <td class="status">
@@ -355,7 +357,7 @@ $start_time = $send['start_time'];
                             run_manual_send = false;
                             $('#manual_send_paused').hide();
                             $('#manual_send_running').hide();
-                            $('#manual_send_status').prepend('<li><?php _e('Sending complete. Please <a href="%s"">click here</a> to refresh the page.',module_newsletter::link_queue_watch($newsletter_id,$send_id));?></li>');
+                            $('#manual_send_status').prepend('<li><?php _e('Sending complete. Please <a href="%s">click here</a> to refresh the page.',module_newsletter::link_queue_watch($newsletter_id,$send_id));?></li>');
                             $('#change_status_buttons').hide();
                         }
                         function do_manual_send(){

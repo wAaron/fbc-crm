@@ -35,6 +35,9 @@ form{
 		width:60px;
 		text-align:right;
 	}
+    input.medium_width{
+        width:200px;
+    }
     span.currency{
         text-align:right;
         min-width:61px;

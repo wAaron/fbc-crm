@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 if(!$note_list_safe)die('fail');
 //print_r($note_items);exit;
@@ -24,8 +24,8 @@ if(isset($options['title']) && $options['title']){
 	<h3>
         <?php if($can_create){
             ?>
-		<span class="button">
-			<a href="<?php echo module_note::link_open('new',false,$link_options);?>" class="uibutton note_add"><?php _e('Add New Note');?></a>
+		<span class="button no_permissions">
+			<a href="<?php echo module_note::link_open('new',false,$link_options);?>" class="uibutton note_add no_permissions"><?php _e('Add New Note');?></a>
 		</span>
         <?php } ?>
 		<?php echo _l($options['title']);?>
@@ -34,7 +34,7 @@ if(isset($options['title']) && $options['title']){
 	<?php
 }else if($can_create){
 	?>
-	<a href="<?php echo module_note::link_open('new',false,$link_options);?>" class="uibutton note_add"><?php _e('Add New Note');?></a>
+	<a href="<?php echo module_note::link_open('new',false,$link_options);?>" class="uibutton note_add no_permissions"><?php _e('Add New Note');?></a>
     <div class="content_box_wheader">
 	<?php
 }

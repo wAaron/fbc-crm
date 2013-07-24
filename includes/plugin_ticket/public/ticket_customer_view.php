@@ -11,8 +11,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */ echo _l('Ticket Details'); ?></h3>
 
 
@@ -161,7 +161,11 @@
                                             $ticket_messages = module_ticket::get_ticket_messages($ticket_id);
                                             $reply__ine_default = '----- (Please reply above this line) -----'; // incase they change it
                                             $reply__ine =   module_config::s('ticket_reply_line',$reply__ine_default);
+                                            $ticket_message_count = count($ticket_messages);
+                                            $ticket_message_counter = 0;
+
                                             foreach($ticket_messages as $ticket_message){
+                                                $ticket_message_counter++;
                                                 $attachments = module_ticket::get_ticket_message_attachments($ticket_message['ticket_message_id']);
                                                 ?>
                                                 <div class="ticket_message ticket_message_<?php
@@ -190,7 +194,8 @@
                                                             <a href="#" onclick="jQuery(this).parent().hide(); jQuery(this).parent().parent().find('.ticket_message_title_full').show(); return false;"><?php echo _l('more &raquo;');?></a>
                                                         </div>
                                                         <div class="ticket_message_title_full">
-
+<?php
+                                                                $header_cache = @unserialize($ticket_message['cache']); ?>
                                                             <span>
                                                                 <?php _e('Date:');?> <strong>
                                               <?php echo print_date($ticket_message['message_time'],true); ?></strong>
@@ -203,22 +208,82 @@
                                                             <span>
                                                                 <?php _e('To:');?>
                                                                 <strong><?php
-                                                                    $to_temp = array();
-                                                                    if($ticket_message['to_user_id']){
-                                                                        $to_temp = module_user::get_user($ticket_message['to_user_id'],false);
-                                                                    }else{
-                                                                        $cache = @unserialize($ticket_message['cache']);
-                                                                        if($cache && isset($cache['to_email'])){
-                                                                            $to_temp['email'] = $cache['to_email'];
+                                                                $to_temp = array();
+                                                                if($ticket_message['to_user_id']){
+                                                                    $to_temp = module_user::get_user($ticket_message['to_user_id'],false);
+                                                                }else{
+                                                                    if($header_cache && isset($header_cache['to_email'])){
+                                                                        $to_temp['email'] = $header_cache['to_email'];
+                                                                    }
+                                                                }
+                                                                if(isset($to_temp['name']))echo htmlspecialchars($to_temp['name']);
+                                                                if(isset($to_temp['email'])){ ?>
+                                                                    &lt;<?php echo htmlspecialchars($to_temp['email']); ?>&gt;
+                                                                <?php } ?>
+                                                                </strong><?php
+                                                                // hack support for other to fields.
+                                                                if($header_cache && isset($header_cache['to_emails']) && is_array($header_cache['to_emails'])){
+                                                                    foreach($header_cache['to_emails'] as $to_email_additional){
+                                                                        if(isset($to_email_additional['address']) && strlen($to_email_additional['address']) && $to_email_additional['address'] != $to_temp['email']){
+                                                                            echo ', <strong>';
+                                                                            if(isset($to_email_additional['name'])){
+                                                                                echo htmlspecialchars($to_email_additional['name']);
+                                                                            }
+                                                                            ?> &lt;<?php echo htmlspecialchars($to_email_additional['address']); ?>&gt; <?php
+                                                                            echo '</strong>';
                                                                         }
                                                                     }
-                                                                    if(isset($to_temp['name']))echo htmlspecialchars($to_temp['name']);
-                                                                    if(isset($to_temp['email'])){ ?>
-                                                                        &lt;<?php echo htmlspecialchars($to_temp['email']); ?>&gt;
-                                                                        <?php } ?>
-                                                                </strong><?php
+                                                                }
                                                                 ?>
-                                                            </span>
+                                                            </span><br/>
+                                                            <?php
+                                                            // hack support for other to fields.
+                                                            if($header_cache && isset($header_cache['cc_emails']) && is_array($header_cache['cc_emails']) && count($header_cache['cc_emails'])){
+                                                                ?>
+                                                                <span>
+                                                                    <?php _e('CC:');?>
+                                                                    <?php
+                                                                    $donecc=false;
+                                                                    foreach($header_cache['cc_emails'] as $cc_email_additional){
+                                                                        if(isset($cc_email_additional['address']) && strlen($cc_email_additional['address'])){
+                                                                            if($donecc)echo ', ';
+                                                                            $donecc=true;
+                                                                            echo '<strong>';
+                                                                            if(isset($cc_email_additional['name'])){
+                                                                                echo htmlspecialchars($cc_email_additional['name']);
+                                                                            }
+                                                                            ?> &lt;<?php echo htmlspecialchars($cc_email_additional['address']); ?>&gt; <?php
+                                                                            echo '</strong>';
+                                                                        }
+                                                                    }
+                                                                    ?>
+                                                                </span>  <br/>
+                                                                <?php
+                                                            }
+                                                            // hack support for other to fields.
+                                                            if($header_cache && isset($header_cache['bcc_emails']) && is_array($header_cache['bcc_emails']) && count($header_cache['bcc_emails'])){
+                                                                ?>
+                                                                <span>
+                                                                    <?php _e('BCC:');?>
+                                                                    <?php
+                                                                    $donebcc=false;
+                                                                    foreach($header_cache['bcc_emails'] as $bcc_email_additional){
+                                                                        if(isset($bcc_email_additional['address']) && strlen($bcc_email_additional['address'])){
+                                                                            if($donebcc)echo ', ';
+                                                                            $donebcc=true;
+                                                                            echo '<strong>';
+                                                                            if(isset($bcc_email_additional['name'])){
+                                                                                echo htmlspecialchars($bcc_email_additional['name']);
+                                                                            }
+                                                                            ?> &lt;<?php echo htmlspecialchars($bcc_email_additional['address']); ?>&gt; <?php
+                                                                            echo '</strong>';
+                                                                        }
+                                                                    }
+                                                                    ?>
+                                                                </span>  <br/>
+                                                                <?php
+                                                            }
+                                                            ?>
                                                         </div>
                                                             <?php
                                                             if(count($attachments)){
@@ -234,7 +299,7 @@
                                                             ?>
                                                     </div>
                                                     <div class="ticket_message_text">
-                                                        <?php //echo nl2br(htmlspecialchars($ticket_message['content'])); ?>
+                                                        <?php /*//echo nl2br(htmlspecialchars($ticket_message['content'])); ?>
                                                         <?php
                                                         $ticket_message['content'] = preg_replace("#<br[^>]*>#",'',$ticket_message['content']);
                                                         switch(module_config::c('ticket_utf8_method',1)){
@@ -308,7 +373,153 @@
                                                             }
                                                         }else{
                                                             echo $text;
+                                                        }*/
+                                                        ?>
+                                                        <?php
+
+                                                        // copied to ticket.php in autoresponder:
+                                                        // todo: move this out to a function in ticket.php
+                                                        /*if(preg_match('#<br[^>]*>#i',$ticket_message['content'])){
+                                                            $ticket_message['content'] = preg_replace("#\r?\n#",'',$ticket_message['content']);
+                                                        }*/
+                                                        /*if(isset($_REQUEST['ticket_page_debug'])){
+                                                            echo "UTF8 method: ".module_config::c('ticket_utf8_method',1). "<br>\n";
+                                                            echo "Cache: ".$ticket_message['cache']."<br>\n";
+                                                            echo "<hr> Raw Content: <hr>";
+                                                            echo $ticket_message['content'];
+                                                            echo "<hr> HTML Content: <hr>";
+                                                            echo $ticket_message['htmlcontent'];
+                                                            echo "<hr> Content: <hr>";
+                                                            echo htmlspecialchars($ticket_message['content']);
+                                                            echo "<hr>";
+
+                                                        }*/
+
+                                                        // do we use html or plain text?
+                                                        $text = '';
+                                                        if(module_config::c('ticket_message_text_or_html','html')=='html'){
+                                                            $text = $ticket_message['htmlcontent'];
+                                                            // linkify the text, without messing with existing <a> links. todo: move this into a global method for elsewhere (eg: eamils)
+                                                            //$text = preg_replace('@(?!(?!.*?<a)[^<]*<\/a>)(?:(?:https?|ftp|file)://|www\.|ftp\.)[-A-Z0-9+&#/%=~_|$?!:,.]*[A-Z0-9+&#/%=~_|$]@i','<a href="\0" target="_blank">\0</a>', $text );
                                                         }
+                                                        if(!strlen(trim($text))){
+                                                            $text = $ticket_message['content'];
+                                                            $text = preg_replace("#<br[^>]*>#i",'',$text);
+                                                            $text = preg_replace('#(\r?\n\s*){2,}#',"\n\n",$text);
+                                                            switch(module_config::c('ticket_utf8_method',1)){
+                                                                case 1:
+                                                                    $text = forum_text($text,true);
+                                                                    break;
+                                                                case 2:
+                                                                    $text = forum_text(utf8_encode($text),true);
+                                                                    break;
+                                                                case 3:
+                                                                    $text = forum_text(utf8_encode(utf8_decode($text)),true);
+                                                                    break;
+                                                            }
+                                                        }
+
+
+                                                        if($ticket_message['cache']=='autoreply' && strlen($ticket_message['htmlcontent'])>2){
+                                                            $text = $ticket_message['htmlcontent']; // override for autoreplies, always show as html.
+                                                        }
+
+                                                        if((!$text || !strlen($text)) && strlen($ticket_message['content'])){
+                                                            $text = nl2br($ticket_message['content']);
+                                                        }
+
+                                                        $text = preg_replace("#<br[^>]>#i","$0\n",$text);
+                                                        $text = preg_replace("#</p>#i","$0\n",$text);
+                                                        $text = preg_replace("#</div>#i","$0\n",$text);
+                                                        $lines = explode("\n",$text);
+                                                        $do_we_hide = count($lines)>4 && module_config::c('ticket_hide_messages',1) && $ticket_message_counter<$ticket_message_count && $ticket_message_count!=2;
+
+                                                        if($do_we_hide){
+                                                            ?>
+                                                            <div class="ticket_message_hider">
+                                                            <?php
+                                                        }
+
+                                                        //$blank_line_limit = module_config::c('ticket_message_max_blank_lines',1);
+                                                        if(true){
+                                                            $hide__ines = $print__ines = array();
+                                                            $blank_line_count = 0;
+                                                            foreach($lines as $line_number => $line){
+                                                                // hide anything after
+                                                                $line = trim($line);
+                                                                //if(preg_replace('#[\r\n\s]*#','',$line)==='')$blank_line_count++;
+                                                                //else $blank_line_count=0;
+
+                                                                //if($blank_line_limit>0 && $blank_line_count>$blank_line_limit)continue;
+
+                                                                if(
+                                                                    count($hide__ines) ||
+                                                                    preg_match('#^>#',$line) ||
+                                                                    preg_match('#'.preg_quote($reply__ine,'#').'#ims',$line) ||
+                                                                    preg_match('#'.preg_quote($reply__ine_default,'#').'#ims',$line)
+                                                                ){
+                                                                    if(!count($hide__ines) && module_config::c('ticket_message_text_or_html','html') != 'html'){
+                                                                        // move the line before if it exists.
+                                                                        if(isset($print__ines[$line_number-1])){
+                                                                            if(trim(preg_replace('#<br[^>]*>#i','',$print__ines[$line_number-1]))){
+                                                                                $hide__ines[$line_number-1] = $print__ines[$line_number-1];
+                                                                            }
+                                                                            unset($print__ines[$line_number-1]);
+                                                                        }
+                                                                        // move the line before if it exists.
+                                                                        if(isset($print__ines[$line_number-2])){
+                                                                            if(trim(preg_replace('#<br[^>]*>#i','',$print__ines[$line_number-2]))){
+                                                                                $hide__ines[$line_number-2] = $print__ines[$line_number-2];
+                                                                            }
+                                                                            unset($print__ines[$line_number-2]);
+                                                                        }
+                                                                        // move the line before if it exists.
+                                                                        if(isset($print__ines[$line_number-3]) && preg_match('#^On #',trim($print__ines[$line_number-3]))){
+                                                                            if(trim(preg_replace('#<br[^>]*>#i','',$print__ines[$line_number-3]))){
+                                                                                $hide__ines[$line_number-3] = $print__ines[$line_number-3];
+                                                                            }
+                                                                            unset($print__ines[$line_number-3]);
+                                                                        }
+                                                                    }
+                                                                    $hide__ines [$line_number] = $line;
+                                                                    unset($print__ines[$line_number]);
+                                                                }else{
+                                                                    // not hidden yet.
+                                                                    $print__ines[$line_number] = $line;
+                                                                }
+                                                            }
+                                                            ksort($hide__ines);
+                                                            ksort($print__ines);
+                                                            //echo module_security::purify_html(implode("\n",$hide__ines)); echo '<hr>';
+                                                            echo module_security::purify_html(implode("\n",$print__ines));
+                                                            //print_r($print__ines);
+                                                            if(count($hide__ines)){
+                                                                echo '<a href="#" onclick="jQuery(this).parent().find(\'div\').show(); jQuery(this).hide(); return false;">'._l('- show quoted text -').'</a> ';
+                                                                echo '<div style="display:none;">';
+                                                                echo module_security::purify_html(implode("\n",$hide__ines));
+                                                                echo '</div>';
+                                                                //print_r($hide__ines);
+                                                            }
+                                                        }else{
+                                                            echo $text;
+                                                        }
+                                                        /*if($ticket_message['cache']=='autoreply'){
+                                                            ?>
+                                                            </div>
+                                                            <?php
+                                                        }else */ if($do_we_hide){
+                                                            ?>
+                                                            </div>
+                                                            <div>
+                                                                <span class="shower">
+                                                                    <a href="#" onclick="jQuery(this).parent().parent().parent().find('.ticket_message_hider').addClass('ticket_message_hider_show'); jQuery(this).parent().parent().find('.hider').show(); jQuery(this).parent().hide();return false;"><?php _e('Show entire message &raquo;');?></a>
+                                                                </span>
+                                                                <span class="hider" style="display:none;">
+                                                                    <a href="#" onclick="jQuery(this).parent().parent().parent().find('.ticket_message_hider').removeClass('ticket_message_hider_show'); jQuery(this).parent().parent().find('.shower').show(); jQuery(this).parent().hide(); return false;"><?php _e('&laquo; Hide message');?></a>
+                                                                </span>
+                                                            </div>
+                                                            <?php
+}
                                                         ?>
                                                     </div>
                                                 </div>

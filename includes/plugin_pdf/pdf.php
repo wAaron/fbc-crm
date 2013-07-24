@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -22,9 +22,12 @@ class module_pdf extends module_base{
         return __CLASS__;
     }
 	function init(){
-        $this->version=2.11;
+        $this->version=2.122;
         // 2.1 - added arialuni ttf file
         // 2.11 - more options for pdf generation
+        // 2.12 - better unicode configuration
+        // 2.121 - 2013-05-27 - space after slash fix
+        // 2.122 - 2013-05-27 - jpeg image quality improvement
 		$this->links = array();
 		$this->module_name = "pdf";
 		$this->module_position = 8882;
@@ -48,6 +51,9 @@ function convert_html2pdf($html,$pdf){
     parse_config_file(HTML2PS_DIR.'html2ps.config');
 
 
+    global $g_font_resolver_pdf;
+//    print_r($g_font_resolver_pdf->ttf_mappings); exit;
+    $g_font_resolver_pdf->ttf_mappings['Arial Unicode MS'] = module_config::c('pdf_unicode_font','arialuni.ttf');
 
     /**
      * Handles the saving generated PDF to user-defined output file on server
@@ -125,7 +131,7 @@ function convert_html2pdf($html,$pdf){
                 'renderfields' => true,
                 'renderforms'  => false,
                 'mode'         => 'html',
-                'encoding'     => 'UTF8',
+                'encoding'     => 'UTF-8',
                 'debugbox'     => false,
                 'pdfversion'    => '1.4',
                 'draw_page_border' => false,

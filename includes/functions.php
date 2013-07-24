@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -20,6 +20,7 @@ function get_yes_no(){
 function friendly_key($data,$key){
 	return isset($data[$key]) ? $data[$key] : false;
 }
+
 
 function print_select_box_nokey($data,$id,$cur='',$class='',$enable_ng=false, $blank=true,$array_id=false,$allow_new=false){
 	$sel = '<select name="'.$id.'" id="'.$id.'" class="'.$class.'"';
@@ -46,10 +47,10 @@ function print_select_box_nokey($data,$id,$cur='',$class='',$enable_ng=false, $b
 		}else{
 			$printval = $val;
 		}
-        if(strlen($printval)==0)continue;
-        $sel .= '<option value="'.htmlspecialchars($val).'"';
-        // to handle 0 elements:
-        if($cur !== false && ($cur != '') && $val == $cur){
+		if(strlen($printval)==0)continue;
+		$sel .= '<option value="'.htmlspecialchars($val).'"';
+		// to handle 0 elements:
+		if($cur !== false && ($cur != '') && $val == $cur){
 			$current_val = $printval;
 			$sel .= ' selected';
 			$found_selected = true;
@@ -166,89 +167,10 @@ function print_multi_select_box($data,$id,$cur=array(),$blank=true,$array_id=fal
 		'val'=>$inventory['category_id'],
 		'allow_new' => true,
 	));*/
+// copied currency over to plugin_core
 
-function currency($data,$show_currency=true,$currency_id=false){
+// copied dollar() over to plugin_core
 
-    // find the default currency.
-    if(!defined('_DEFAULT_CURRENCY_ID')){
-        $default_currency_id = module_config::c('default_currency_id',1);
-        foreach(get_multiple('currency','','currency_id') as $currency){
-            if($currency['currency_id']==$default_currency_id){
-                define('_DEFAULT_CURRENCY_ID',$default_currency_id);
-                define('_DEFAULT_CURRENCY_SYMBOL',$currency['symbol']);
-                define('_DEFAULT_CURRENCY_LOCATION',$currency['location']);
-                define('_DEFAULT_CURRENCY_CODE',$currency['code']);
-            }
-        }
-    }
-    $currency_symbol = defined('_DEFAULT_CURRENCY_SYMBOL') ? _DEFAULT_CURRENCY_SYMBOL : '$';
-    $currency_location = defined('_DEFAULT_CURRENCY_LOCATION') ? _DEFAULT_CURRENCY_LOCATION : 1;
-    $currency_code = defined('_DEFAULT_CURRENCY_CODE') ? _DEFAULT_CURRENCY_CODE : 'USD';
-    $show_name = false;
-
-    if($currency_id && defined('_DEFAULT_CURRENCY_ID') && $currency_id != _DEFAULT_CURRENCY_ID){
-        if($show_currency){
-            $show_name = true;
-        }
-        $currency = get_single('currency','currency_id',$currency_id);
-        if($currency){
-            $currency_symbol = $currency['symbol'];
-            $currency_location = $currency['location'];
-            $currency_code = $currency['code'];
-        }
-        /*
-        foreach(get_multiple('currency','','currency_id') as $currency){
-            if($currency['currency_id']==$currency_id){
-                $currency_symbol = $currency['symbol'];
-                $currency_location = $currency['location'];
-                $currency_code = $currency['code'];
-            }
-        }*/
-    }
-	/*$currency_location = module_config::c('currency_location','before');
-	$currency_code = module_config::c('currency','$');
-	$currency_name = module_config::c('currency_name','USD');*/
-
-	switch(strtolower($currency_symbol)){
-		case "yen":
-			$currency_symbol = '&yen;';
-			break;
-		case "eur":
-			$currency_symbol = '&euro;';
-			break;
-		case "gbp":
-			$currency_symbol = '&pound;';
-			break;
-		default:
-			break;
-	}
-
-    if(!$show_currency){
-        $currency_symbol = '';
-    }
-    if(module_config::c('currency_show_code_always',0)){
-        $data .= ' '.$currency_code;
-    }else if($show_name && module_config::c('currency_show_non_default',1)){
-        $data .= ' '.$currency_code;
-    }
-
-	switch($currency_location){
-		case 'after':
-		case 0:
-			return $data.$currency_symbol;
-			break;
-        case 1:
-		default:
-			return $currency_symbol.$data;
-	}
-}
-function dollar($number,$show_currency=true,$currency_id=false){
-    // todo - this number format needs to be in the database currency table as well.
-    $decimal_separator = module_config::c('currency_decimal_separator','.');
-    $thounds_separator = module_config::c('currency_thousand_separator',',');
-    $dec_positions = module_config::c('currency_decimal_positions',2);
-	return currency(number_format($number,$dec_positions,$decimal_separator,$thounds_separator),$show_currency,$currency_id);
-}
 function input_date($date,$include_time=false){
 
     $time = false;
@@ -351,7 +273,7 @@ function print_date($date,$include_time=false,$input_format=false){
 		$date = date(_DATE_FORMAT,$time);
 	}
 	if($include_time){
-		$date.= ' '.date("g:ia",$time);
+		$date.= ' '.date(module_config::c('time_format','g:ia'),$time);
 	}
 	return $date;
 }
@@ -609,18 +531,8 @@ function _l($text){
 
 }
 
-function get_languages(){
-	$files = @glob("includes/lang/*.php");
-	if(!is_array($files))$files = array();
-	$languages=array();
-	foreach($files as $file){
-		$languages[] = basename(str_replace('.php','',$file));
-	}
-	return $languages;
-}
-
-function forum_text($original_text){
-	$text = htmlspecialchars($original_text);
+function forum_text($original_text, $htmlspecialchars=true){
+	$text = ($htmlspecialchars) ? htmlspecialchars($original_text) : $original_text;
 
 	// convert links
     $text = " ".$text;
@@ -630,9 +542,9 @@ function forum_text($original_text){
 
     //$text = preg_replace('#(?i)\b((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))#i','<a href="\\1" target="_blank">\\1</a>',$text);
 
-    $text = preg_replace('#&lt;((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))&gt;#i','\\1',$text);
-    if(!strlen($text)){
-        $text = $original_text;
+    $convertedtext = preg_replace('#&lt;((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))&gt;#i','\\1',$text);
+    if(strlen($convertedtext)){
+        $text = $convertedtext;
     }
     /*if(preg_match_all('#((?:[a-z][\w-]+:(?:/{1,3}|[a-z0-9%])|www\d{0,3}[.]|[a-z0-9.\-]+[.][a-z]{2,4}/)(?:[^\s()<>]+|\(([^\s()<>]+|(\([^\s()<>]+\)))*\))+(?:\(([^\s()<>]+|(\([^\s()<>]+\)))*\)|[^\s`!()\[\]{};:\'".,<>?«»“”‘’]))#i',$text,$matches)){
         echo '<pre>';print_r($matches);echo '</pre>';
@@ -1101,7 +1013,7 @@ function is_installed(){
         }
         $sql = "SHOW TABLES LIKE '"._DB_PREFIX."config'";
         $res = qa1($sql);
-        if(count($res)){
+        if($res != false && count($res)){
             return true;
         }else{
             return false;

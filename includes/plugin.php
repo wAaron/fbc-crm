@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 class module_base{
@@ -56,8 +56,27 @@ class module_base{
 		}
 		return module_security::has_feature_access($perms);
 	}
+    public static function is_plugin_enabled(){
+        $class_name = false;
+        if(function_exists('get_called_class')){
+            $class_name = get_called_class();
+        }else if(is_callable('self::get_class()')){
+             eval('$class_name = self::get_class();');
+        }else if(is_callable('static::get_class()')){
+            // doesn't work in php5.2
+            eval('$class_name = static::get_class();');
+        }
+        if($class_name){
+            $class_name = str_replace('module_','',$class_name);
+            return module_config::c('plugin_enabled_'.$class_name,1);
+        }
+        return true;
+    }
 	function get_menu($holding_module=false,$holding_page=false,$type=false){
 
+        if(!self::is_plugin_enabled()){
+            return array();
+        }
 
         if(!$this->_pre_menu_done && $this->is_installed()){
             $this->pre_menu();
@@ -187,10 +206,10 @@ class module_base{
 	}
 
     private static $_dbt_exists = array();
-	public static function db_table_exists($name){
-        if(isset(self::$_dbt_exists[$name]))return self::$_dbt_exists[$name];
+	public static function db_table_exists($name,$force=false){
+        if(isset(self::$_dbt_exists[$name])&&!$force)return self::$_dbt_exists[$name];
         $sql = "SHOW TABLES LIKE '"._DB_PREFIX.$name."'";
-        $res = qa1($sql);
+        $res = qa1($sql,!$force);
         if($res != false && count($res)){
             self::$_dbt_exists[$name] = true;
             return true;
@@ -399,6 +418,11 @@ class module_base{
             if(isset($r['Column_name']) && $r['Column_name'] == $column_name){
                 $add_index=false;
             }
+        }
+        // check if this field exists.
+        $fields = get_fields($table_name);
+        if(!isset($fields[$column_name])){
+            $add_index=false;
         }
         if($add_index){
             $sql = 'ALTER TABLE  `'._DB_PREFIX.$table_name.'` ADD INDEX ( '.$column_name.' );';

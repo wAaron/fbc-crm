@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 define('_CHANGE_REQUEST_STATUS_NEW',1);
@@ -31,7 +31,10 @@ class module_change_request extends module_base{
 		$this->change_request_types = array();
 		$this->module_name = "change_request";
 		$this->module_position = 30;
-        $this->version = 2.27;
+        $this->version = 2.285;
+        // 2.285 - 2013-04-20 - permission fix
+
+
         // 2.1 - initial release
         // 2.21 - bug fix in javascript code
         // 2.22 - email/dashboard alerts and other fixes
@@ -40,6 +43,11 @@ class module_change_request extends module_base{
         // 2.25 - big fix showing all changes on home page.
         // 2.26 - bug fix for wordpress themes and jquery
         // 2.27 - support for the new jQuery 1.9+
+        // 2.28 - hide/show completed change requests
+        // 2.281 - possible bug fix for some hosting accounts
+        // 2.282 - delete change request button
+        // 2.283 - bug fix in change request error logging
+        // 2.284 - 2013-04-04 - better support for change request on HTTPS websites
 
 
         //module_config::register_css('change_request','change_request.css');
@@ -136,7 +144,7 @@ Change request details:<br><br>
             'change_request_id' => $change_request_id,
         );
         // generate the path (module & page) for this link
-        $options['page'] = 'change_request_email';
+        if(!isset($options['page']))$options['page'] = 'change_request_email';
         $options['module'] = 'change_request';
 
         // append this to our link options array, which is eventually passed to the
@@ -171,6 +179,9 @@ Change request details:<br><br>
 
 	public static function link_open($change_request_id,$full=false,$data=array()){
 		return self::link_generate($change_request_id,array('full'=>$full,'data'=>$data));
+	}
+	public static function link_open_delete($change_request_id,$full=false,$data=array()){
+		return self::link_generate($change_request_id,array('full'=>$full,'data'=>$data,'page'=>'change_request_delete'));
 	}
 
     public function handle_hook($hook,&$calling_module=false){
@@ -220,14 +231,15 @@ Change request details:<br><br>
 
     
 	public function process(){
-		if(isset($_REQUEST['butt_del']) && $_REQUEST['butt_del'] && $_REQUEST['change_request_id']){
+		/*if(isset($_REQUEST['butt_del']) && $_REQUEST['butt_del'] && $_REQUEST['change_request_id']){
 			$data = self::get_change_request($_REQUEST['change_request_id']);
             if(module_form::confirm_delete('change_request_id',"Really delete change request: ".$data['name'],self::link_open($_REQUEST['change_request_id']))){
                 $this->delete_change_request($_REQUEST['change_request_id']);
                 set_message("Change request deleted successfully");
                 redirect_browser(module_website::link_open($data['website_id']));
             }
-		}else if("save_change_request" == $_REQUEST['_process']){
+		}else */
+        if("save_change_request" == $_REQUEST['_process']){
 			$change_request_id = $this->save_change_request($_REQUEST['change_request_id'],$_POST);
 			set_message("Change_request saved successfully");
 			redirect_browser(self::link_open($change_request_id));
@@ -279,7 +291,7 @@ Change request details:<br><br>
     }
 
 
-	public function delete_change_request($change_request_id){
+	public static function delete_change_request($change_request_id){
 		$change_request_id=(int)$change_request_id;
         $change_request = self::get_change_request($change_request_id);
         if($change_request && $change_request['change_request_id'] == $change_request_id){
@@ -482,7 +494,7 @@ Change request details:<br><br>
                                         // sweet.
                                     }else{
                                         /// log err?
-                                        set_error('Failed to send change notification email to user id '.$alert_users['user_id']);
+                                        set_error('Failed to send change notification email to user id '.$alert_user['user_id']);
                                     }
                                 }
                             }
@@ -656,11 +668,12 @@ Change request details:<br><br>
                             } ?>
                         });
                         <?php
-                        /*
+                    }else{
+                        // not posting the URL, some setups do not like this
                         // get list of active change requests
-                        $change_requests = self::get_change_requests(array('website_id'=>$website_id,'status'=>1);
+                        $change_requests = self::get_change_requests(array('website_id'=>$website_id,'status'=>_CHANGE_REQUEST_STATUS_NEW));
                         // we also do completed ones because the change request highlight countbe in there
-                        $completed_change_requests = self::get_change_requests(array('website_id'=>$website_id,'status'=>2));
+                        $completed_change_requests = self::get_change_requests(array('website_id'=>$website_id,'status'=>_CHANGE_REQUEST_STATUS_COMPLETE));
                         ?>
 
                         jQuery(function(){
@@ -686,11 +699,11 @@ Change request details:<br><br>
                                 ?>
                             dtbaker_changerequest.highlight(<?php echo (int)$_SESSION['_change_request_highlight'];?>);
                             <?php
+                            // todo: move this unset over to the "display_change" callback so we only remove the session when we know it has been displayed.
                             unset($_SESSION['_change_request_highlight']);
                             } ?>
                         });
                         <?php
-                        */
                     }
                 }
                 exit;
@@ -705,7 +718,7 @@ Change request details:<br><br>
                     $website = module_website::get_website($website_id);
                     $change_request_website = get_single('change_request_website','website_id',$website_id);
                     if($change_request_website && $change_request_website['enabled']){
-                        $url = 'http://'.$website['url']; // todo - pass this to a (yet to be created) method in website that will deal with https:// or http:// based on user input. stop hardcoding http!
+                        $url = module_website::urlify($website['url']); // todo - pass this to a (yet to be created) method in website that will deal with https:// or http:// based on user input. stop hardcoding http!
                         if(isset($_REQUEST['change_request_id'])){
                             $selected_change_request = self::get_change_request_by_website($website_id,(int)$_REQUEST['change_request_id']);
                             if($selected_change_request && $selected_change_request['url']){

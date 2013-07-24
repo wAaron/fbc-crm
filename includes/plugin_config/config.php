@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 function config_sort_css($a,$b){
@@ -25,7 +25,10 @@ class module_config extends module_base{
 	public function init(){
 		$this->module_name = "config";
 		$this->module_position = 40;
-        $this->version = 2.368;
+        $this->version = 2.371;
+        //2.371 - 2013-06-21 - different config vars per company
+        //2.37 - 2013-04-30 - clearer upgrade instructions
+
         //2.31 - putting date_input to the general settings area
         //2.32 - friendly licence code names
         //2.33 - menu fix.
@@ -40,6 +43,7 @@ class module_config extends module_base{
         //2.366 - css/js updates
         //2.367 - css loading fix
         //2.368 - upgrade fixing
+        //2.369 - click to edit config values
 
         // load some default configurations.
         if(!defined('_DATE_FORMAT')){
@@ -298,8 +302,8 @@ class module_config extends module_base{
 	
 	public function process(){
 		if('save_config' == $_REQUEST['_process']){
-            $this->handle_post_save_config();
-            set_message('Configuration saved successfully');
+            $count = $this->handle_post_save_config();
+            set_message($count.' configuration values saved successfully');
             redirect_browser($_SERVER['REQUEST_URI']);
         }else if('save_select_box_popup' == $_REQUEST['_process']){
 			// INSECURE!!! oh well.
@@ -337,6 +341,28 @@ class module_config extends module_base{
 	}
 
     public static function save_config($key,$val){
+
+        if(_DEMO_MODE && isset(self::$config_vars[$key])){
+            // dont save particular values
+            switch($key){
+                case 'system_base_dir':
+                case 'system_base_href':
+                case '_theme_theme_logo':
+                    set_error('Changing some settings is disabled in DEMO mode.');
+                    return $val;
+            }
+        }
+
+        if(class_exists('module_company',false) && module_company::is_enabled()){
+            // pass setting saving over to company module for now
+            // if company module returns true we don't save it below
+            if(module_company::save_company_config($key,$val)){
+                // saved in company module, don't save in defaults below
+                self::$config_vars[$key] = $val;
+                return true;
+            }
+        }
+
         $sql = "SELECT * FROM `"._DB_PREFIX."config` c ";
         $sql .= " WHERE `key` = '".mysql_real_escape_string($key)."'";
         $res = qa1($sql);
@@ -355,12 +381,15 @@ class module_config extends module_base{
         if(!module_config::can_i('edit','Settings')){
             die("Permission denied to Edit 'Config &raquo; Settings'. Please ask Administrator to adjust settings.");
         }
+        $x=0;
 
         if(isset($_POST['config']) && is_array($_POST['config'])){
 			foreach($_POST['config'] as $key=>$val){
 				$this->save_config($key,$val);
+                $x++;
 			}
 		}
+        return $x;
     }
 
 	public static function get_setting($key) {
@@ -537,6 +566,18 @@ class module_config extends module_base{
         foreach(qa($sql) as $c){
             self::$config_vars[$c['key']] = $c['val'];
         }
+        if(function_exists('hook_handle_callback')){
+            // hook into the company module (or any other modules in the future) to modify this if needed
+            $new_configs = hook_handle_callback('config_init_vars',self::$config_vars);
+            // returns a list of new configs from other modules
+            if(is_array($new_configs)){
+                foreach($new_configs as $new_config){
+                    if(is_array($new_config)){
+                        self::$config_vars = array_merge(self::$config_vars,$new_config);
+                    }
+                }
+            }
+        }
     }
 
     /**
@@ -556,20 +597,20 @@ class module_config extends module_base{
             }else{
                 $res = array();
             }
-            if(count($res)){
+            if($res!=false && count($res)){
                 // config table exists, we're right to query
             }else{
                 return $default;
             }
         }
-
         // load all vars if needed.
         self::_init_vars();
 
         if(!isset(self::$config_vars[$key]) && $default!==false){
-            $sql = "INSERT INTO `"._DB_PREFIX."config` SET `key` = '".mysql_real_escape_string($key)."', `val` = '".mysql_real_escape_string($default)."'";
+            self::save_config($key,$default);
+            /*$sql = "INSERT INTO `"._DB_PREFIX."config` SET `key` = '".mysql_real_escape_string($key)."', `val` = '".mysql_real_escape_string($default)."'";
             query($sql);
-            self::$config_vars[$key] = $default;
+            self::$config_vars[$key] = $default;*/
         }
         return isset(self::$config_vars[$key]) ? self::$config_vars[$key] : false;
     }
@@ -753,7 +794,7 @@ class module_config extends module_base{
             // find out what the licence codes  are (url / name) so we can dispaly this under each code nicely.
             foreach($data['licence_codes'] as $code => $foo){
                 if(strlen($code)>10 && strlen($foo)>10){
-                    module_config::save_config('_licence_code_'.$code,$foo);
+                    module_config::save_config('_licence_code_'.$code,$foo); // this might not be working
                 }
             }
         }

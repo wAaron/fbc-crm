@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 $module->page_title=_l('Customer Signup');
 print_heading(array(
@@ -118,12 +118,16 @@ module_config::print_settings_form(array(
 <legend>Customer Information</legend>
 <ol>
     <li>
-        <label for="customer[name]">Your Name <span class="required">*</span></label>
+        <label for="customer[name]">First Name <span class="required">*</span></label>
         <input id="customer[name]" name="customer[name]" />
     </li>
     <li>
-        <label for="customer[company_name]">Company Name </label>
-        <input id="customer[company_name]" name="customer[company_name]" />
+        <label for="customer[last_name]">Last Name</label>
+        <input id="customer[last_name]" name="customer[last_name]" />
+    </li>
+    <li>
+        <label for="customer[customer_name]">Company Name </label>
+        <input id="customer[customer_name]" name="customer[customer_name]" />
     </li>
     <li>
         <label for="customer[email]">Email Address <span class="required">*</span></label>

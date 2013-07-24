@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -28,7 +28,7 @@ class module_website extends module_base{
 		$this->website_types = array();
 		$this->module_name = "website";
 		$this->module_position = 16;
-        $this->version = 2.245;
+        $this->version = 2.253;
         //2.21 - fix for customer id not getting saved.
         //2.22 - delete customer from a group
         //2.23 - theme include support.
@@ -38,10 +38,18 @@ class module_website extends module_base{
         //2.243 - bug fix in swapping customers
         //2.244 - bug fix for job currency in "edit website" page
         //2.245 - extra fields update - show in main listing option
+        //2.246 - extra fields update - show in main listing option
+        //2.247 - customer link fix permissions
+        //2.248 - improved quick search
+        //2.249 - https support in website links.
+        //2.25 - 2013-04-10 - new customer permissions
+        //2.251 - 2013-05-28 - email template tag improvements
+        //2.252 - 2013-06-18 - customer signup fixes
+        //2.253 - 2013-06-21 - permission update
 
 
         if($this->can_i('view',module_config::c('project_name_plural','Websites'))){
-            $this->ajax_search_keys = array(
+            /*$this->ajax_search_keys = array(
                 _DB_PREFIX.'website' => array(
                     'plugin' => 'website',
                     'search_fields' => array(
@@ -51,7 +59,7 @@ class module_website extends module_base{
                     'key' => 'website_id',
                     'title' => _l(module_config::c('project_name_single','Website').': '),
                 ),
-            );
+            );*/
 
             // only display if a customer has been created.
             if(isset($_REQUEST['customer_id']) && $_REQUEST['customer_id'] && $_REQUEST['customer_id']!='new'){
@@ -80,6 +88,43 @@ class module_website extends module_base{
         }
 		
 	}
+    
+    public function ajax_search($search_key){
+        // return results based on an ajax search.
+        $ajax_results = array();
+        $search_key = trim($search_key);
+        if(strlen($search_key) > module_config::c('search_ajax_min_length',2)){
+            //$sql = "SELECT * FROM `"._DB_PREFIX."website` c WHERE ";
+            //$sql .= " c.`website_name` LIKE %$search_key%";
+            //$results = qa($sql);
+            $results = $this->get_websites(array('generic'=>$search_key));
+            if(count($results)){
+                foreach($results as $result){
+                    // what part of this matched?
+                    /*if(
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['name']) ||
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['last_name']) ||
+                        preg_match('#'.preg_quote($search_key,'#').'#i',$result['phone'])
+                    ){
+                        // we matched the website contact details.
+                        $match_string = _l('Website Contact: ');
+                        $match_string .= _shl($result['website_name'],$search_key);
+                        $match_string .= ' - ';
+                        $match_string .= _shl($result['name'],$search_key);
+                        // hack
+                        $_REQUEST['website_id'] = $result['website_id'];
+                        $ajax_results [] = '<a href="'.module_user::link_open_contact($result['user_id']) . '">' . $match_string . '</a>';
+                    }else{*/
+                        $match_string = _l('Website: ');
+                        $match_string .= _shl($result['name']. ($result['url']!=$result['name'] ? ' ('.self::urlify($result['url']).')' : ''),$search_key);
+                        $ajax_results [] = '<a href="'.$this->link_open($result['website_id']) . '">' . $match_string . '</a>';
+                        //$ajax_results [] = $this->link_open($result['website_id'],true);
+                    /*}*/
+                }
+            }
+        }
+        return $ajax_results;
+    }
 
     public static function link_generate($website_id=false,$options=array(),$link_options=array()){
 
@@ -135,11 +180,12 @@ class module_website extends module_base{
             'view' => 1,
             'description' => 'view',
         ))){
-            if(!isset($options['full']) || !$options['full']){
+            $bubble_to_module = false;
+            /*if(!isset($options['full']) || !$options['full']){
                 return '#';
             }else{
                 return isset($options['text']) ? $options['text'] : _l('N/A');
-            }
+            }*/
 
         }
         if($bubble_to_module){
@@ -210,6 +256,12 @@ class module_website extends module_base{
 			$where .= " u.url LIKE '%$str%'  ";
 			$where .= ' ) ';
 		}
+		if(isset($search['url']) && $search['url']){
+			$str = mysql_real_escape_string($search['url']);
+			$where .= " AND ";
+			$where .= " u.url = '$str' ";
+			$where .= ' ';
+		}
         foreach(array('customer_id','status') as $key){
             if(isset($search[$key]) && $search[$key] !== ''&& $search[$key] !== false){
                 $str = mysql_real_escape_string($search[$key]);
@@ -221,24 +273,18 @@ class module_website extends module_base{
             case _CUSTOMER_ACCESS_ALL:
                 // all customers! so this means all jobs!
                 break;
+            case _CUSTOMER_ACCESS_ALL_COMPANY:
             case _CUSTOMER_ACCESS_CONTACTS:
-                // we only want customers that are directly linked with the currently logged in user contact.
+            case _CUSTOMER_ACCESS_STAFF:
                 $valid_customer_ids = module_security::get_customer_restrictions();
                 if(count($valid_customer_ids)){
-                    $where .= " AND ( ";
+                    $where .= " AND u.customer_id IN ( ";
                     foreach($valid_customer_ids as $valid_customer_id){
-                        $where .= " u.customer_id = '".(int)$valid_customer_id."' OR ";
+                        $where .= (int)$valid_customer_id.", ";
                     }
-                    $where = rtrim($where,'OR ');
+                    $where = rtrim($where,', ');
                     $where .= " )";
                 }
-                /*
-                if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                    // this session variable is set upon login, it holds their customer id.
-                    // todo - share a user account between multiple customers!
-                    //$where .= " AND c.customer_id IN (SELECT customer_id FROM )";
-                    $where .= " AND u.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
-                }*/
                 break;
             case _CUSTOMER_ACCESS_TASKS:
                 // only customers who have a job that I have a task under.
@@ -253,6 +299,7 @@ class module_website extends module_base{
                 $where .= " )";
 
                 break;
+
         }
 
 		$group_order = ' GROUP BY u.website_id ORDER BY u.name'; // stop when multiple company sites have same region
@@ -268,30 +315,16 @@ class module_website extends module_base{
         if($website){
             switch(module_customer::get_customer_data_access()){
                 case _CUSTOMER_ACCESS_ALL:
-
+                    // all customers! so this means all jobs!
                     break;
+                case _CUSTOMER_ACCESS_ALL_COMPANY:
                 case _CUSTOMER_ACCESS_CONTACTS:
-                    // we only want customers that are directly linked with the currently logged in user contact.
+                case _CUSTOMER_ACCESS_STAFF:
                     $valid_customer_ids = module_security::get_customer_restrictions();
-                    if(count($valid_customer_ids)){
-                        $is_valid_website = false;
-                        foreach($valid_customer_ids as $valid_customer_id){
-                            if($website['customer_id'] && $website['customer_id'] == $valid_customer_id){
-                                $is_valid_website = true;
-                            }
-                        }
-                        if(!$is_valid_website){
-                            $website = false;
-                        }
+                    $is_valid_website = isset($valid_customer_ids[$website['customer_id']]);
+                    if(!$is_valid_website){
+                        $website = false;
                     }
-                    /*
-                    if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                        // this session variable is set upon login, it holds their customer id.
-                        //$where .= " AND c.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
-                        if(!isset($website['customer_id']) || !$website['customer_id'] || $website['customer_id'] != $_SESSION['_restrict_customer_id']){
-                            $website = false;
-                        }
-                    }*/
                     break;
                 case _CUSTOMER_ACCESS_TASKS:
                     // only customers who have linked jobs that I am assigned to.
@@ -316,6 +349,7 @@ class module_website extends module_base{
                         $website = false;
                     }
                     break;
+
             }
         }
 
@@ -600,7 +634,50 @@ CREATE TABLE `<?php echo _DB_PREFIX; ?>website` (
 
     public static function urlify($url){
         // todo: check for http:// etc..
-        if($url)return 'http://'.htmlspecialchars($url);
+        if($url)return htmlspecialchars( !preg_match('#^https?://#',$url) ? 'http://'.$url : $url );
+        return '';
+    }
+    
+    public static function get_replace_fields($website_id,$website_data=false){
+
+        if(!$website_data)$website_data = self::get_website($website_id);
+
+        $data = array(
+            'website_name' => $website_data['name'],
+            'website_url' => self::urlify($website_data['url']),
+        );
+
+        $data = array_merge($data,$website_data);
+        
+
+        if(class_exists('module_group',false)){
+            // get the website groups
+            $g = array();
+            if($website_id>0){
+                $website_data = module_website::get_website($website_id);
+                foreach(module_group::get_groups_search(array(
+                    'owner_table' => 'website',
+                    'owner_id' => $website_id,
+                )) as $group){
+                    $g[$group['group_id']] = $group['name'];
+                }
+            }
+            $data['website_group'] = implode(', ',$g);
+        }
+
+        // addition. find all extra keys for this website and add them in.
+        // we also have to find any EMPTY extra fields, and add those in as well.
+        $all_extra_fields = module_extra::get_defaults('website');
+        foreach($all_extra_fields as $e){
+            $data[$e['key']] = _l('N/A');
+        }
+        // and find the ones with values:
+        $extras = module_extra::get_extras(array('owner_table'=>'website','owner_id'=>$website_id));
+        foreach($extras as $e){
+            $data[$e['extra_key']] = $e['extra'];
+        }
+
+        return $data;
     }
 
 }

@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 db_connect(); // connection isn't auto done until setup complete.
 
@@ -23,8 +23,8 @@ db_connect(); // connection isn't auto done until setup complete.
 //$current_db_version = _UCM_VERSION;
 
 // check if db is installed
-$sql = "SHOW TABLES LIKE '"._DB_PREFIX."config'";
-$res = qa1($sql);
+//$sql = "SHOW TABLES LIKE '"._DB_PREFIX."config'";
+//$res = qa1($sql);
 /*
 if(count($res)){
     // something is installed, find out what version.

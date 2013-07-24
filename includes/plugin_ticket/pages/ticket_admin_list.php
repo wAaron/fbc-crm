@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -139,7 +139,7 @@ $priorities = module_ticket::get_ticket_priorities();
 			<?php echo _l('Status:');?>
 		</td>
 		<td class="search_input">
-			<?php echo print_select_box($search_statuses,'search[status_id]',isset($search['status_id'])?$search['status_id']:''); ?>
+			<?php echo print_select_box($search_statuses,'search[status_id]',isset($search['status_id'])?$search['status_id']:'','',_l('All')); ?>
 		</td>
 		 <td class="search_title">
 			<?php echo _l('Priority:');?>

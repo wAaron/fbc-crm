@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */ 
 
 $search = (isset($_REQUEST['search']) && is_array($_REQUEST['search'])) ? $_REQUEST['search'] : array();
@@ -162,10 +162,14 @@ $colspan = 4;
                             <?php
                             break;
                         case _NEWSLETTER_STATUS_PAUSED:
-                            ?> <a href="<?php echo module_newsletter::link_queue_watch($newsletter['newsletter_id'],$newsletter['send_id']);?>"><?php _e('SENDING PAUSED');?></a>  <?php
+                            ?> <a href="<?php echo module_newsletter::link_queue_watch($newsletter['newsletter_id'],$newsletter['send_id']);?>"><?php _e('SENDING PAUSED');?></a>  |
+
+                                <a href="<?php echo module_newsletter::link_preview($newsletter['newsletter_id']);?>"><?php _e('Preview');?></a> <?php
                             break;
                         case _NEWSLETTER_STATUS_PENDING:
-                            ?> <a href="<?php echo module_newsletter::link_queue_watch($newsletter['newsletter_id'],$newsletter['send_id']);?>"><?php _e('CURRENTLY SENDING');?></a>  <?php
+                            ?> <a href="<?php echo module_newsletter::link_queue_watch($newsletter['newsletter_id'],$newsletter['send_id']);?>"><?php _e('CURRENTLY SENDING');?></a>  |
+
+                                <a href="<?php echo module_newsletter::link_preview($newsletter['newsletter_id']);?>"><?php _e('Preview');?></a> <?php
                             break;
                         case _NEWSLETTER_STATUS_NEW:
                             ?> <a href="<?php echo module_newsletter::link_queue($newsletter['newsletter_id'],$newsletter['send_id']);?>"><?php _e('SEND');?></a> |

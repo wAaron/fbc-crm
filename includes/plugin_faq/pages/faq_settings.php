@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 if(!module_config::can_i('view','Settings') || !module_faq::can_i('edit','FAQ')){
@@ -32,6 +32,16 @@ $links = array(
         'p' => 'faq_questions',
         'force_current_check' => true,
         'order' => 2, // at start.
+        'menu_include_parent' => 1,
+        'allow_nesting' => 1,
+        'args'=>array('faq_id'=>false,'faq_product_id'=>false),
+    ),
+    array(
+        "name"=>'Settings',
+        'm' => 'faq',
+        'p' => 'faq_settings_basic',
+        'force_current_check' => true,
+        'order' => 3, // at start.
         'menu_include_parent' => 1,
         'allow_nesting' => 1,
         'args'=>array('faq_id'=>false,'faq_product_id'=>false),

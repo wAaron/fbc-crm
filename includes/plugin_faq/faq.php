@@ -5,20 +5,28 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 class module_faq extends module_base{
 	
 	public $links;
 
-    public $version = 2.08;
+    public $version = 2.142;
+    // 2.142 - 2013-05-28 - faq viewable without edit permissions
+    // 2.141 - 2013-05-28 - faq in top menu
+    // 2.14 - 2013-05-02 - wysiwyg in faq items
+    // 2.13 - 2013-04-20 - permission fix
+
     // 2.04 - initial release
     // 2.05 - linking faq with support tickets
     // 2.06 - faq fixes
     // 2.07 - support for multiple ticket queues based on "products" (set advanced 'ticket_separate_product_queue' to 1)
     // 2.08 - bug fix for ticket faq drop down.
+    // 2.09 - more faq settings
+    // 2.11 - faq fix for questions without products
+    // 2.12 - 2013-04-07 - fix for faq link in customer ticket login
 
     public static function can_i($actions,$name=false,$category=false,$module=false){
         if(!$module)$module=__CLASS__;
@@ -34,7 +42,7 @@ class module_faq extends module_base{
 
         if(class_exists('module_template',false)){
             module_template::init_template('faq_item','
-<a href="{FAQ_BACK}">&laquo; Return to FAQ Database</a>
+<a href="{FAQ_BACK}" class="faq_back">&laquo; Return to FAQ Database</a>
 <h2>{QUESTION}</h2>
 {ANSWER}<br/>
 ','Used when displaying an individual FAQ item to the public.','code');
@@ -49,14 +57,22 @@ class module_faq extends module_base{
 
     public function pre_menu(){
 
-        if($this->is_installed() && self::can_i('edit','FAQ')){
-            $this->links[] = array(
-                "name"=>"FAQ",
-                "p"=>"faq_settings",
-                'holder_module' => 'config', // which parent module this link will sit under.
-                'holder_module_page' => 'config_admin',  // which page this link will be automatically added to.
-                'menu_include_parent' => 0,
-            );
+        if($this->is_installed()){
+            if(self::can_i('edit','FAQ')){
+                $this->links[] = array(
+                    "name"=>"FAQ",
+                    "p"=>"faq_settings",
+                    'holder_module' => 'config', // which parent module this link will sit under.
+                    'holder_module_page' => 'config_admin',  // which page this link will be automatically added to.
+                    'menu_include_parent' => 0,
+                );
+            }else if(self::can_i('view','FAQ')){
+                $this->links[] = array(
+                    "name"=>"FAQ",
+                    "p"=>"faq_ticket",
+                    'args'=>array('iframe'=>1),
+                );
+            }
         }
     }
 	public function handle_hook($hook){
@@ -115,6 +131,9 @@ class module_faq extends module_base{
                 $options['data'] = $data;
             }
             $options['text'] = isset($options['data']['name']) ? $options['data']['name'] : '';
+            if(!module_config::can_i('view','Settings') || !module_faq::can_i('edit','FAQ')){
+                return htmlspecialchars($options['text']);
+            }
             array_unshift($link_options,$options);
             $options['page']='faq_settings';
             // bubble back onto ourselves for the link.
@@ -187,7 +206,7 @@ class module_faq extends module_base{
     public function process(){
         if('save_faq_product' == $_REQUEST['_process']){
 
-            if(!module_config::can_i('edit','FAQ')){
+            if(!module_faq::can_i('edit','FAQ')){
                 die('No perms to save faq.');
             }
 
@@ -205,7 +224,7 @@ class module_faq extends module_base{
 
         }else if('save_faq' == $_REQUEST['_process']){
 
-            if(!module_config::can_i('edit','FAQ')){
+            if(!module_faq::can_i('edit','FAQ')){
                 die('No perms to save faq.');
             }
 
@@ -257,8 +276,9 @@ class module_faq extends module_base{
 
     public static function get_faqs($search=array()) {
         //return get_multiple('faq',array(),'faq_id','exact','question');
-        $sql = "SELECT f.*, f.faq_id AS `id` FROM `"._DB_PREFIX."faq_product_rel` r LEFT JOIN `"._DB_PREFIX."faq` f";
-        $sql .= " ON r.faq_id = f.faq_id ";
+        $sql = "SELECT f.*, f.faq_id AS `id` ";
+        $sql .= " FROM `"._DB_PREFIX."faq` f ";
+        $sql .= " LEFT JOIN `"._DB_PREFIX."faq_product_rel` r ON f.faq_id = r.faq_id ";
         $sql .= " WHERE 1 ";
         if(isset($search['question']) && $search['question']){
             $sql .= " AND f.question LIKE '%".mysql_real_escape_string($search['question'])."%'";
@@ -279,6 +299,12 @@ class module_faq extends module_base{
         return $faq;
     }
 
+    public static function html_faq($text){
+        if(strpos($text,'<br')===false && stripos($text,'<p>') === false && stripos($text,'<div>') === false){
+            return forum_text($text);
+        }
+        return $text;
+    }
 
     public function external_hook($hook){
 
@@ -295,7 +321,7 @@ class module_faq extends module_base{
                         }
                         if($faq){
                             $template = module_template::get_template_by_key('faq_item');
-                            $faq['answer'] = forum_text($faq['answer']);
+                            $faq['answer'] = self::html_faq($faq['answer']);
                             $faq['faq_back'] = $this->link_open_public(-1).(isset($_REQUEST['faq_product_id']) ? '&faq_product_id='.(int)$_REQUEST['faq_product_id'] : '');
                             $template->assign_values($faq);
                             $template->page_title = $faq['question'];
@@ -313,6 +339,45 @@ class module_faq extends module_base{
                     }
                 }
                 break;
+            case 'faq_list_json':
+                @ob_end_clean();
+                header("Content-type: text/javascript");
+                $faq_id = (isset($_REQUEST['faq_id'])) ? (int)$_REQUEST['faq_id'] : false;
+                if($faq_id>0){
+                    $faq = $this->get_faq($faq_id);
+                    if($faq){
+                        $faq['url'] = module_faq::link_open_public($faq_id,false);
+                        echo json_encode($faq);
+
+                        /*$template = module_template::get_template_by_key('faq_item');
+                        $faq['answer'] = forum_text($faq['answer']);
+                        $faq['faq_back'] = $this->link_open_public(-1).(isset($_REQUEST['faq_product_id']) ? '&faq_product_id='.(int)$_REQUEST['faq_product_id'] : '');
+                        $template->assign_values($faq);
+                        $template->page_title = $faq['question'];
+                        echo $template->replace_content();*/
+                    }
+                    exit;
+                }
+                $faq_product_id = (isset($_REQUEST['faq_product_id'])) ? (int)$_REQUEST['faq_product_id'] : false;
+                $faq_search = (isset($_REQUEST['faq_search'])) ? $_REQUEST['faq_search'] : false;
+                $faqs = $this->get_faqs(array('faq_product_id'=>$faq_product_id,'question'=>$faq_search));
+                $faqs_json=array();
+                $all_products = module_faq::get_faq_products_rel();
+                foreach($faqs as $faq){
+                    $faq = module_faq::get_faq($faq['faq_id']);
+                    $faq_products = array();
+                    foreach($faq['faq_product_ids'] as $faq_product_id){
+                        $faq_products[$faq_product_id]=$all_products[$faq_product_id];
+                    }
+                    $faqs_json[$faq['faq_id']] = array(
+                        'question'=>$faq['question'],
+                        'url'=>module_faq::link_open_public($faq['faq_id'],false),
+                        'products'=>$faq_products,
+                    );
+                }
+                echo json_encode($faqs_json);
+                exit;
+                break;
             case 'ticket_list':
                 $faq_product_id = (isset($_REQUEST['faq_product_id'])) ? (int)$_REQUEST['faq_product_id'] : false;
                 @ob_end_clean();
@@ -323,6 +388,8 @@ class module_faq extends module_base{
                     if($product && $product['faq_product_id']==$faq_product_id){
                         $faqs = $this->get_faqs(array('faq_product_id'=>$faq_product_id));
                         ob_start();
+                        $x=0;
+                        $half = ceil(count($faqs)/2);
                         ?>
                         <tr>
                             <th>
@@ -330,16 +397,39 @@ class module_faq extends module_base{
                             </th>
                             <td>
                                 <?php _e('Please read through the below FAQ to see if the question has already been answered'); ?>
+                        </tr>
+                        <tr>
+                            <td colspan="2">
+                                <table width="100%" class="tableclass tableclass_full table_faq_class">
+                                    <tbody>
+                                    <tr>
+                                        <td width="50%" valign="top">
+                                            <ul><?php
+                                                for(true;$x<$half;$x++){
+                                                    $data = array_shift($faqs);
+                                                    $faq = module_faq::get_faq($data['faq_id']);
+                                                    ?>
+                                                    <li>
+                                                        <a href="<?php echo module_faq::link_open_public($data['faq_id'],false);?>" target="_blank"><?php echo htmlspecialchars($faq['question']); ?></a>
+                                                    </li>
+                                                    <?php } ?>
+                                            </ul>
+                                        </td>
+                                        <td width="50%" valign="top">
+                                            <ul><?php
+                                                foreach($faqs as $data){
+                                                    $faq = module_faq::get_faq($data['faq_id']);
+                                                    ?>
+                                                    <li>
+                                                        <a href="<?php echo module_faq::link_open_public($data['faq_id'],false);?>" target="_blank"><?php echo htmlspecialchars($faq['question']); ?></a>
+                                                    </li>
+                                                    <?php } ?>
+                                            </ul>
+                                        </td>
+                                    </tr>
+                                    </tbody>
+                                </table>
 
-                                <ul><?php
-                                    foreach($faqs as $data){
-                                        $faq = module_faq::get_faq($data['faq_id']);
-                                        ?>
-                                        <li>
-                                            <a href="<?php echo module_faq::link_open_public($data['faq_id'],false);?>" target="_blank"><?php echo htmlspecialchars($faq['question']); ?></a>
-                                        </li>
-                                        <?php } ?>
-                                </ul>
                             </td>
                         </tr>
                         <?php

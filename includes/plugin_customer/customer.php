@@ -5,14 +5,16 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
-define('_CUSTOMER_ACCESS_ALL','All customers in system');
-define('_CUSTOMER_ACCESS_CONTACTS','Only customer I am assigned to as a contact');
-define('_CUSTOMER_ACCESS_TASKS','Only customers I am assigned to in a job');
+define('_CUSTOMER_ACCESS_ALL','All customers in system'); // do not change string
+define('_CUSTOMER_ACCESS_ALL_COMPANY','Only customers from companies I have access to'); // do not change string
+define('_CUSTOMER_ACCESS_CONTACTS','Only customer I am assigned to as a contact'); // do not change string
+define('_CUSTOMER_ACCESS_TASKS','Only customers I am assigned to in a job'); // do not change string
+define('_CUSTOMER_ACCESS_STAFF','Only customers I am assigned to as a staff member'); // do not change string
 
 define('_CUSTOMER_STATUS_OVERDUE',3);
 define('_CUSTOMER_STATUS_OWING',2);
@@ -36,7 +38,17 @@ class module_customer extends module_base{
 		$this->customer_types = array();
 		$this->module_name = "customer";
 		$this->module_position = 5.1;
-        $this->version = 2.365;
+        $this->version = 2.377;
+        //2.377 - 2013-07-16 - customer delete fix
+        //2.376 - 2013-06-21 - permission update
+        //2.375 - 2013-06-18 - customer signup fixes
+        //2.374 - 2013-06-18 - making room for the upcoming company feature
+        //2.373 - 2013-06-14 - customer color coding
+        //2.372 - 2013-05-28 - email template field first_name/last_name fix
+        //2.371 - 2013-05-28 - email template field customer_address fix
+        //2.37 - 2013-05-28 - email template field improvements
+        //2.369 - 2013-04-27 - fix for large customer lists
+
         //2.31 - added group export
         //2.32 - added search by group
         //2.33 - search group permissions
@@ -63,7 +75,11 @@ class module_customer extends module_base{
         //2.363 - show invoice list on main customer page (turn off with customer_list_show_invoices setting)
         //2.364 - extra fields update - show in main listing option
         //2.365 - support for customer signup system
+        //2.366 - customer signup fixes
+        //2.367 - 2013-04-10 - new customer permissions and staff selection
+        //2.368 - 2013-04-10 - fix for new customer permissions
 
+        module_config::register_css('customer','customer.css');
 	}
 
     public function pre_menu(){
@@ -95,7 +111,7 @@ class module_customer extends module_base{
         // return results based on an ajax search.
         $ajax_results = array();
         $search_key = trim($search_key);
-        if(strlen($search_key) > 2){
+        if(strlen($search_key) > module_config::c('search_ajax_min_length',2)){
             //$sql = "SELECT * FROM `"._DB_PREFIX."customer` c WHERE ";
             //$sql .= " c.`customer_name` LIKE %$search_key%";
             //$results = qa($sql);
@@ -202,13 +218,13 @@ class module_customer extends module_base{
          if(isset($data['customer_status'])){
              switch($data['customer_status']){
                  case _CUSTOMER_STATUS_OVERDUE:
-                     $link_options['class'] = 'customer_overdue';
+                     $link_options['class'] = 'customer_overdue error_text';
                      break;
                  case _CUSTOMER_STATUS_OWING:
                      $link_options['class'] = 'customer_owing';
                      break;
                  case _CUSTOMER_STATUS_PAID:
-                     $link_options['class'] = 'customer_paid';
+                     $link_options['class'] = 'customer_paid success_text';
                      break;
              }
         }
@@ -236,25 +252,9 @@ class module_customer extends module_base{
 		return self::link_generate($customer_id,array('full'=>$full,'data'=>$data));
 	}
 
-	public static function get_pm() {
-		$admins = module_user::get_users_by_group('PM');
-		$admins_rel = array();
-		foreach($admins as $admin){
-			$admins_rel[$admin['user_id']] = $admin['name'];
-		}
-		return $admins_rel;
-	}
-	
-	public static function get_sales() {
-		$admins = module_user::get_users_by_group('SALES');
-		$admins_rel = array();
-		foreach($admins as $admin){
-			$admins_rel[$admin['user_id']] = $admin['name'];
-		}
-		return $admins_rel;
-	}
 
-	public static function get_customers($search=array()){
+
+	public static function get_customers($search=array(),$return_as_mysql=false){
 
         // work out what customers this user can access?
         $customer_access = self::get_customer_data_access();
@@ -270,40 +270,40 @@ class module_customer extends module_base{
         $sql .= ' LEFT JOIN `'._DB_PREFIX."user` u ON c.customer_id = u.customer_id"; //c.primary_user_id = u.user_id AND 
         $sql .= ' LEFT JOIN `'._DB_PREFIX."user` pu ON c.primary_user_id = pu.user_id";
         $sql .= ' LEFT JOIN `'._DB_PREFIX."address` a ON c.customer_id = a.owner_id AND a.owner_table = 'customer' AND a.address_type = 'physical'";
-		
+        
         if(isset($search['customer_no']) && trim($search['customer_no'])){
-            $str = mysql_real_escape_string(trim($search['customer_no']));
-            // search the customer name, contact name, cusomter phone, contact phone, contact email.
-            //$where .= 'AND u.customer_id IS NOT NULL AND ( ';
-            $where .= " AND ( ";
-            $where .= "c.customer_no LIKE '%$str%' ";
-            $where .= ') ';
+        	$str = mysql_real_escape_string(trim($search['customer_no']));
+        	// search the customer name, contact name, cusomter phone, contact phone, contact email.
+        	//$where .= 'AND u.customer_id IS NOT NULL AND ( ';
+        	$where .= " AND ( ";
+        	$where .= "c.customer_no LIKE '%$str%' ";
+        	$where .= ') ';
         }
         
         if(isset($search['core_completed']) && trim($search['core_completed'])){
         	$str = mysql_real_escape_string(trim($search['core_completed']));
-			if ($str === 'yes') {
-	        	$where .= " AND ( ";
-	        	$where .= "c.core_completed >= 100 ";
-	        	$where .= ') ';
-			} else {
-				$where .= " AND ( ";
-				$where .= "c.core_completed < 100 ";
-				$where .= ') ';
-			}
+        	if ($str === 'yes') {
+        		$where .= " AND ( ";
+        		$where .= "c.core_completed >= 100 ";
+        		$where .= ') ';
+        	} else {
+        		$where .= " AND ( ";
+        		$where .= "c.core_completed < 100 ";
+        		$where .= ') ';
+        	}
         }
         
-	    if(isset($search['full_completed']) && trim($search['full_completed'])){
+        if(isset($search['full_completed']) && trim($search['full_completed'])){
         	$str = mysql_real_escape_string(trim($search['full_completed']));
-			if ($str === 'yes') {
-	        	$where .= " AND ( ";
-	        	$where .= "c.full_completed >= 100 ";
-	        	$where .= ') ';
-			} else {
-				$where .= " AND ( ";
-				$where .= "c.full_completed < 100 ";
-				$where .= ') ';
-			}
+        	if ($str === 'yes') {
+        		$where .= " AND ( ";
+        		$where .= "c.full_completed >= 100 ";
+        		$where .= ') ';
+        	} else {
+        		$where .= " AND ( ";
+        		$where .= "c.full_completed < 100 ";
+        		$where .= ') ';
+        	}
         }
         
         if(isset($search['customer_active']) && trim($search['customer_active'])){
@@ -312,8 +312,8 @@ class module_customer extends module_base{
         	$where .= "c.customer_active = '$str' ";
         	$where .= ') ';
         }
-
-        if(isset($search['generic']) && trim($search['generic'])){
+        
+		if(isset($search['generic']) && trim($search['generic'])){
 			$str = mysql_real_escape_string(trim($search['generic']));
 			// search the customer name, contact name, cusomter phone, contact phone, contact email.
 			//$where .= 'AND u.customer_id IS NOT NULL AND ( ';
@@ -344,6 +344,12 @@ class module_customer extends module_base{
 			$sql .= " LEFT JOIN `"._DB_PREFIX."address` a ON (a.owner_id = c.customer_id)"; // swap join around? meh.
 			$where .= " AND (a.state_id = '$str' AND a.owner_table = 'customer')";
 		}
+		if(isset($search['staff_id']) && trim($search['staff_id'])){
+			$str = (int)$search['staff_id'];
+			// search all the customer site addresses.
+			$sql .= " LEFT JOIN `"._DB_PREFIX."customer_user_rel` cur ON (c.customer_id = cur.customer_id)";
+			$where .= " AND (cur.user_id = '$str')";
+		}
 		if(isset($search['group_id']) && trim($search['group_id'])){
 			$str = (int)$search['group_id'];
 			$sql .= " LEFT JOIN `"._DB_PREFIX."group_member` gm ON (c.customer_id = gm.owner_id)";
@@ -353,13 +359,54 @@ class module_customer extends module_base{
             case _CUSTOMER_ACCESS_ALL:
 
                 break;
+            case _CUSTOMER_ACCESS_ALL_COMPANY:
+                if(class_exists('module_company',false) && module_company::is_enabled()){
+                    $companys = module_company::get_companys();
+                    if(count($companys)){
+                        $sql .= " LEFT JOIN `"._DB_PREFIX."company_customer` cc ON c.customer_id = cc.customer_id";
+                        $where .= " AND ( ";
+                        if(module_config::c('customer_show_unassigned_company',0)){
+                            $where .= 'cc.company_id IS NULL OR ';
+                        }
+                        $where .= "cc.company_id IN ( ";
+                        foreach($companys as $company){
+                            $where .= $company['company_id'] .', ';
+                        }
+                        $where = rtrim($where,', ');
+                        $where .= " ) ) ";
+                    }
+                }
+                break;
             case _CUSTOMER_ACCESS_CONTACTS:
                 // we only want customers that are directly linked with the currently logged in user contact.
+                //$sql .= " LEFT JOIN `"._DB_PREFIX."user` u ON c.customer_id = u.customer_id "; // done above.
+                $sql .= " LEFT JOIN `"._DB_PREFIX."user_customer_rel` ucr ON c.customer_id = ucr.customer_id ";
+                $where .= " AND (";
+                $where .= "u.user_id = ".(int)module_security::get_loggedin_id();
+                $where .= " OR ( ucr.customer_id = c.customer_id AND ucr.user_id = ".(int)module_security::get_loggedin_id()." AND ucr.primary = u.user_id )";
+                $where .= " OR ( ucr.customer_id = c.customer_id AND ucr.primary = ".(int)module_security::get_loggedin_id()." AND ucr.user_id = u.user_id )";
+                $where .= ' )';
+/*
 //                if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
                     // this session variable is set upon login, it holds their customer id.
                     // todo - share a user account between multiple customers!
                     //$where .= " AND c.customer_id IN (SELECT customer_id FROM )";
-                $valid_customer_ids = module_security::get_customer_restrictions();
+
+                if(isset($res['linked_parent_user_id']) && $res['linked_parent_user_id'] == $res['user_id']){
+                    // this user is a primary user.
+                    $_SESSION['_restrict_customer_id'] = array();
+                    $_SESSION['_restrict_customer_id'][$res['customer_id']] = $res['customer_id'];
+                    foreach(module_user::get_contact_customer_links($res['user_id']) as $linked){
+                        $_SESSION['_restrict_customer_id'][$linked['customer_id']] = $linked['customer_id'];
+                    }
+
+
+                }else{
+                    // oldschool permissions.
+                    $_SESSION['_restrict_customer_id'] = $res['customer_id'];
+                }*/
+
+                /*$valid_customer_ids = module_security::get_customer_restrictions();
                 if(count($valid_customer_ids)){
                     $where .= " AND ( ";
                     foreach($valid_customer_ids as $valid_customer_id){
@@ -367,7 +414,7 @@ class module_customer extends module_base{
                     }
                     $where = rtrim($where,'OR ');
                     $where .= " )";
-                }
+                }*/
 //                }
                 break;
             case _CUSTOMER_ACCESS_TASKS:
@@ -376,12 +423,20 @@ class module_customer extends module_base{
                 $sql .= " LEFT JOIN `"._DB_PREFIX."task` t ON j.job_id = t.job_id ";
                 $where .= " AND (j.user_id = ".(int)module_security::get_loggedin_id()." OR t.user_id = ".(int)module_security::get_loggedin_id().")";
                 break;
+            case _CUSTOMER_ACCESS_STAFF:
+                // only customers who have linked staff entries
+                $sql .= " LEFT JOIN `"._DB_PREFIX."customer_user_rel` cur ON c.customer_id = cur.customer_id ";
+                $where .= " AND (cur.user_id = ".(int)module_security::get_loggedin_id().")";
+                break;
         }
-		
+
+
 		$group_order = ' GROUP BY c.customer_id ORDER BY c.customer_name ASC'; // stop when multiple company sites have same region
 		$sql = $sql . (strlen($where)>0 ? ' WHERE 1'.$where :''). $group_order;
+        if($return_as_mysql){
+            return query($sql);
+        }
 		$result = qa($sql);
-		//error_log($sql);
         /*if(!function_exists('sort_customers')){
             function sort_customers($a,$b){
                 return strnatcasecmp($a['customer_name'],$b['customer_name']);
@@ -405,6 +460,11 @@ class module_customer extends module_base{
         if($customer_id>0){
             $customer = get_single("customer","customer_id",$customer_id);
 
+            $customer['staff_ids']=array();
+            foreach(get_multiple('customer_user_rel',array('customer_id'=>$customer_id),'user_id') as $val){
+                $customer['staff_ids'][] = $val['user_id'];
+            }
+
             // get their address.
             if($customer && isset($customer['customer_id']) && $customer['customer_id'] == $customer_id){
                 $customer['customer_address'] = module_address::get_address($customer_id,'customer','physical',true);
@@ -414,51 +474,13 @@ class module_customer extends module_base{
                 case _CUSTOMER_ACCESS_ALL:
 
                     break;
+                case _CUSTOMER_ACCESS_ALL_COMPANY:
                 case _CUSTOMER_ACCESS_CONTACTS:
-                    // we only want customers that are directly linked with the currently logged in user contact.
-                    //if(isset($_SESSION['_restrict_customer_id']) && (int)$_SESSION['_restrict_customer_id']> 0){
-                        // this session variable is set upon login, it holds their customer id.
-                        //$where .= " AND c.customer_id = '".(int)$_SESSION['_restrict_customer_id']."'";
-
-                        $valid_customer_ids = module_security::get_customer_restrictions();
-                        if(count($valid_customer_ids)){
-                            $is_valid_customer = false;
-                            foreach($valid_customer_ids as $valid_customer_id){
-                                if($customer['customer_id'] == $valid_customer_id){
-                                    $is_valid_customer = true;
-                                }
-                            }
-                            if(!$is_valid_customer){
-                                if($skip_permissions){
-                                    $customer['_no_access'] = true; // set a flag for custom processing. we check for this when calling get_customer with the skip permissions argument. (eg: in the ticket file listing link)
-                                }else{
-                                    $customer = false;
-                                }
-                            }
-                        }
-                   // }
-                    break;
                 case _CUSTOMER_ACCESS_TASKS:
-                    // only customers who have linked jobs that I am assigned to.
-                    //$sql .= " LEFT JOIN `"._DB_PREFIX."job` j ON c.customer_id = j.customer_id ";
-                    //$sql .= " LEFT JOIN `"._DB_PREFIX."task` t ON j.job_id = t.job_id ";
-                    //$where .= " AND (j.user_id = ".(int)module_security::get_loggedin_id()." OR t.user_id = ".(int)module_security::get_loggedin_id().")";
-                    $has_job_access = false;
-                    $jobs = module_job::get_jobs(array('customer_id'=>$customer_id));
-                    foreach($jobs as $job){
-                        if($job['user_id']==module_security::get_loggedin_id()){
-                            $has_job_access=true;
-                            break;
-                        }
-                        $tasks = module_job::get_tasks($job['job_id']);
-                        foreach($tasks as $task){
-                            if($task['user_id']==module_security::get_loggedin_id()){
-                                $has_job_access=true;
-                                break;
-                            }
-                        }
-                    }
-                    if(!$has_job_access){
+                case _CUSTOMER_ACCESS_STAFF:
+                    $valid_customer_ids = module_security::get_customer_restrictions();
+                    $is_valid_customer = isset($valid_customer_ids[$customer['customer_id']]);
+                    if(!$is_valid_customer){
                         if($skip_permissions){
                             $customer['_no_access'] = true; // set a flag for custom processing. we check for this when calling get_customer with the skip permissions argument. (eg: in the ticket file listing link)
                         }else{
@@ -472,10 +494,18 @@ class module_customer extends module_base{
             $customer = array(
                 'customer_id' => 'new',
                 'customer_name' => '',
+                'customer_status' => _CUSTOMER_STATUS_PAID,
                 'primary_user_id' => '',
                 'credit' => '0',
                 'customer_address' => array(),
+                'staff_ids' => array(),
             );
+        }
+        if(class_exists('module_company',false) && module_company::is_enabled()){
+            $customer['company_ids']=array();
+            foreach(module_company::get_companys_by_customer($customer['customer_id']) as $company){
+                $customer['company_ids'][$company['company_id']] = $company['name'];
+            }
         }
 		//$customer['customer_industry_id'] = get_multiple('customer_industry_rel',array('customer_id'=>$customer_id),'customer_industry_id');
 		//echo $customer_id;print_r($customer);exit;
@@ -559,13 +589,68 @@ class module_customer extends module_base{
         }
         return $data;
     }
+
+    public static function run_cron(){
+        // only run this cron max once every hour
+        // so if the cron job runs every 5 minutes only execute this every 20
+        $refresh_interval = module_config::c('customer_status_cron_refresh_time',60);
+        $last_customer_refresh = module_config::c('customer_status_cron_refresh_last',0);
+        if($last_customer_refresh<=0 || ($last_customer_refresh + ($refresh_interval*60)) <= time()){
+            module_config::save_config('customer_status_cron_refresh_last',time());
+            // find any customers with unpaid invoices
+            if(class_exists('module_invoice',false)){
+                $sql = "SELECT * FROM `"._DB_PREFIX."customer` c ";
+                $sql .= " RIGHT JOIN `"._DB_PREFIX."invoice` i ON c.customer_id = i.customer_id";
+                $sql .= " WHERE ";
+                $sql .= " c.customer_status = 0 ";
+                $sql .= " OR ( i.date_paid = '0000-00-00' AND i.date_due <= '".date('Y-m-d')."' AND c.customer_status != "._CUSTOMER_STATUS_OVERDUE." )";
+                $sql .= " OR ( i.date_paid != '0000-00-00' AND ( c.customer_status = "._CUSTOMER_STATUS_OWING." OR c.customer_status = "._CUSTOMER_STATUS_OVERDUE." ) )";
+                $sql .= " GROUP BY c.customer_id";
+                $customers = qa($sql);
+                //print_r($customers);
+                foreach($customers as $c){
+                    self::update_customer_status($c['customer_id']);
+                }
+            }
+        }
+    }
+
+    // run this update in a cron job from time to time:
+    public static function update_customer_status($customer_id){
+        // find out if this customer has any invoices owing, paid or overdue
+        if(class_exists('module_invoice',false)){
+            $invoices = module_invoice::get_invoices(array('customer_id'=>$customer_id));
+            if(count($invoices)){
+                $total_due = 0;
+                $total_paid = 0;
+                $total_overdue = 0;
+                foreach($invoices as $invoice){
+                    $invoice = module_invoice::get_invoice($invoice['invoice_id']);
+                    $total_due += $invoice['total_amount_due'];
+                    $total_paid += $invoice['total_amount_paid'];
+                    if(($invoice['date_due'] && $invoice['date_due']!='0000-00-00') && (!$invoice['date_paid'] || $invoice['date_paid'] == '0000-00-00') && strtotime($invoice['date_due']) < time()){
+                        $total_overdue += $invoice['total_amount_due'];
+                    }
+                }
+                if($total_overdue>0){
+                    update_insert('customer_id',$customer_id,'customer',array('customer_status'=>_CUSTOMER_STATUS_OVERDUE));
+                }else if($total_due>0){
+                    update_insert('customer_id',$customer_id,'customer',array('customer_status'=>_CUSTOMER_STATUS_OWING));
+                }else{
+                    update_insert('customer_id',$customer_id,'customer',array('customer_status'=>_CUSTOMER_STATUS_PAID));
+                }
+            }
+        }
+    }
 	public function save_customer($customer_id,$data){
 
         $customer_id = (int)$customer_id;
+        $temp_customer=false;
         if($customer_id>0){
             // check permissions
             $temp_customer = $this->get_customer($customer_id);
             if(!$temp_customer || $temp_customer['customer_id'] != $customer_id){
+                $temp_customer=false;
                 $customer_id = false;
             }
         }
@@ -599,6 +684,25 @@ class module_customer extends module_base{
         $data['full_completed'] =  floor($full_filled / $full_sum * 100);
 
 		$customer_id = update_insert("customer_id",$customer_id,"customer",$data);
+        if(isset($data['staff_ids']) && is_array($data['staff_ids']) && module_customer::can_i('edit','Customer Staff')){
+            $existing_staff=array();
+            if($temp_customer){
+                $existing_staff = $temp_customer['staff_ids'];
+            }
+            foreach($data['staff_ids'] as $staff_id){
+                $sql = "REPLACE INTO `"._DB_PREFIX."customer_user_rel` SET ";
+                $sql .= " `user_id` = ".(int)$staff_id;
+                $sql .= ", `customer_id` = ".(int)$customer_id;
+                $key = array_search($staff_id,$existing_staff);
+                if($key!==false){
+                    unset($existing_staff[$key]);
+                }
+                query($sql);
+            }
+            foreach($existing_staff as $staff_id){
+                delete_from_db('customer_user_rel',array('user_id','customer_id'),array($staff_id,$customer_id));
+            }
+        }
         if(isset($_REQUEST['user_id'])){
             $user_id = (int)$_REQUEST['user_id'];
             if($user_id>0){
@@ -615,6 +719,12 @@ class module_customer extends module_base{
             $data['customer_id']=$customer_id;
             if(!$user_id){
                 // hack to set the default role of a contact (if one is set in settings).
+                if(!isset($data['last_name']) && isset($data['name']) && strpos($data['name'],' ')>0){
+                    // todo - save from customer import
+                    $bits = explode(' ',$data['name']);
+                    $data['last_name'] = array_pop($bits);
+                    $data['name'] = implode(' ',$bits);
+                }
                 $user_id = update_insert("user_id",false,"user",$data);
                 $role_id = module_config::c('contact_default_role',0);
                 if($role_id>0){
@@ -658,6 +768,22 @@ class module_customer extends module_base{
 		//handle_hook("address_block_save",$this,"postal","customer","customer_id",$customer_id);
         module_extra::save_extras('customer','customer_id',$customer_id);
 
+        // save the company information if it's available
+        if(class_exists('module_company',false) && module_company::can_i('edit','Company') && module_company::is_enabled()){
+            if(isset($_REQUEST['available_customer_company']) && is_array($_REQUEST['available_customer_company'])){
+                $selected_companies = isset($_POST['customer_company']) && is_array($_POST['customer_company']) ? $_POST['customer_company'] : array();
+                foreach($_REQUEST['available_customer_company'] as $company_id => $tf){
+                    if(!isset($selected_companies[$company_id]) || !$selected_companies[$company_id]){
+                        // remove customer from this company
+                        module_company::delete_customer($company_id,$customer_id);
+                    }else{
+                        // add customer to this company (if they are not already existing)
+                        module_company::add_customer_to_company($company_id,$customer_id);
+                    }
+                }
+            }
+        }
+
 		return $customer_id;
 	}
 
@@ -669,8 +795,6 @@ class module_customer extends module_base{
         if($customer_id>0){
             $customer = self::get_customer($customer_id);
             if($customer && $customer['customer_id'] == $customer_id){
-                $sql = "DELETE FROM "._DB_PREFIX."customer WHERE customer_id = '".$customer_id."' LIMIT 1";
-                query($sql);
                 if(class_exists('module_group',false)){
                     module_group::delete_member($customer_id,'customer');
                 }
@@ -693,6 +817,10 @@ class module_customer extends module_base{
                 handle_hook("address_delete",$this,'all',"customer",'customer_id',$customer_id);
                 handle_hook("file_delete",$this,"customer",'customer_id',$customer_id);
                 module_extra::delete_extras('customer','customer_id',$customer_id);
+                // finally delete the main customer record
+                // (this is so the above code works with its sql joins)
+                $sql = "DELETE FROM "._DB_PREFIX."customer WHERE customer_id = '".$customer_id."' LIMIT 1";
+                query($sql);
             }
         }
 	}
@@ -749,10 +877,10 @@ class module_customer extends module_base{
             }
             $user_match = update_insert("user_id",$user_match,"user",array(
                                                      'customer_id'=>$customer_id,
-                                                     'name' => $row['primary_user_name'],
-                                                     'last_name' => $row['primary_user_last_name'],
-                                                     'email' => $row['primary_user_email'],
-                                                     'phone' => $row['primary_user_phone'],
+                                                     'name' => isset($row['primary_user_name']) ? $row['primary_user_name'] : '',
+                                                     'last_name' => isset($row['primary_user_last_name']) ? $row['primary_user_last_name'] : '',
+                                                     'email' => isset($row['primary_user_email']) ? $row['primary_user_email'] : '',
+                                                     'phone' => isset($row['primary_user_phone']) ? $row['primary_user_phone'] : '',
                                                      'password' => isset($row['password']) && strlen($row['password']) ? md5(trim($row['password'])) : '',
                                                  ));
             if($user_match && isset($row['role']) && strlen(trim($row['role']))){
@@ -832,6 +960,13 @@ class module_customer extends module_base{
         if(!isset($fields['customer_status'])){
             $sql .= 'ALTER TABLE  `'._DB_PREFIX.'customer` ADD  `customer_status` tinyint(2) NOT NULL DEFAULT \'0\' AFTER `primary_user_id`;';
         }
+        if(!self::db_table_exists('customer_user_rel')){
+            $sql .= 'CREATE TABLE `'._DB_PREFIX.'customer_user_rel` (
+  `customer_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  PRIMARY KEY  (`customer_id`, `user_id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 ;';
+        }
         return $sql;
     }
 
@@ -856,6 +991,12 @@ CREATE TABLE `<?php echo _DB_PREFIX; ?>customer` (
 
 INSERT INTO `<?php echo _DB_PREFIX; ?>customer` VALUES (1, 3, 0, 'Bobs Printing Service', 0, -1, '', '', NOW(), NOW());
 INSERT INTO `<?php echo _DB_PREFIX; ?>customer` VALUES (2, 4, 0, 'Richards Roof Repairs', 0, -1, '', '', NOW(), NOW());
+
+        CREATE TABLE `<?php echo _DB_PREFIX; ?>customer_user_rel` (
+  `customer_id` int(11) NOT NULL,
+  `user_id` int(11) NOT NULL,
+  PRIMARY KEY  (`customer_id`, `user_id`)
+) ENGINE=InnoDB  DEFAULT CHARSET=utf8 ;
 
 <?php
         return ob_get_clean();
@@ -889,8 +1030,10 @@ INSERT INTO `<?php echo _DB_PREFIX; ?>customer` VALUES (2, 4, 0, 'Richards Roof 
         if(class_exists('module_security',false)){
             return module_security::can_user_with_options(module_security::get_loggedin_id(),'Customer Data Access',array(
                                                                                                    _CUSTOMER_ACCESS_ALL,
+                                                                                                   _CUSTOMER_ACCESS_ALL_COMPANY,
                                                                                                    _CUSTOMER_ACCESS_CONTACTS,
                                                                                                    _CUSTOMER_ACCESS_TASKS,
+                                                                                                   _CUSTOMER_ACCESS_STAFF,
                                                                                                                        ));
         }else{
             return true;
@@ -928,7 +1071,7 @@ INSERT INTO `<?php echo _DB_PREFIX; ?>customer` VALUES (2, 4, 0, 'Richards Roof 
 
                 // sanatise possibly problematic fields:
                 // customer:
-                $allowed = array('name','customer_name','email','phone','mobile','extra');
+                $allowed = array('name','last_name','customer_name','email','phone','mobile','extra');
                 foreach($customer as $key=>$val){
                     if(!in_array($key,$allowed)){
                         unset($customer[$key]);
@@ -1022,6 +1165,7 @@ INSERT INTO `<?php echo _DB_PREFIX; ?>customer` VALUES (2, 4, 0, 'Richards Roof 
                             $website_id = $existing_website['website_id'];
                         }
                     }
+                    //   echo $website_id;echo $website['url']; print_r($website_extra);exit;
                     if(!$website_id){
                         $website_data = module_website::get_website($website_id);
                         $website_data['url'] = isset($website['url']) ? $website['url'] : 'N/A';
@@ -1030,13 +1174,15 @@ INSERT INTO `<?php echo _DB_PREFIX; ?>customer` VALUES (2, 4, 0, 'Richards Roof 
                         $website_id = update_insert('website_id',false,'website',$website_data);
                         // save website extra data.
                         if($website_id && count($website_extra)){
-                            foreach($customer_extra as $key=>$val){
+                            $_REQUEST['extra_website_field'] = array();
+                            foreach($website_extra as $key=>$val){
                                 $_REQUEST['extra_website_field'][] = array(
                                     'key'=>$key,
                                     'val'=>$val,
                                 );
                             }
                             module_extra::save_extras('website','website_id',$website_id);
+                            echo 'saved';exit;
                         }
                         if($website_id && isset($website['notes']) && strlen($website['notes'])){
                             // add notes to this website.
@@ -1063,7 +1209,7 @@ INSERT INTO `<?php echo _DB_PREFIX; ?>customer` VALUES (2, 4, 0, 'Richards Roof 
                                 // we have a match in our system. create the job.
                                 $job_data = module_job::get_job(false);
                                 $job_data['type'] = $type;
-                                $job_data['name'] = $type;
+                                if(!$job_data['name'])$job_data['name'] = $type;
                                 $job_data['website_id'] = $website_id;
                                 $job_data['customer_id'] = $customer_id;
                                 $job_id = update_insert('job_id',false,'job',$job_data);
@@ -1086,7 +1232,7 @@ INSERT INTO `<?php echo _DB_PREFIX; ?>customer` VALUES (2, 4, 0, 'Richards Roof 
                                     // success! write to db.
                                     $file_data = array(
                                         'customer_id' => $customer_id,
-                                        'job_id' => false,
+                                        'job_id' => current($job_created), // just use the first job id as linked job.
                                         'website_id' => $website_id, // doesn't actually save anywhere
                                         'status' => module_config::c('file_default_status','Uploaded'),
                                         'pointers' => false,
@@ -1209,5 +1355,99 @@ Notes: {NOTES}<br><br>
 
                 break;
         }
+    }
+    
+    public static function get_replace_fields($customer_id){
+
+        $customer_data = module_customer::get_customer($customer_id);
+        $address_combined = array();
+        if(isset($customer_data['customer_address'])){
+            foreach($customer_data['customer_address'] as $key=>$val){
+                if(strlen(trim($val)))$address_combined[$key] = $val;
+            }
+        }
+        // do we use the primary contact or
+        $contact_data = module_user::get_user($customer_data['primary_user_id']);
+
+
+        $data = array(
+            'customer_details' => ' - todo - ',
+            'customer_name' => $customer_data['customer_name'] ? htmlspecialchars($customer_data['customer_name']) : _l('N/A'),
+            'customer_address' => htmlspecialchars(implode(', ',$address_combined)),
+            'contact_name' => ($contact_data['name'] != $contact_data['email']) ? htmlspecialchars($contact_data['name'].' '.$contact_data['last_name']) : '',
+            'contact_first_name' => $contact_data['name'],
+            'contact_last_name' => $contact_data['last_name'],
+            // these two may be overridden when sending an email and selecting a different contact from the drop down menu.
+            'first_name' => $contact_data['name'],
+            'last_name' => $contact_data['last_name'],
+            'contact_email' => htmlspecialchars($contact_data['email']),
+            'contact_phone' => htmlspecialchars($contact_data['phone']),
+            'contact_mobile' => htmlspecialchars($contact_data['mobile']),
+            'customer_invoice_prefix' => isset($customer_data['default_invoice_prefix']) ? $customer_data['default_invoice_prefix'] : '',
+        );
+
+        $data = array_merge($customer_data,$data);
+
+        foreach($customer_data['customer_address'] as $key=>$val){
+            $data['address_'.$key] = $val;
+        }
+
+
+        if(class_exists('module_group',false)){
+            // get the customer groups
+            $g = array();
+            if((int)$customer_data['customer_id']>0){
+                foreach(module_group::get_groups_search(array(
+                    'owner_table' => 'customer',
+                    'owner_id' => $customer_data['customer_id'],
+                )) as $group){
+                    $g[] = $group['name'];
+                }
+            }
+            $data['customer_group'] = implode(', ',$g);
+            // get the customer groups
+            $g = array();
+            if($customer_id>0){
+                $customer_data = module_customer::get_customer($customer_id);
+                foreach(module_group::get_groups_search(array(
+                    'owner_table' => 'customer',
+                    'owner_id' => $customer_id,
+                )) as $group){
+                    $g[$group['group_id']] = $group['name'];
+                }
+            }
+            $data['customer_group'] = implode(', ',$g);
+        }
+
+        // addition. find all extra keys for this customer and add them in.
+        // we also have to find any EMPTY extra fields, and add those in as well.
+        $all_extra_fields = module_extra::get_defaults('customer');
+        foreach($all_extra_fields as $e){
+            $data[$e['key']] = _l('N/A');
+        }
+        // and find the ones with values:
+        $extras = module_extra::get_extras(array('owner_table'=>'customer','owner_id'=>$customer_id));
+        foreach($extras as $e){
+            $data[$e['extra_key']] = $e['extra'];
+        }
+        return $data;
+    }
+    
+    public static function get_pm() {
+    	$admins = module_user::get_users_by_group('PM');
+    	$admins_rel = array();
+    	foreach($admins as $admin){
+    		$admins_rel[$admin['user_id']] = $admin['name'];
+    	}
+    	return $admins_rel;
+    }
+    
+    public static function get_sales() {
+    	$admins = module_user::get_users_by_group('SALES');
+    	$admins_rel = array();
+    	foreach($admins as $admin){
+    		$admins_rel[$admin['user_id']] = $admin['name'];
+    	}
+    	return $admins_rel;
     }
 }

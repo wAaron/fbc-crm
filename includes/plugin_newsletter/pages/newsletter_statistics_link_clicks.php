@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 $module->page_title = _l('Statistics');
@@ -83,6 +83,17 @@ if(isset($_REQUEST['show'])){
                         }
                         $old_count = isset($old_links_by_url[$newlink]) ? array_sum($old_links_by_url[$newlink]) : 0;
 
+                        // hack to support non-ssl links when viewing from an ssl account
+                        if(!$new_count && !$old_count && isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] != '' && $_SERVER['HTTPS']!='off'){
+                            $newlink_nonssl = preg_replace('#^https:#','http:',$newlink);
+                            if($newlink_nonssl != $newlink){
+                                $sql = "SELECT * FROM `"._DB_PREFIX."newsletter_link` WHERE send_id = ".(int)$send_id." AND link_url = '".mysql_real_escape_string($newlink_nonssl)."' AND (page_index = ".(int)$page_index." OR page_index = 0)";
+                                $new_count = 0;
+                                foreach(qa($sql) as $db_link){
+                                    $new_count += isset($links_to_process[$db_link['link_id']]) ? $links_to_process[$db_link['link_id']] : 0;
+                                }
+                            }
+                        }
 
 
                         $content = preg_replace('/' . preg_quote($links[0][$link_match_id],'/') . '/', '<span class="newsletter-click-span">'.($new_count ? $new_count : $old_count) . ' clicks</span>' . $links[0][$link_match_id], $content);

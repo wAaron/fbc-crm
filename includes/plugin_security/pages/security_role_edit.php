@@ -5,8 +5,8 @@
   * More licence clarification available here:  http://codecanyon.net/wiki/support/legal-terms/licensing-terms/ 
   * Deploy: 3053 c28b7e0e323fd2039bb168d857c941ee
   * Envato: 6b31bbe6-ead4-44a3-96e1-d5479d29505b
-  * Package Date: 2013-02-27 19:09:56 
-  * IP Address: 
+  * Package Date: 2013-02-27 19:23:35 
+  * IP Address: 210.14.75.228
   */
 
 
@@ -53,6 +53,10 @@ if(module_security::can_i('edit','Security Roles','Security') && isset($_REQUEST
     redirect_browser(module_security::link_open_role($security_role_id).'&advanced');
 }
 
+if(isset($_REQUEST['export_json'])){
+    $export_json = array();
+}
+
 ?>
 
 
@@ -83,11 +87,27 @@ if(module_security::can_i('edit','Security Roles','Security') && isset($_REQUEST
                     <?php
                     $users = module_user::get_users(array('security_role_id'=>$security_role_id));
                     $contacts = module_user::get_contacts(array('security_role_id'=>$security_role_id));
-                    _e('There are <a href="%s">%s customer contacts</a> and <a href="%s">%s system users</a> with this role.',module_user::link_open_contact(false).'?search[security_role_id]='.(int)$security_role_id,count($contacts),module_user::link_open(false).'?search[security_role_id]='.(int)$security_role_id,count($users));
+                    $url1 = module_user::link_open_contact(false);
+                    $url1 .= strpos($url1,'?') ? '&' : '?';
+                    $url2 = module_user::link_open(false);
+                    $url2 .= strpos($url1,'?') ? '&' : '?';
+                    _e('There are <a href="%s">%s customer contacts</a> and <a href="%s">%s system users</a> with this role.',$url1.'search[security_role_id]='.(int)$security_role_id,count($contacts),$url2.'search[security_role_id]='.(int)$security_role_id,count($users));
                     ?>
                 </td>
             </tr>
                 <?php } ?>
+            <tr>
+                <th>
+                    <?php _e('Load Defaults');?>
+                </th>
+                <td>
+                    <select name="load_defaults">
+                        <option value=''>- N/A -</option>
+                        <option value='{"Change Request|change_request|Change Requests|Permissions":["view"],"Customer|customer|Customers|Permissions":["view"],"Customer|user|Contacts|Permissions":["view","edit"],"Invoice|invoice|Invoices|Permissions":["view"],"Job|job|Jobs|Permissions":["view"],"Job|job|Job Tasks|Permissions":["view"],"Ticket|ticket|Tickets|Permissions":["view","create"],"Website|website|Websites|Permissions":["view"],"Customer Data Access|config|Only customer I am assigned to as a contact|drop_down":["view"],"Job Data Access|config|Jobs from customers I have access to|drop_down":["view"],"Job Task Creation|config|Created tasks require admin approval|drop_down":["view"],"Ticket Access|config|Only tickets from my customer account|drop_down":["view"],"User Specific|config|Can User Login|checkbox":["view"]}'>Customer View Only</option>
+                    </select>
+                    <?php _h('This will override any options selected below and replace them with defaults. You can change the selected permissions once the defaults are loaded'); ?>
+                </td>
+            </tr>
 
 		</tbody>
 	</table>
@@ -172,6 +192,9 @@ if(module_security::can_i('edit','Security Roles','Security') && isset($_REQUEST
 						<input type="checkbox" name="permission[<?php echo $available_permission['security_permission_id'];?>][<?php echo $permission;?>]" value="1"<?php
 						if(isset($security_role['permissions']) && isset($security_role['permissions'][$available_permission['security_permission_id']]) && $security_role['permissions'][$available_permission['security_permission_id']][$permission]){
 							echo ' checked';
+                            if(isset($_REQUEST['export_json'])){
+                                $export_json[$available_permission['category'].'|'.$available_permission['module'].'|'.$available_permission['name'].'|'.$available_permission['description']][] = $permission;
+                            }
 						}
 						?>>
 						<?php } ?>
@@ -224,6 +247,9 @@ if(module_security::can_i('edit','Security Roles','Security') && isset($_REQUEST
                                 <option value="<?php echo $available_permission['security_permission_id'];?>"<?php
                                     if(isset($security_role['permissions']) && isset($security_role['permissions'][$available_permission['security_permission_id']]) && $security_role['permissions'][$available_permission['security_permission_id']][$permission]){
                                         echo ' selected';
+                                        if(isset($_REQUEST['export_json'])){
+                                            $export_json[$available_permission['category'].'|'.$available_permission['module'].'|'.$available_permission['name'].'|'.$available_permission['description']][] = $permission;
+                                        }
                                     }
                                     ?>><?php echo $available_permission['name'];?></option>
                             <?php } ?>
@@ -246,6 +272,9 @@ if(module_security::can_i('edit','Security Roles','Security') && isset($_REQUEST
 						<input type="checkbox" name="permission[<?php echo $available_permission['security_permission_id'];?>][<?php echo $permission;?>]" value="1"<?php
 						if(isset($security_role['permissions']) && isset($security_role['permissions'][$available_permission['security_permission_id']]) && $security_role['permissions'][$available_permission['security_permission_id']][$permission]){
 							echo ' checked';
+                            if(isset($_REQUEST['export_json'])){
+                                $export_json[$available_permission['category'].'|'.$available_permission['module'].'|'.$available_permission['name'].'|'.$available_permission['description']][] = $permission;
+                            }
 						}
 						?>>
 						<?php } ?>
@@ -276,3 +305,12 @@ if(module_security::can_i('edit','Security Roles','Security') && isset($_REQUEST
 
 </form>
 
+<?php
+                            if(isset($_REQUEST['export_json'])){
+  echo '<pre>';
+                                print_r($export_json);
+                                echo "\n\n";
+                                echo json_encode($export_json);
+                                echo '</pre>';
+                            }
+?>
