@@ -66,7 +66,7 @@ if(class_exists('module_group',false)){
 	<?php echo _l( ($show_customer_details ? 'All ' : '') . 'Customer Contacts'); ?>
 </h2>
 
-<form action="" method="<?php echo _DEFAULT_FORM_METHOD;?>">
+<form action="#" method="<?php echo _DEFAULT_FORM_METHOD;?>">
     <?php if($use_master_key && isset($search[$use_master_key])){ ?>
     <input type="hidden" name="<?php echo $use_master_key;?>" value="<?php echo $search[$use_master_key];?>">
     <?php } ?>

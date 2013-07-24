@@ -198,7 +198,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("鍒嗛儴闂�, "瀛愬叕鍙�, "鍒嗘敮鏈烘瀯"), "customer_type", $customer['customer_type']);
+                                echo print_select_box_nokey(array("分部门", "子公司", "分支机构"), "customer_type", $customer['customer_type']);
                                 ?>
                             </td>
                         </tr>
@@ -243,7 +243,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("浜掕仈缃�, "鏈嬪弸浠嬬粛", "瀹ｄ紶璧勬枡", "鐢靛瓙閭欢", "浼犵湡"), "customer_from", $customer['customer_from']);
+                                echo print_select_box_nokey(array("互联网", "朋友介绍", "宣传资料", "电子邮件", "传真"), "customer_from", $customer['customer_from']);
                                 ?>
                             </td>
                         </tr>
@@ -264,7 +264,7 @@ $sales = module_customer::get_sales();
                             <td>
                                 <input type="text" name="translate_speed" id="translate_speed" class="currency" style="width:40px;" value="<?php echo htmlspecialchars($customer['translate_speed']); ?>" />
                                 <?php
-                                echo print_select_box_nokey(array("涓枃/澶�, "鑻辨枃/澶�), "translate_speed_unit", $customer['translate_speed_unit']);
+                                echo print_select_box_nokey(array("中文/天", "英文/天"), "translate_speed_unit", $customer['translate_speed_unit']);
                                 ?>
                             </td>
                         </tr>
@@ -295,7 +295,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("鏄�, "鍚�), "customer_vip", $customer['customer_vip']);
+                                echo print_select_box_nokey(array("是", "否"), "customer_vip", $customer['customer_vip']);
                                 ?>
                             </td>
                         </tr>
@@ -456,7 +456,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("鍥芥湁澶у瀷", "澶栧晢鐙祫娉曚汉浼佷笟", "澶栧晢椹诲崕浠ｈ〃澶�, "涓鍚堣祫浼佷笟", "鍥藉唴绉佽惀浼佷笟"), "customer_company_type", $customer['customer_company_type']);
+                                echo print_select_box_nokey(array("国有大型", "外商独资法人企业", "外商驻华代表处", "中外合资企业", "国内私营企业"), "customer_company_type", $customer['customer_company_type']);
                                 ?>
                             </td>
                         </tr>
@@ -501,7 +501,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("10鍚嶄互鍐�, "10-50", "50-100鍚�, "100鍚嶄互涓�), "customer_staff", $customer['customer_staff']);
+                                echo print_select_box_nokey(array("10名以内", "10-50", "50-100名", "100名以上"), "customer_staff", $customer['customer_staff']);
                                 ?>
                             </td>
                         </tr>
@@ -540,7 +540,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("鎸夋湀", "鎸夊"), "customer_pay_period", $customer['customer_pay_period']);
+                                echo print_select_box_nokey(array("按月", "按季"), "customer_pay_period", $customer['customer_pay_period']);
                                 ?>
                             </td>
                         </tr>
@@ -550,7 +550,7 @@ $sales = module_customer::get_sales();
                             </th>
                             <td>
                                 <?php
-                                echo print_select_box_nokey(array("闈掔潗", "闊﹀媼", "涓よ�"), "customer_ticket_type", $customer['customer_ticket_type']);
+                                echo print_select_box_nokey(array("青睐", "韦勋", "两者"), "customer_ticket_type", $customer['customer_ticket_type']);
                                 ?>
                             </td>
                         </tr>
@@ -598,7 +598,7 @@ $sales = module_customer::get_sales();
 						<tr>
 							<td valign="top">
 				<?php 
-					$service_candidates = array('绗旇瘧', '鍙ｈ瘧', 'DTP', '鎾板啓', '缃戠珯', '杞欢', '澶氬獟浣�, '璇句欢', '3D', 'APP');
+					$service_candidates = array('笔译', '口译', 'DTP', '撰写', '网站', '软件', '多媒体', '课件', '3D', 'APP');
 					$service_high = strlen($customer['demand_high']) > 0 ? explode(',', trim($customer['demand_high'])) : array();
 					$service_low = strlen($customer['demand_low']) > 0 ? explode(',', trim($customer['demand_low'])) : array();
 					$service_none = strlen($customer['demand_none']) > 0 ? explode(',', trim($customer['demand_none'])) : array();

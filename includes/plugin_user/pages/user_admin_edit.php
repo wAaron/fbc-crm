@@ -93,7 +93,7 @@ if(isset($user['email']) && strlen($user['email'])>3){
 
 
 
-<form action="" method="post" autocomplete="off">
+<form action="#" method="post" autocomplete="off">
 	<input type="hidden" name="_process" value="save_user" />
 	<!-- <input type="hidden" name="_redirect" value="<?php echo $module->link("",array("saved"=>true,"user_id"=>((int)$user_id)?$user_id:'')); ?>" /> -->
 	<input type="hidden" name="user_id" value="<?php echo $user_id; ?>" />

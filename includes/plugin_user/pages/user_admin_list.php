@@ -30,7 +30,7 @@ $roles = module_security::get_roles();
 	<?php echo _l('User Administration'); ?>
 </h2>
 
-<form action="" method="post">
+<form action="#" method="post">
 
 
 <table class="search_bar">
